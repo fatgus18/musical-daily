@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Musical Daily: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "musical-daily",
+        "run",
+        "dev"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Tempo Trap: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "tempo-trap",
+        "run",
+        "dev"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Blackjack Music: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "blackjack-music",
+        "run",
+        "dev"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Music games: start all",
+      "dependsOn": [
+        "Musical Daily: dev",
+        "Tempo Trap: dev",
+        "Blackjack Music: dev",
+        "Encore: dev",
+        "Double or Drop: dev"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Double or Drop: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": ["--prefix", "double-or-drop", "run", "dev"],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Encore: dev",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "artist-encore",
+        "run",
+        "dev"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

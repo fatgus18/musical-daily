@@ -1,0 +1,11 @@
+# Musical Daily sound
+
+Canonical client audio for the hub and all four games. Run `node scripts/sync-sound.mjs` after editing these sources; `--check` verifies all application copies. Layouts mount one `SoundProvider`. Game components use `useSound().play(cue)` only after a confirmed action, and Double or Drop uses `useBackgroundMusic(active)` during a run.
+
+The provider handles ordinary clicks, radio/toggle selections and dropdown changes globally. It ignores disabled controls, untrusted synthetic events, typing and sound settings marked `data-sound="off"`. Game cues include correct answers, missed lives, banked points, risk, timeouts and completion. Reloading or restoring a saved result must not replay its cue.
+
+Audio is synthesized locally with Web Audio; no samples or external audio requests are made. An AudioContext is created only after a user gesture and no audio is required for gameplay. Missing browser support or refused playback is nonfatal. Music and voices stop when hidden, muted, or disposed; scheduling never replays a backlog after tab suspension. Double or Drop suspends the backing track during a provider preview so the song remains clear.
+
+Default music volume is 16%, effects 45%, with further bounded mix gains and a compressor. Double or Drop retains the original 144 BPM arrangement. The hub uses `SoundProvider music musicProfile="lobby"` for a separate 124 BPM swung groove with a bright, eight-bar chord progression, syncopated bass and call-and-response melody. Only the home component enables it with `useBackgroundMusic(true)`; the hook stops it on unmount and game links stop it immediately with `setMusic(false)`. No music is enabled on stats pages. A real click, tap or key interaction is required before playback. A persistent sound control offers master mute and separate volume settings. Preferences use bounded parsed values in local storage and a SameSite preference cookie; apps sharing a hostname, including localhost ports, share the cookie. Unrelated production domains retain their own browser preference. No identity or listening data is collected.
+
+Provider previews are separate from these generated game effects. Their controls, availability, attribution and timing stay in the game that plays them.

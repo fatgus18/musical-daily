@@ -1,0 +1,8 @@
+/* Shared brand source. Run `node scripts/sync-brand.mjs` from the workspace root. */
+.musical-daily-navigation{display:flex;align-items:center;gap:24px;flex-shrink:0}
+.musical-daily-home{display:inline-flex;align-items:center;flex-shrink:0;border-radius:3px}
+.musical-daily-logo{display:block;width:224px;height:40px;max-width:none;object-fit:contain}
+.musical-daily-back{display:inline-flex;align-items:center;gap:8px;border-left:1px solid #ffffff26;padding-left:24px;color:#a8b0a7;font:500 12px/1.5 Arial,Helvetica,sans-serif;white-space:nowrap}
+.musical-daily-back:hover{color:#f4f2ec}
+.musical-daily-home:focus-visible,.musical-daily-back:focus-visible{outline:2px solid #c4f58a;outline-offset:6px}
+@media(max-width:700px){.musical-daily-navigation{gap:16px}.musical-daily-logo{width:180px;height:auto}.musical-daily-back{display:none}}

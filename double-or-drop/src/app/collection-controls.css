@@ -1,0 +1,60 @@
+.collection-picker{position:relative;min-width:0}
+.collection-control{display:flex;align-items:center;gap:13px;width:100%;min-height:70px;padding:13px 14px;text-align:left;border:1px solid #4a4056;border-radius:12px;background:linear-gradient(115deg,#26212e,#1c1a22);color:#eee6f7;box-shadow:inset 0 1px #ffffff04;transition:border-color .2s,background .2s,box-shadow .2s}
+.collection-trigger:hover:not(:disabled),.artist-search .search-input:hover:not(.is-disabled){border-color:#87709f;background:linear-gradient(115deg,#2e2639,#211d2a)}
+.collection-control.is-open,.artist-search .search-input:focus-within{border-color:#b19acb;box-shadow:0 0 0 3px #c5b4f80b;background:linear-gradient(115deg,#2d2538,#211d2a)}
+.collection-trigger:focus-visible{outline:2px solid #cfb8ec;outline-offset:4px}
+.collection-control .field-icon,.picker-option .option-icon{display:grid;place-items:center;flex-shrink:0;width:39px;height:39px;border:1px solid currentColor;border-color:color-mix(in srgb,currentColor 17%,transparent);border-radius:11px;background:#c5b4f80d;margin:0}
+.tone-lilac{color:#c5b4f8}.tone-rose{color:#e9a4c0}.tone-peach{color:#edb49e}.tone-gold{color:#d5bc83}.tone-mauve{color:#ce9cd5}.tone-blue{color:#94b4e8}.tone-sand{color:#d5c09b}.tone-mint{color:#95cfc2}.tone-sage{color:#acc698}
+.collection-field-copy,.picker-option-copy{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.collection-field-copy strong{font-size:13px;line-height:1.3;font-weight:600;letter-spacing:-.15px}
+.collection-field-copy small{font-size:10px;color:#a79aB7;line-height:1.4}
+.picker-chevron{flex-shrink:0;color:#b5a0ca;transition:transform .2s}.is-open>.picker-chevron{transform:rotate(180deg)}
+.collection-divider{display:flex;align-items:center;gap:12px;padding:13px 5px;color:#8e809e;font-size:9px;text-align:center;letter-spacing:.2px}
+.collection-divider:before,.collection-divider:after{content:'';height:1px;background:#4c3e594d;flex:1}
+.setup-field .artist-search{margin:0;min-width:0}
+.artist-search .search-input.collection-control{gap:13px;min-height:70px;padding:13px 14px;border-radius:12px;cursor:text}
+.artist-input-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.artist-search .search-input input{width:100%;flex:none;padding:0;font-size:13px;font-weight:500;line-height:1.3;color:#eee6f7;background:none;border:0;outline:none;min-height:17px;letter-spacing:-.15px}
+.artist-search .search-input input::placeholder{color:#d4c6e2;opacity:1;font-weight:500}
+.artist-input-copy>small{display:block;font-size:10px;color:#a79ab7;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.artist-search-glass{color:#b5a0ca;flex-shrink:0;margin:0 1px}
+.artist-search .search-input .artist-search-clear{display:grid;place-items:center;width:24px;height:24px;padding:0;border-radius:50%;font-size:18px;color:#b5a0ca;background:#c5b4f80a;line-height:1;flex-shrink:0}
+.artist-search .search-input .artist-search-clear:hover{color:#f1e6ff;background:#c5b4f81a}
+.artist-search .search-input.is-disabled{opacity:.45;cursor:default}
+.picker-menu,.artist-search .artist-results.picker-menu{position:absolute;left:0;right:0;z-index:35;min-width:0;border:1px solid #675075;border-radius:14px;background:linear-gradient(155deg,#2a2232,#201c28 75%);box-shadow:0 18px 50px #0008,0 3px 12px #0003,inset 0 1px #ffffff07;animation:picker-appear .16s ease-out;overflow:hidden;isolation:isolate}
+.picker-menu.placement-below{top:calc(100% + 9px);bottom:auto;transform-origin:top center}
+.picker-menu.placement-above{bottom:calc(100% + 9px);top:auto;transform-origin:bottom center}
+.picker-menu-heading{padding:15px 16px 12px;border-bottom:1px solid #c5b4f80c;display:flex;flex-direction:column;gap:5px}
+.picker-menu-heading>span{font-size:8px;letter-spacing:1.6px;font-weight:600;color:#d0b7e4}
+.picker-menu-heading>small{font-size:10px;color:#a89ab9;line-height:1.4}
+.collection-options{padding:6px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#6a517c transparent}
+.picker-menu .picker-option{display:flex;align-items:center;gap:11px;width:100%;padding:10px;margin:0;background:transparent;border:1px solid transparent;border-radius:9px;text-align:left;color:#ded1eb;font:inherit;min-height:59px;cursor:pointer;transition:background .15s,border-color .15s}
+.picker-option .option-icon{width:34px;height:34px;border-radius:10px}
+.picker-option .option-icon svg{width:19px;height:19px}
+.picker-option-copy strong{font-size:12px;line-height:1.3;font-weight:550;letter-spacing:-.1px;overflow-wrap:anywhere}
+.picker-menu .picker-option-copy small{font-size:9px;color:#a89ab8;line-height:1.45;white-space:normal}
+.picker-menu .picker-option:hover,.picker-menu .picker-option.is-highlighted,.picker-menu .picker-option:focus-visible{background:#c5b4f80c;border-color:#9a77b13b;outline:none}
+.picker-menu .picker-option.is-selected{background:linear-gradient(105deg,#b59bda19,#b59bda08);border-color:#b59bda3d;color:#efdefd}
+.picker-menu .picker-option.is-selected.is-highlighted,.picker-menu .picker-option:focus-visible{border-color:#c5a8df8c;box-shadow:inset 0 0 0 1px #b59bda12}
+.option-check{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;font-size:11px;line-height:1;flex-shrink:0;color:#2b2036}
+.is-selected>.option-check{background:#c5b4f8}
+.picker-menu-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #c5b4f80c;padding:10px 16px;color:#9484a5;font-size:8px}
+.picker-menu-foot>span{display:flex;gap:4px;align-items:center}
+.picker-menu-foot kbd{font-size:8px;min-width:15px;padding:2px 3px;color:#bfaccf;border-color:#695074;line-height:1}
+.artist-search .artist-results.picker-menu{padding:6px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#6a517c transparent}
+.artist-search .artist-results.placement-below{top:79px;bottom:auto}
+.artist-search .artist-results.placement-above{top:auto;bottom:calc(100% + 9px)}
+.artist-results .search-section-label{padding:12px 11px 7px;font-size:8px;letter-spacing:1.4px;font-weight:550;color:#b8a0cd}
+.artist-results .artist-result{gap:11px;padding:10px;min-height:60px}
+.artist-avatar{position:relative;overflow:hidden;border-radius:50%!important;font-size:10px;font-weight:600;background:#c5b4f810!important}
+.artist-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.artist-result-tag{font-size:8px;color:#c5add8;white-space:nowrap;display:flex;align-items:center;gap:6px;flex-shrink:0;background:#c5b4f80a;padding:5px 7px;border-radius:5px}
+.artist-result-tag>span{font-size:11px}
+.artist-result-tag.ready{color:#b6c7a9;background:#bad49d08}
+.artist-results .picker-status{display:flex;align-items:center;gap:8px;margin:10px 12px 8px;font-size:10px;color:#c5b2d6;line-height:1.6}
+.search-pulse{width:5px;height:5px;background:#c5b4f8;border-radius:50%;box-shadow:0 0 8px #c5b4f83f;animation:search-pulse 1s ease-in-out infinite;flex-shrink:0}
+.artist-coverage{margin:10px 3px 0}.artist-load-status{margin:10px 3px 0}.artist-coverage>span{font-size:9px}.artist-coverage>small{font-size:9px;color:#9d8eaf}
+@keyframes picker-appear{from{opacity:0;transform:translateY(3px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes search-pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@media(max-width:600px){.collection-control,.artist-search .search-input.collection-control{min-height:68px;padding:12px;gap:11px}.collection-control .field-icon{height:36px;width:36px}.collection-field-copy strong,.artist-search .search-input input{font-size:12px}.collection-field-copy small,.artist-input-copy>small{font-size:9px}.picker-menu .picker-option{padding:9px 8px;gap:9px;min-height:57px}.picker-option-copy strong{font-size:11px}.picker-menu .picker-option-copy small{font-size:8px}.picker-menu .option-icon{height:31px;width:31px}.picker-menu-heading{padding:13px 14px 10px}.picker-menu-foot{padding:9px 13px}.artist-result-tag{font-size:7px;padding:4px 5px}.artist-search .artist-results.placement-below{top:77px}}
+@media(prefers-reduced-motion:reduce){.picker-menu,.search-pulse{animation:none!important}.collection-control,.picker-chevron,.picker-option{transition:none!important}}

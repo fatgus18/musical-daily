@@ -1,0 +1,28 @@
+{
+  "name": "@musical-daily/catalog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "catalog": "node src/cli.ts",
+    "import": "node src/cli.ts import",
+    "enrich": "node src/cli.ts enrich",
+    "streams": "node src/cli.ts streams",
+    "publish": "node src/cli.ts publish",
+    "stats": "node src/cli.ts stats",
+    "test": "node --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "maintain": "node src/cli.ts maintain"
+  },
+  "dependencies": {
+    "cheerio": "^1.1.2",
+    "csv-parse": "^7.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5.9.3"
+  }
+}

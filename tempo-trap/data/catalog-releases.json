@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "releases": [
+    {
+      "version": "e2de8c9712f9",
+      "effectiveOn": "1970-01-01",
+      "selection": "legacy",
+      "count": 16
+    },
+    {
+      "version": "dba9a83354820d6e",
+      "effectiveOn": "2026-11-01",
+      "selection": "rotation",
+      "count": 382
+    },
+    {
+      "version": "25a25b29c2ec2ef3",
+      "effectiveOn": "2026-11-02",
+      "selection": "rotation",
+      "count": 835
+    }
+  ]
+}

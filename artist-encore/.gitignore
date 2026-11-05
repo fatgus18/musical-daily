@@ -1,0 +1,11 @@
+node_modules/
+.next/
+*.tsbuildinfo
+.env*
+!.env.example
+data/*.sqlite*
+data/cache/
+data/runtime/
+test-results/
+playwright-report/
+next-env.d.ts

@@ -1,0 +1,82 @@
+/* A record shop after hours. The compact gallery remains the first destination. */
+body:has(.home-hub) {background:radial-gradient(ellipse at 19% 0%,#b2e5790a,transparent 42%),radial-gradient(ellipse at 95% 65%,#afa2df08,transparent 45%),#101211}
+.hub-header-games {position:relative;z-index:3;border-bottom-color:#d9f4c017}
+.hub-header-games nav>a.active:after {height:3px;box-shadow:0 -3px 20px #c4f58a38;border-radius:2px 2px 0 0}
+.home-hub {position:relative;z-index:1}
+.home-hub .hero-compact {padding-top:30px;padding-bottom:25px}
+.home-hub .hero-copy {position:relative}
+.home-hub .hero-compact h1 {font-size:clamp(32px,3.55vw,49px);letter-spacing:-2.1px;line-height:1.15;margin-top:13px}
+.home-hub .hero-compact h1>span {font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:400;letter-spacing:-2.1px;position:relative;padding-right:5px}
+.home-hub .hero-compact h1>span:after {content:"";position:absolute;left:1%;bottom:-5px;width:97%;height:8px;border-top:1px solid #b2e37e70;border-radius:50%;transform:rotate(-1deg)}
+.home-hub .edition {font-size:9px;letter-spacing:2.2px;color:#b7c2ac}
+.home-hub .hero-compact p {color:#a5b09f;margin-top:14px}
+.home-hub .hero-art {transform:rotate(7deg);width:200px}
+.home-hub .hero-art .vinyl {animation:hub-record-drift 9s ease-in-out infinite;box-shadow:8px 15px 30px #0009,0 0 50px #c4f58a08}
+.home-hub .section-top {border-top:1px solid #d9f4c015;padding-top:19px;margin-top:2px;margin-bottom:18px}
+.home-hub .section-top .eyebrow {color:#a1ad97;font-size:8px;letter-spacing:2px}
+.home-hub .section-top h2 {font-size:25px;letter-spacing:-1px}
+.home-hub .game-count {border-color:#d8f4bf30;background:#c4f58a09;color:#d0e6bc;padding:8px 12px;font-size:10px}
+.home-hub .game-card {--sleeve:#c4f58a;position:relative;isolation:isolate;border-color:#b3cb9c28;border-radius:18px;background:linear-gradient(150deg,#22271f,#181c18 46%,#151916);box-shadow:0 10px 25px #0002,inset 0 1px 0 #ffffff06;transition:transform .35s cubic-bezier(.2,.7,.3,1),border-color .25s,box-shadow .35s;animation:hub-sleeve-enter .65s both}
+.home-hub .tempo-card {--sleeve:#ffaaa0;background:linear-gradient(150deg,#2b2221,#201c1b 46%,#1b1818);border-color:#ffaaa029;animation-delay:70ms}
+.home-hub .encore-card {--sleeve:#a9e7cc;background:linear-gradient(150deg,#20302a,#19221d 46%,#161e1a);border-color:#a9e7cc29;animation-delay:140ms}
+.home-hub .double-drop-card {--sleeve:#cdb6f6;background:linear-gradient(150deg,#2b2435,#211d28 46%,#1a1820);border-color:#cdb6f629;animation-delay:210ms}
+.home-hub .game-art {height:170px;border-bottom:1px solid color-mix(in srgb,var(--sleeve) 20%,transparent);background-image:radial-gradient(ellipse at 50% 110%,color-mix(in srgb,var(--sleeve) 13%,transparent),transparent 70%)}
+.home-hub .game-art:before {content:"01";position:absolute;left:14px;top:13px;border:1px solid color-mix(in srgb,var(--sleeve) 38%,transparent);border-radius:50%;width:23px;height:23px;display:grid;place-items:center;font:500 9px/1 'DM Sans',sans-serif;letter-spacing:.5px;color:var(--sleeve);z-index:3;transform:rotate(-10deg)}
+.home-hub .tempo-card .game-art:before {content:"02"}
+.home-hub .encore-card .game-art:before {content:"03"}
+.home-hub .double-drop-card .game-art:before {content:"04"}
+.home-hub .game-art:after {content:"MUSICAL DAILY / PLAY SERIES";position:absolute;right:12px;top:20px;color:color-mix(in srgb,var(--sleeve) 76%,transparent);font-size:5.5px;letter-spacing:1.3px;z-index:3}
+.home-hub .game-info {padding:19px 18px 0}
+.home-hub .game-info h3 {margin-top:15px;margin-bottom:10px;font-size:21px}
+.home-hub .game-info>p {font-size:11.5px;color:#b4b9af;line-height:1.8}
+.home-hub .launch-icon {border-color:color-mix(in srgb,var(--sleeve) 35%,transparent);color:var(--sleeve);background:color-mix(in srgb,var(--sleeve) 5%,transparent);width:27px;height:27px;transition:transform .3s,background .3s}
+.home-hub .tag {border:1px solid color-mix(in srgb,var(--sleeve) 15%,transparent);background:color-mix(in srgb,var(--sleeve) 7%,transparent);color:var(--sleeve);font-size:7px;letter-spacing:1px;border-radius:4px}
+.home-hub .card-bottom {position:relative;border-top-style:dashed;border-top-color:color-mix(in srgb,var(--sleeve) 20%,transparent);padding-bottom:18px;gap:12px}
+.home-hub .card-bottom>strong {color:var(--sleeve);font-weight:600}
+.home-hub .card-bottom>span {color:#a9b19f;font-size:8px;letter-spacing:.2px}
+.home-hub .card-bottom>strong svg {transition:transform .25s}
+.home-hub .daily-note {position:relative;border:1px solid #dae9bd24;border-radius:14px;background:linear-gradient(110deg,#29302380,#1a2118 55%,#20291c);padding:22px 26px;overflow:hidden;box-shadow:inset 0 1px #ffffff04}
+.home-hub .daily-note:after {content:"";position:absolute;right:180px;top:0;bottom:0;border-right:1px dashed #d9efb728;pointer-events:none}
+.home-hub .daily-note .headphone-icon {width:43px;height:43px;color:#d2edb8;background:#c4f58a08;border-color:#d2edb839;transform:rotate(-9deg)}
+.home-hub .daily-note h2 {font-size:13px;letter-spacing:-.2px}
+.home-hub .daily-note button {color:#d6edbd;gap:12px;transition:gap .2s}
+.home-hub .daily-note button:hover {gap:17px}
+.hub-atmosphere {position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;contain:strict}
+.hub-orbit-disc {position:absolute;left:-122px;top:47%;width:240px;height:240px;border-radius:50%;border:1px solid #c4f58a19;background:repeating-radial-gradient(circle,transparent 0 6px,#c4f58a07 7px,transparent 8px);transform:rotate(-28deg);animation:hub-orbit-float 12s ease-in-out infinite}
+.hub-orbit-disc i {position:absolute;inset:77px;border:1px solid #c4f58a27;border-radius:50%;background:#162016}
+.hub-orbit-disc i:after {content:"";position:absolute;inset:32px;border:1px solid #c4f58a40;border-radius:50%}
+.hub-orbit-disc>span {position:absolute;right:50px;top:30px;font-size:5px;color:#b9d59a68;letter-spacing:1.5px}
+.hub-floating-ticket {position:absolute;right:-35px;top:24%;width:132px;border:1px solid #cbb6ee26;border-radius:8px;background:#201e2790;padding:17px 15px;transform:rotate(13deg);color:#d0c4e78c;animation:hub-ticket-drift 10s ease-in-out infinite}
+.hub-floating-ticket>span {font-size:6px;letter-spacing:2px}
+.hub-floating-ticket strong {display:block;font:800 24px/1.05 Manrope,sans-serif;letter-spacing:-1px;margin:12px 0}
+.hub-floating-ticket i {display:block;height:20px;border-top:1px dashed #cbb6ee39;background:repeating-linear-gradient(90deg,#cbb6ee5c 0 1px,transparent 1px 4px,#cbb6ee5c 4px 6px,transparent 6px 9px);background-clip:content-box;padding-top:7px}
+.hub-floating-ticket small {font-size:4px;letter-spacing:1px}
+.hub-side-spark {position:absolute;left:35px;top:27%;font-size:31px;color:#c4f58a45;animation:slow-turn 50s linear infinite}
+.hub-side-caption {position:absolute;right:30px;top:70%;writing-mode:vertical-rl;font-size:6px;letter-spacing:2px;color:#cbb6ee50}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.home-hub .game-card:hover{transform:translateY(-7px);box-shadow:0 20px 35px #0005,0 0 25px color-mix(in srgb,var(--sleeve) 5%,transparent);border-color:color-mix(in srgb,var(--sleeve) 65%,transparent)}.home-hub .game-card:hover .launch-icon{transform:rotate(8deg);background:color-mix(in srgb,var(--sleeve) 15%,transparent)}.home-hub .game-card:hover .card-bottom>strong svg{transform:translateX(3px)}}
+@media(min-width:1500px){.home-hub .game-art{height:185px}}
+@media(max-width:1250px){.hub-atmosphere{display:none}}
+@media(min-width:641px) and (max-width:1099px){.home-hub .game-art{height:100%;min-height:200px}.home-hub .game-art:after{display:none}.home-hub .game-info h3{font-size:20px}.home-hub .game-info>p{font-size:10px}.home-hub .card-bottom{padding-bottom:14px}.home-hub .game-scene{transform:translate(-50%,-50%) scale(.46)}}
+@media(max-width:640px){
+ .home-hub .hero-compact{padding-top:21px;padding-bottom:21px}.home-hub .hero-compact .edition{font-size:7px;letter-spacing:1.5px}.home-hub .hero-compact h1{font-size:31px;line-height:1.12;letter-spacing:-1.4px;margin:10px 0}.home-hub .hero-compact h1>span{letter-spacing:-1.3px}.home-hub .hero-compact p{font-size:11px;margin-top:12px}
+ .home-hub .section-top{padding-top:14px;margin-bottom:13px}.home-hub .section-top h2{font-size:21px}.home-hub .game-count{font-size:8px;padding:6px 9px}.home-hub .game-card{border-radius:13px}.home-hub .game-art{height:84px}.home-hub .game-art:before{top:8px;left:8px;width:18px;height:18px;font-size:7px}.home-hub .game-art:after{display:none}
+ .home-hub .game-info{padding:10px 11px 0}.home-hub .game-info h3{font-size:14px;margin:8px 0 6px}.home-hub .tag{font-size:7px;letter-spacing:.4px;padding:3px 4px}.home-hub .duration{font-size:8px}.home-hub .game-info>.mobile-description{color:#bbc3b4;font-size:10px;min-height:30px}.home-hub .card-bottom{padding:9px 0 11px}.home-hub .card-bottom>strong{font-size:9px}
+ .home-hub .daily-note{margin-top:18px;padding:17px;gap:11px}.home-hub .daily-note:after{display:none}.home-hub .daily-note .headphone-icon{width:30px;height:30px}.home-hub .daily-note h2{font-size:10px}.home-hub .daily-note p{font-size:9px}.home-hub .daily-note button{font-size:10px}
+}
+@media(max-width:375px){.home-hub .hero-compact h1{font-size:28px}.home-hub .hero-compact{padding-bottom:17px}.home-hub .game-art{height:70px}.home-hub .game-info h3{font-size:13px}.home-hub .card-bottom{padding:8px 0 10px}.home-hub .game-info>.mobile-description{font-size:9px;min-height:27px}.home-hub .game-info{padding-left:9px;padding-right:9px}}
+@keyframes hub-record-drift{0%,100%{transform:rotate(-23deg) translateY(0)}50%{transform:rotate(-16deg) translateY(-5px)}}
+@keyframes hub-orbit-float{0%,100%{transform:rotate(-28deg) translateY(0)}50%{transform:rotate(-20deg) translateY(-13px)}}
+@keyframes hub-ticket-drift{0%,100%{transform:rotate(13deg) translateY(0)}50%{transform:rotate(9deg) translateY(8px)}}
+@keyframes hub-sleeve-enter{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+html[data-contrast="high"] body:has(.home-hub){background:#08090b}
+html[data-contrast="high"] .hub-atmosphere{display:none}
+html[data-contrast="high"] .hub-header-games{border-color:#aeb5bf}
+html[data-contrast="high"] .hub-header-games nav>a{color:#fff}
+html[data-contrast="high"] .home-hub :is(.game-card,.daily-note){background:#101216;border-color:#bcc3ce;box-shadow:none}
+html[data-contrast="high"] .home-hub :is(.edition,.eyebrow,.hero-compact p,.game-info>p,.game-info>.mobile-description,.duration,.card-bottom>span,.daily-note p){color:#e4e8ee}
+html[data-contrast="high"] .home-hub :is(.tag,.game-count,.launch-icon){background:#08090b;border-color:currentColor}
+html[data-contrast="high"] .home-hub :is(.section-top,.card-bottom,.game-art){border-color:#8e96a3}
+html[data-contrast="high"] :is(footer,footer b,.footer-brand){color:#dfe7d4;border-color:#8e96a3}
+html[data-contrast="high"] dialog{background:#08090b;border-color:#d9e1ce}
+html[data-contrast="high"] dialog :is(p,.eyebrow,.close-button,.help-fine){color:#e5e8ee}
+@media(prefers-reduced-motion:reduce){.hub-atmosphere *,.home-hub *,.home-hub *:before,.home-hub *:after{animation:none!important;transition:none!important}}

@@ -1,0 +1,11 @@
+{
+  "name": "@musical-daily/accounts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./types.d.ts", "default": "./types.mjs" },
+    "./server": { "types": "./server.d.ts", "default": "./server.mjs" }
+  },
+  "files": ["*.mjs", "*.d.ts"]
+}

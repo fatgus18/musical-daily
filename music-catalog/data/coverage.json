@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-10-31T12:19:40.529Z",
+  "tracks": 106560,
+  "distinctRecordings": 91583,
+  "artists": 21292,
+  "englishLabelled": 17241,
+  "englishPendingLanguageReview": 1001,
+  "withBpm": 106377,
+  "matchedPreviews": 1523,
+  "checkedPreviews": 1523,
+  "withStreamSnapshots": 1641,
+  "englishWithStreams": 1034,
+  "previewJobs": [
+    {
+      "status": "done",
+      "count": 120
+    }
+  ],
+  "eligibleTempo": 835,
+  "eligibleBlackjack": 897,
+  "releases": [
+    {
+      "game": "tempo-trap",
+      "version": "dba9a83354820d6e",
+      "effective_on": "2026-11-01",
+      "count": 382,
+      "created_at": "2026-10-31T12:18:04.225Z"
+    },
+    {
+      "game": "blackjack-music",
+      "version": "58b82034466a21bf",
+      "effective_on": "2026-11-01",
+      "count": 542,
+      "created_at": "2026-10-31T12:18:04.242Z"
+    },
+    {
+      "game": "tempo-trap",
+      "version": "25a25b29c2ec2ef3",
+      "effective_on": "2026-11-02",
+      "count": 835,
+      "created_at": "2026-10-31T12:19:40.499Z"
+    },
+    {
+      "game": "blackjack-music",
+      "version": "943b8016d58869da",
+      "effective_on": "2026-11-02",
+      "count": 897,
+      "created_at": "2026-10-31T12:19:40.526Z"
+    }
+  ]
+}

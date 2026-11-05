@@ -1,0 +1,161 @@
+/* The listening room: warm studio hardware, paper labels, and a coral pulse. */
+body {
+  background: radial-gradient(ellipse at 50% 17%, #fb897c09, transparent 56%), #101111;
+}
+.tempo-atmosphere { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.tempo-atmosphere::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(#dcb7a81a .7px, transparent .7px); background-size: 28px 28px; mask-image: linear-gradient(transparent, #0008 30%, transparent 90%); }
+.tempo-orbit { position: absolute; border: 1px solid #f3b3a10b; border-radius: 50%; width: 1000px; height: 1000px; left: calc(50% - 500px); top: -100px; }
+.tempo-orbit-two { width: 1250px; height: 1250px; left: calc(50% - 625px); top: -225px; }
+.tempo-margin-note { position: absolute; top: 240px; left: 24px; display: flex; align-items: center; gap: 18px; writing-mode: vertical-rl; font-size: 8px; letter-spacing: 3px; color: #987d70; }
+.tempo-margin-note i { height: 60px; width: 1px; background: #6a504a; }
+.tempo-side-disc { width: 170px; height: 170px; position: absolute; right: -57px; top: 240px; border: 1px solid #66504a; border-radius: 50%; background: repeating-radial-gradient(circle,#171615 0 3px,#3f312d 4px,#171615 5px 7px); box-shadow: 0 12px 45px #0008; transform: rotate(14deg); animation: tempo-float 10s ease-in-out infinite; }
+.tempo-side-disc span { position: absolute; inset: 45px; display: grid; place-content: center; border-radius: 50%; background: #efae93; color: #30231e; font-size: 10px; line-height: 1.4; font-weight: 650; letter-spacing: .6px; }
+.tempo-side-ticket { position: absolute; top: 62%; left: -29px; transform: rotate(-12deg); width: 134px; padding: 20px 15px 20px 30px; background: #e1d6bd; color: #352d28; border-radius: 6px; box-shadow: 0 10px 35px #0005; animation: tempo-ticket-drift 12s ease-in-out infinite; }
+.tempo-side-ticket>span { font-size: 7px; letter-spacing: 2px; }
+.tempo-side-ticket strong { display: block; margin: 13px 0; font-size: 23px; line-height: 1.05; letter-spacing: -1px; }
+.tempo-side-ticket i { height: 20px; display: block; background: repeating-linear-gradient(90deg,#352d28 0 1px,transparent 1px 3px,#352d28 3px 5px,transparent 5px 8px); margin: 16px 0 8px; }
+.tempo-side-ticket small { font-size: 5px; letter-spacing: .5px; }
+.tempo-spark { position: absolute; color: #e5a087; }
+.tempo-spark-one { right: 7%; bottom: 13%; font-size: 50px; transform: rotate(13deg); }
+.tempo-spark-two { left: 9%; top: 20%; font-size: 32px; }
+.site-header,.game-main,body>footer { position: relative; }
+.site-header { border-bottom-color: #f5c2ae17; }
+.game-main { max-width: 1120px; padding-top: 35px; }
+.game-heading { margin-bottom: 30px; }
+.game-heading h1 { font-size: clamp(36px, 4.5vw, 57px); font-weight: 800; letter-spacing: -3.4px; margin: 9px 0; }
+.game-heading p { color: #b2aaa2; }
+.game-heading .eyebrow { color: #d3a99c; font-size: 9px; letter-spacing: 2px; }
+.mode-toggle { background: #19191a; border-color: #50423d; padding: 5px; box-shadow: 0 3px 14px #0003; }
+.mode-toggle button { min-height: 38px; padding-inline: 16px; font-size: 11px; }
+.mode-toggle .selected { background: #efb29c; color: #251d19; box-shadow: 0 2px 8px #0003; }
+.mode-toggle .selected .live-dot { background: #7a3c2e; }
+.round-toolbar { padding: 0 2px; margin-bottom: 15px; }
+.round-tracker { gap: 9px; }
+.round-tracker>span:not(.edition-label) { width: 31px; height: 31px; border-color: #4c4540; background: #191a19; color: #b4aea4; }
+.round-tracker>span.current { background: var(--coral); border-color: var(--coral); color: #2a1c18; box-shadow: 0 0 0 4px #fb897c0c; font-weight: 750; }
+.round-tracker>span.done { background: #263428; color: #d5eeb2; border-color: #617650; }
+.round-tracker>.edition-label { color: #a79d93; font-size: 9px; margin-left: 8px; }
+.score-total { padding: 10px 14px; border: 1px solid #4c4038; border-radius: 9px; background: #241e19; }
+.score-total>small { color: #b7a89a; }
+.score-total>strong { font-size: 19px; color: #f6d6bd; }
+.score-total>strong>span { color: #b9a99b; }
+.game-panel { border-color: #645046; border-radius: 23px; background: #181918; box-shadow: 0 28px 70px -28px #000d, 0 1px 0 #ffffff12 inset, 0 0 0 6px #fff6e803; }
+.player-layout { grid-template-columns: 46% 54%; min-height: 590px; }
+.record-panel { position: relative; padding: 27px 39px; background: radial-gradient(ellipse at 50% 36%,#86625033,transparent 68%),linear-gradient(135deg,#302723,#252522 60%,#20221f); border-right: 1px solid #625048; }
+.record-panel::after { content: ""; position: absolute; bottom: 10px; left: 12px; width: 5px; height: 5px; border: 1px solid #a59c8155; border-radius: 50%; box-shadow: 0 0 0 2px #12121155; }
+.record-topline { position: relative; z-index: 1; font-size: 9px; color: #c7b9a6; margin-bottom: 31px; }
+.record-topline>span:last-child { font-size: 8px; border: 1px solid #88735b; padding: 4px 7px; border-radius: 3px; margin-top: -4px; }
+.album-wrapper { max-width: 260px; isolation: isolate; margin-left: 12px; margin-right: auto; }
+.album-cover { position: relative; z-index: 1; border-radius: 5px; box-shadow: 0 20px 35px #0008,0 1px 0 #fff2 inset; transform: rotate(-3deg); }
+.tempo-record-grooves { position: absolute; inset: 4%; transform: translateX(25%); background: repeating-radial-gradient(circle,#111 0 3px,#3e3833 4px,#171614 5px 7px); border: 1px solid #6c5b4c; border-radius: 50%; box-shadow: 5px 6px 18px #0009; }
+.tempo-record-grooves::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(transparent 5%, #ffffff13 16%, transparent 28%,transparent 55%,#ffffff0d 66%,transparent 78%); }
+.tempo-record-grooves i { position: absolute; inset: 35%; border-radius: 50%; background: #e5ad93; border: 10px solid #b88671; }
+.album-wrapper.playing { transform: none; }
+.album-wrapper.playing .tempo-record-grooves::before { animation: tempo-groove-turn 12s linear infinite; }
+.cut-label { z-index: 2; right: -8px; bottom: 16px; background: #eee2c8; border: 1px solid #f7f1e0; padding: 8px 11px; font-size: 8px; transform: rotate(4deg); }
+.track-meta { margin: 28px 0 18px; }
+.artist-name { color: #d5bbaa; font-size: 11px; letter-spacing: 1px; }
+.track-meta h2 { font-size: 20px; color: #f2e8d9; }
+.track-year { color: #b7ac9a; font-size: 8px; }
+.audio-wave { padding: 12px 9px; border: 1px solid #65574877; border-radius: 9px; background: #11120f80; box-shadow: 0 2px 7px #0002 inset; }
+.sound-bars>i { background: #c5b5a0; }
+.playback-progress { color: #b7ad9c; margin-top: 15px; }
+.playback-progress>div { background: #6a594a; border-radius: 4px; height: 3px; }
+.playback-progress>div>i { background: #ffc1a5; border-radius: 4px; }
+.audio-source,.volume-control { color: #b9ad9c; }
+.challenge-panel { padding: 30px 37px; background: radial-gradient(ellipse at 55% 20%, #fb897c09,transparent 80%),#181a18; }
+.phase-steps { padding: 11px 8px; border: 1px solid #4d4438; border-radius: 7px; background: #24231e; }
+.phase-steps>span { color: #aaa293; }
+.phase-steps>span.active { color: #ffd0b5; }
+.phase-steps>span.completed { color: #d2eab7; }
+.phase-steps>span>b { font-size: 8px; }
+.headphone-emblem { width: 85px; height: 85px; background: #322722; border-color: #ac7661; box-shadow: 0 0 0 10px #e5a08706,0 0 0 11px #e5a08714,0 0 40px #e5a08709; }
+.phase-content h2 { font-size: 33px; letter-spacing: -1.5px; }
+.phase-content>p { color: #b6b2a5; }
+.phase-content>.eyebrow { color: #c6a58e; }
+.rule-pills>span { border-color: #655547; background: #2c2821; color: #e2cbb3; }
+.primary-button { border-radius: 10px; min-height: 49px; background: #f7b29a; color: #2c1c17; box-shadow: 0 3px 0 #b9755f,0 9px 18px #0003; font-size: 13px; }
+.primary-button:hover:not(:disabled) { background: #ffc9b2; box-shadow: 0 4px 0 #b9755f,0 11px 25px #0005; transform: translateY(-2px); }
+.primary-button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #b9755f; }
+.under-button { margin-top: 17px; font-size: 9px; color: #b2a994; }
+.timer-ring { width: 170px; height: 170px; padding: 4px; box-shadow: 0 0 0 9px #f2b29807,0 0 0 10px #f2b2981c,0 0 55px #ef9b7c0c; }
+.timer-ring>div { background: #20211c; }
+.timer-ring strong { color: #ffe0c9; font-size: 64px; }
+.timer-ring span { color: #c8bba6; }
+.guess-time { background: #332820; border-color: #876047; color: #f5c6a6; font-size: 11px; padding: 10px 16px; }
+.bpm-label { color: #cfbeaa; font-size: 9px; }
+.bpm-input-wrap { background: #111510; border-color: #7a6852; border-radius: 12px; box-shadow: 0 3px 10px #0005 inset; }
+.bpm-input-wrap:focus-within { border-color: #ffc2a4; box-shadow: 0 0 0 4px #ffc2a415,0 0 30px #f2a38d08; }
+.bpm-input-wrap>span { color: #c3b49a; }
+.input-hint { color: #b2ab96; font-size: 9px; }
+.reveal-tempo { color: #ffc8a9; text-shadow: 0 0 55px #fb897c22; }
+.comparison { background: #23241e; border: 1px solid #554b3c; border-radius: 10px; padding: 17px 12px; }
+.game-bottom-note { color: #b0ac9b; font-size: 10px; }
+.game-bottom-note>button { color: #d2bea6; font-size: 10px; }
+.results-panel { background: radial-gradient(ellipse at 50% 0,#f0ab8b17,transparent 64%),#191c18; }
+.results-vinyl { height: 112px; width: 112px; border: 1px solid #8a7151; }
+.final-score { color: #ffc7a5; }
+.result-tracks>div { border-color: #5c5141; padding-block: 17px; }
+.result-track-title>strong { font-size: 12px; }
+.result-track-title>span,.result-track-guess>span { color: #b8b49f; }
+.result-track-score { color: #ffc7a5; }
+@keyframes tempo-float { 50% { transform: translateY(-12px) rotate(19deg); } }
+@keyframes tempo-ticket-drift { 50% { transform: translateY(8px) rotate(-8deg); } }
+@keyframes tempo-groove-turn { to { transform: rotate(360deg); } }
+@media(max-width:1350px) { .tempo-side-disc,.tempo-side-ticket,.tempo-margin-note,.tempo-spark { display:none; } }
+@media(max-width:1000px) { .game-main { padding-inline:28px; } .record-panel { padding:25px; } .album-wrapper { max-width:230px; margin-left:0; margin-right:30px; } .challenge-panel { padding:26px; } .phase-content h2 { font-size:28px; } .round-tracker>.edition-label { font-size:7px; } }
+@media(max-width:700px) {
+  .game-main { padding:26px 20px 0; }
+  .game-heading { flex-wrap:wrap; gap:17px; margin-bottom:24px; }
+  .game-heading h1 { font-size:40px; letter-spacing:-2.5px; }
+  .game-heading .eyebrow { font-size:8px; }
+  .mode-toggle { margin-top:0; }
+  .mode-toggle button { min-height:33px; font-size:10px; padding:8px 12px; }
+  .round-toolbar { gap:8px; }
+  .round-tracker { gap:6px; }
+  .round-tracker>span:not(.edition-label) { width:26px; height:26px; }
+  .score-total { padding:8px 10px; }
+  .score-total>small { display:none; }
+  .score-total>strong { font-size:17px; }
+  .game-panel { border-radius:19px; box-shadow:0 15px 40px #0004; }
+  .player-layout { grid-template-columns:1fr; min-height:0; }
+  .record-panel { grid-template-columns:105px minmax(0,1fr); gap:0 24px; padding:21px; border-right:0; border-bottom:1px solid #625048; }
+  .record-topline { font-size:8px; margin-bottom:20px; }
+  .album-wrapper { width:105px; margin:0; }
+  .tempo-record-grooves { transform:translateX(14%); }
+  .cut-label { padding:5px 6px; font-size:5px; right:-5px; bottom:9px; }
+  .track-meta { margin:0; }
+  .track-meta h2 { font-size:16px; }
+  .artist-name { font-size:9px; letter-spacing:.2px; }
+  .track-year { font-size:6px; }
+  .audio-wave { padding:5px; border-radius:5px; }
+  .playback-progress { margin-top:8px; }
+  .challenge-panel { padding:21px 25px 27px; }
+  .phase-steps { gap:10px; padding:10px 5px; }
+  .phase-steps>span>b { font-size:7px; }
+  .phase-content { min-height:355px; }
+  .phase-content h2 { font-size:28px; }
+  .headphone-emblem { width:63px; height:63px; margin-top:16px; }
+  .phase-content>p { font-size:12px; }
+  .rule-pills>span { font-size:9px; padding:8px; }
+  .game-bottom-note { font-size:9px; }
+  .game-bottom-note>button { font-size:9px; }
+  .results-panel { padding:28px 18px; }
+  .result-track-title>strong { font-size:11px; }
+}
+@media(max-width:370px) { .game-main { padding-inline:14px; } .record-panel { padding:17px; grid-template-columns:88px minmax(0,1fr); gap:0 20px; } .album-wrapper { width:88px; } .challenge-panel { padding-inline:18px; } .round-tracker { gap:5px; } .round-tracker>span:not(.edition-label) { width:25px; height:25px; } .score-total { padding:7px; } .score-total>strong { font-size:15px; } .phase-steps>span>b { font-size:6px; } }
+@media(prefers-reduced-motion:reduce) { .tempo-atmosphere *,.tempo-record-grooves::before { animation:none!important; } }
+html[data-contrast="high"] { --bg:#080a09; --panel:#111612; --text:#fff; --muted:#deded7; --coral:#ffb69d; --green:#d4ffa8; }
+html[data-contrast="high"] body { background:#080a09; }
+html[data-contrast="high"] .tempo-atmosphere { display:none; }
+html[data-contrast="high"] :is(.game-panel,.record-panel,.challenge-panel,.phase-steps,.comparison,.score-total,.mode-toggle,.audio-wave,dialog,.stats-grid>div,.share-fallback,.bpm-input-wrap) { background:#111612; border-color:#b1bcac; box-shadow:none; }
+html[data-contrast="high"] :is(.eyebrow,.game-heading p,.record-topline,.artist-name,.track-year,.audio-source,.volume-control,.playback-progress,.phase-content>p,.phase-content>.eyebrow,.phase-steps>span,.under-button,.bpm-label,.input-hint,.game-bottom-note,.result-track-title>span,.result-track-guess>span,.result-track-guess small,.next-mix-label,.final-score>span,.help-step p,.help-footnote,.history-list>div,.empty-stats,.stat-subtitle,.stats-grid span,footer) { color:#deded7; }
+html[data-contrast="high"] :is(.phase-steps>span.active,.listen-link,.result-track-score,.reveal-tempo,.game-bottom-note>button,.next-mix-label strong) { color:#ffceb5; }
+html[data-contrast="high"] :is(.rule-pills>span,.secondary-button,.round-tracker>span:not(.edition-label),.guess-time) { color:#fff; background:#151a16; border-color:#b1bcac; }
+html[data-contrast="high"] .mode-toggle .selected,html[data-contrast="high"] .round-tracker>span.current { background:#ffb69d; color:#1c1510; }
+html[data-contrast="high"] .primary-button { background:#ffb69d; color:#1c1510; border-color:#ffdcc7; box-shadow:none; }
+html[data-contrast="high"] :is(.bpm-input-wrap input,.track-meta h2,.score-total>strong,.comparison strong) { color:#fff; }
+html[data-contrast="high"] .timer-ring>div { background:#080a09; }
+html[data-contrast="high"] .timer-ring span,html[data-contrast="high"] .comparison span { color:#deded7; }
+html[data-contrast="high"] .guess-time.urgent { background:#662313; border:2px solid #ffd9c4; color:#fff; }
+html[data-contrast="high"] :is(button,a,input):focus-visible { outline:3px solid #fff; outline-offset:4px; }

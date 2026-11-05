@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "releases": [
+    {
+      "version": "cc7938fda738",
+      "effectiveOn": "1970-01-01",
+      "selection": "legacy",
+      "count": 105
+    },
+    {
+      "version": "58b82034466a21bf",
+      "effectiveOn": "2026-11-01",
+      "selection": "seeded",
+      "count": 542
+    },
+    {
+      "version": "943b8016d58869da",
+      "effectiveOn": "2026-11-02",
+      "selection": "seeded",
+      "count": 897
+    }
+  ]
+}
