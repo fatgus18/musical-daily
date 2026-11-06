@@ -1,4 +1,5 @@
 import {defineConfig} from "@playwright/test";
+import {previewAuth} from "../scripts/preview-auth";
 
 const value=process.env.MUSICAL_DAILY_LIVE_URL;
 if(!value)throw new Error("Set MUSICAL_DAILY_LIVE_URL to the deployed Musical Daily HTTPS origin.");
@@ -7,8 +8,8 @@ if(deployment.protocol!=="https:"||deployment.username||deployment.password||/^(
   throw new Error("The cloud smoke test requires a public HTTPS deployment URL without credentials.");
 }
 
-// No webServer, stored session, bypass header, or provider mocks: this is the
-// same anonymous production path a friend opens from the shared link.
+// No app login or provider mocks. Optional CLI authentication opens a protected
+// staged deployment; omit it to check the public path a friend opens.
 export default defineConfig({
   testDir:"./tests/browser",
   testMatch:"cloud-preview.spec.ts",
@@ -29,6 +30,6 @@ export default defineConfig({
     trace:"off",
     video:"off",
     screenshot:"off",
-    storageState:{cookies:[],origins:[]},
+    storageState:previewAuth(deployment.origin)||{cookies:[],origins:[]},
   },
 });
