@@ -9,6 +9,6 @@
   ],
   "scripts": {
     "test:database": "node --test shared/database/*.test.mjs",
-    "test:routing": "node --test scripts/service-config.test.mjs shared/routing/*.test.mjs shared/accounts/server.test.mjs"
+    "test:routing": "node --test scripts/service-config.test.mjs scripts/platform-lock.test.mjs shared/routing/*.test.mjs shared/accounts/server.test.mjs"
   }
 }

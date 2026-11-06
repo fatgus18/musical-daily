@@ -17,6 +17,7 @@ import net from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { serviceEnvironment, servicePaths } from "../../../scripts/service-config.mjs";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -149,7 +150,8 @@ async function main() {
     });
     // Use exactly the wrapper's environment, but spawn Next directly so the
     // only process to terminate is the production server we just created.
-    const child = spawn(process.execPath, [join(directory, "node_modules", "next", "dist", "bin", "next"), "start", "--port", String(ports[name]), "--hostname", "127.0.0.1"], {
+    const nextBinary = createRequire(join(directory, "package.json")).resolve("next/dist/bin/next");
+    const child = spawn(process.execPath, [nextBinary, "start", "--port", String(ports[name]), "--hostname", "127.0.0.1"], {
       cwd: directory, env: environment, stdio: ["ignore", "pipe", "pipe"], windowsHide: true,
     });
     children.set(name, child);
