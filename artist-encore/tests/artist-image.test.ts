@@ -65,12 +65,12 @@ test("cached catalogs replace album covers with profile portraits without discog
   try {
     const pool: ArtistPool = { artist: { ...artist, image: "https://is1-ssl.mzstatic.com/image/thumb/Music123/album/600x600bb.jpg" },
       tracks: [], fetchedAt: Date.now(), ranking: { kind: "unranked", label: "Discovery", sourceUrl: artist.url, asOf: "2026-11-01" } };
-    metadataCache().put(`live-v1:pool:${artist.id}`, pool, 60_000);
+    await metadataCache().put(`live-v1:pool:${artist.id}`, pool, 60_000);
     const upgraded = await loadArtist(artist.id);
     assert.equal(upgraded.artist.image, image); assert.equal(upgraded.artist.imageAttribution, "Apple Music");
     assert.equal((await loadArtist(artist.id)).artist.image, image);
     assert.equal(calls.length, 1, "The portrait and old song pool both reuse bounded caches");
-    assert.ok(metadataCache().stats().bytes < 10_000, "Only metadata is cached, never image binaries");
+    assert.ok((await metadataCache().stats()).bytes < 10_000, "Only metadata is cached, never image binaries");
   } finally {
     globalThis.fetch = originalFetch;
     if (originalPath === undefined) delete process.env.ENCORE_CATALOG_CACHE_PATH; else process.env.ENCORE_CATALOG_CACHE_PATH = originalPath;
@@ -85,7 +85,7 @@ test("unavailable portraits use a negative cache and never fall back to an album
   try {
     const pool: ArtistPool = { artist: { ...artist, image: "https://is1-ssl.mzstatic.com/image/thumb/Music123/album/600x600bb.jpg" },
       tracks: [], fetchedAt: Date.now(), ranking: { kind: "unranked", label: "Discovery", sourceUrl: artist.url, asOf: "2026-11-01" } };
-    metadataCache().put(`live-v1:pool:${artist.id}`, pool, 60_000);
+    await metadataCache().put(`live-v1:pool:${artist.id}`, pool, 60_000);
     assert.equal((await loadArtist(artist.id)).artist.image, "");
     assert.equal(await loadArtistPortrait(artist), undefined);
     assert.equal(calls, 1);

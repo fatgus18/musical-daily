@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { withBasePath } from "@/lib/app-path";
 import type { CatalogTheme } from "@/lib/catalog-types";
 import { CollectionIcon } from "./collection-picker";
 
@@ -57,8 +58,8 @@ export function ArtistCollectionSearch({ disabled, onSelect, selected, onLoading
     const timer = setTimeout(async () => {
       setSearching(true); setError("");
       const results = await Promise.allSettled([
-        fetch(`/api/themes?q=${encodeURIComponent(query.trim())}`, { signal: abort.signal }).then(async response => { if (!response.ok) throw new Error(); const data = await response.json() as { themes: CatalogTheme[] }; if (!abort.signal.aborted) setLocal(data.themes); return data; }),
-        fetch(`/api/artists?q=${encodeURIComponent(query.trim())}`, { signal: abort.signal }).then(async response => { if (!response.ok) throw new Error(); const data = await response.json() as { artists: Artist[] }; if (!abort.signal.aborted) setArtists(data.artists); return data; }),
+        fetch(withBasePath(`/api/themes?q=${encodeURIComponent(query.trim())}`), { signal: abort.signal }).then(async response => { if (!response.ok) throw new Error(); const data = await response.json() as { themes: CatalogTheme[] }; if (!abort.signal.aborted) setLocal(data.themes); return data; }),
+        fetch(withBasePath(`/api/artists?q=${encodeURIComponent(query.trim())}`), { signal: abort.signal }).then(async response => { if (!response.ok) throw new Error(); const data = await response.json() as { artists: Artist[] }; if (!abort.signal.aborted) setArtists(data.artists); return data; }),
       ]);
       if (abort.signal.aborted) return;
       setLocal(results[0].status === "fulfilled" ? results[0].value.themes : []);
@@ -75,7 +76,7 @@ export function ArtistCollectionSearch({ disabled, onSelect, selected, onLoading
     const abort = new AbortController(); loadAbort.current = abort; setLoadingArtist(artist); setError(""); setOpened(false); onLoadingChange(true);
     const timeout = setTimeout(() => abort.abort(), 65000);
     try {
-      const response = await fetch("/api/artists", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistId: artist.id, continue: more }), signal: abort.signal });
+      const response = await fetch(withBasePath("/api/artists"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artistId: artist.id, continue: more }), signal: abort.signal });
       const data = await response.json() as ArtistPack & { error?: string };
       if (!response.ok) throw new Error(data.error || "This artist’s collection could not load. Please retry.");
       if (loadAbort.current !== abort) return;
@@ -102,5 +103,5 @@ export function ArtistCollectionSearch({ disabled, onSelect, selected, onLoading
 
 function ArtistAvatar({ name, image }: { name: string; image?: string }) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
-  return <span className="option-icon artist-avatar tone-lilac" aria-hidden="true"><span>{name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join("")}</span>{image && image !== failedImage && <img src={image} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailedImage(image)}/>}</span>;
+  return <span className="option-icon artist-avatar tone-lilac" aria-hidden="true"><span>{name.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join("")}</span>{image && image !== failedImage && <img src={withBasePath(image)} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailedImage(image)}/>}</span>;
 }

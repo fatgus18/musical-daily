@@ -1,0 +1,104 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "musical-daily": {
+      "root": "musical-daily",
+      "framework": "nextjs",
+      "buildCommand": "node ../scripts/service-next.mjs musical-daily build",
+      "devCommand": "node ../scripts/service-next.mjs musical-daily dev",
+      "installCommand": "npm ci --prefix .."
+    },
+    "blackjack-music": {
+      "root": "blackjack-music",
+      "framework": "nextjs",
+      "buildCommand": "node ../scripts/service-next.mjs blackjack-music build",
+      "devCommand": "node ../scripts/service-next.mjs blackjack-music dev",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "musical-daily",
+          "format": "url",
+          "env": "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"
+        }
+      ],
+      "installCommand": "npm ci --prefix .."
+    },
+    "tempo-trap": {
+      "root": "tempo-trap",
+      "framework": "nextjs",
+      "buildCommand": "node ../scripts/service-next.mjs tempo-trap build",
+      "devCommand": "node ../scripts/service-next.mjs tempo-trap dev",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "musical-daily",
+          "format": "url",
+          "env": "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"
+        }
+      ],
+      "installCommand": "npm ci --prefix .."
+    },
+    "artist-encore": {
+      "root": "artist-encore",
+      "framework": "nextjs",
+      "buildCommand": "node ../scripts/service-next.mjs artist-encore build",
+      "devCommand": "node ../scripts/service-next.mjs artist-encore dev",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "musical-daily",
+          "format": "url",
+          "env": "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"
+        }
+      ],
+      "installCommand": "npm ci --prefix .."
+    },
+    "double-or-drop": {
+      "root": "double-or-drop",
+      "framework": "nextjs",
+      "buildCommand": "node ../scripts/service-next.mjs double-or-drop build",
+      "devCommand": "node ../scripts/service-next.mjs double-or-drop dev",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "musical-daily",
+          "format": "url",
+          "env": "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"
+        }
+      ],
+      "installCommand": "npm ci --prefix .."
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/blackjack/:path*",
+      "destination": {
+        "service": "blackjack-music"
+      }
+    },
+    {
+      "source": "/tempo-trap/:path*",
+      "destination": {
+        "service": "tempo-trap"
+      }
+    },
+    {
+      "source": "/encore/:path*",
+      "destination": {
+        "service": "artist-encore"
+      }
+    },
+    {
+      "source": "/double-or-drop/:path*",
+      "destination": {
+        "service": "double-or-drop"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "musical-daily"
+      }
+    }
+  ]
+}

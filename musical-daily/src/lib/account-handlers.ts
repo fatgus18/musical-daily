@@ -22,7 +22,7 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
   const hubSession = (request: Request) => store.session(readCookie(request, cookieName), "hub");
   function finish(session: Session, target: AuthFlow["target"], returnTo: string) {
     if (!target) return redirect(new URL(safeReturnPath(returnTo), config.hub).toString());
-    const url = new URL("/api/account/callback", config.origins[target.app]);
+    const url = new URL(`${config.paths?.[target.app] || ""}/api/account/callback`, config.origins[target.app]);
     url.search = new URLSearchParams({ code: store.handoff(session, target.app, target.state, target.challenge), state: target.state }).toString();
     return redirect(url.toString());
   }
@@ -102,7 +102,25 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
 }
 
 const globalStore = globalThis as typeof globalThis & { musicalDailyAccounts?: { path: string; store: AccountStore } };
+// Guest deployments must not open SQLite merely to report that sign-in is off.
+function guestHandlers() {
+  const unavailable = async (_request: Request) => noStoreJson({ error: "Accounts are paused for this guest preview.", configured: false }, 503);
+  return {
+    session: async (_request: Request) => noStoreJson({ user: null, configured: false }),
+    stats: async (_request: Request) => noStoreJson({ error: "Account statistics are paused for this guest preview.", configured: false }, 401),
+    login: unavailable, authorize: unavailable, callback: unavailable, service: unavailable,
+    logout: async (request: Request) => {
+      const publicOrigin = new URL(request.url).origin;
+      if (request.headers.get("origin") !== publicOrigin) return noStoreJson({ error: "Invalid request origin" }, 403);
+      const response = noStoreJson({ ok: true });
+      setCookie(response, cookieName, "", publicOrigin, 0);
+      setCookie(response, flowCookie, "", publicOrigin, 0);
+      return response;
+    },
+  };
+}
 export function accountHandlers() {
+  if (process.env.NEXT_PUBLIC_GUEST_ONLY === "1") return guestHandlers();
   const config = accountConfig();
   if (!globalStore.musicalDailyAccounts || globalStore.musicalDailyAccounts.path !== config.database) globalStore.musicalDailyAccounts = { path: config.database, store: new AccountStore(config.database) };
   // Next development reloads replace this class while retaining the live SQLite

@@ -15,25 +15,51 @@ function track(title: string, id = 1): Track {
   return { id: `apple:${id}`, title, artist: artist.name, artistId: artist.id, aliases: [title], rank: 0, duration: 180,
     preview: "https://audio-ssl.itunes.apple.com/test.m4a", artwork: "", url: "https://music.apple.com/us/song/123" };
 }
-test("metadata cache evicts by bytes and keys, bounds stale recovery and coordinates provider slots", () => {
+test("metadata cache evicts by bytes and keys, bounds stale recovery and coordinates provider slots", async () => {
   const file = join(mkdtempSync(join(tmpdir(), "encore-cache-")), "cache.sqlite");
   const cache = new MetadataCache(file, { maxBytes: 100, maxEntries: 2, maxEntryBytes: 80 });
   const now = Date.now();
   try {
-    cache.put("a", "a".repeat(40), 100, 100, now);
-    cache.put("b", "b".repeat(40), 100, 100, now + 1);
-    cache.put("c", "c".repeat(40), 100, 100, now + 2);
-    assert.equal(cache.get("a", true, now + 3), undefined);
-    assert.ok(cache.stats().bytes <= 100); assert.equal(cache.stats().entries, 2);
-    cache.put("too-large", "z".repeat(90), 100, 100, now);
-    assert.equal(cache.get("too-large", true, now), undefined);
-    assert.equal(cache.get("c", false, now + 103), undefined);
-    assert.equal(cache.get("c", true, now + 103)?.stale, true);
-    assert.equal(cache.get("c", true, now + 203), undefined);
-    assert.equal(cache.reserve("apple", 3200, 5000, now), 0);
-    assert.equal(cache.reserve("apple", 3200, 5000, now), 3200);
-    assert.equal(cache.reserve("apple", 3200, 5000, now), undefined);
-  } finally { cache.close(); }
+    await cache.put("a", "a".repeat(40), 100, 100, now);
+    await cache.put("b", "b".repeat(40), 100, 100, now + 1);
+    await cache.put("c", "c".repeat(40), 100, 100, now + 2);
+    assert.equal(await cache.get("a", true, now + 3), undefined);
+    assert.ok((await cache.stats()).bytes <= 100); assert.equal((await cache.stats()).entries, 2);
+    assert.equal(await cache.put("too-large", "z".repeat(90), 100, 100, now), false);
+    assert.equal(await cache.get("too-large", true, now), undefined);
+    assert.equal(await cache.get("c", false, now + 103), undefined);
+    assert.equal((await cache.get("c", true, now + 103))?.stale, true);
+    assert.equal(await cache.get("c", true, now + 203), undefined);
+    assert.equal(await cache.reserve("apple", 3200, 5000, now), 0);
+    assert.equal(await cache.reserve("apple", 3200, 5000, now), 3200);
+    assert.equal(await cache.reserve("apple", 3200, 5000, now), undefined);
+  } finally { await cache.close(); }
+});
+
+test("independent cache workers share atomic pacing, bounded writes and expiring refresh ownership", async () => {
+  const file = join(mkdtempSync(join(tmpdir(), "encore-cache-workers-")), "cache.sqlite");
+  const limits = { maxBytes: 100, maxEntries: 2, maxEntryBytes: 80 };
+  const first = new MetadataCache(file, limits);
+  const second = new MetadataCache(file, limits);
+  const now = Date.now();
+  try {
+    const slots = await Promise.all([first.reserve("apple", 1000, 1000, now), second.reserve("apple", 1000, 1000, now)]);
+    assert.deepEqual(slots.sort(), [0, 1000]);
+    assert.equal(await first.reserve("apple", 1000, 1000, now), undefined);
+    assert.equal(await second.reserve("apple", 1000, 1000, now + 2000), 0, "A rejected reservation never consumes a slot");
+    await Promise.all(Array.from({ length: 8 }, (_, index) => (index % 2 ? first : second).put(`entry:${index}`, "x".repeat(40), 10000, 0, now + index)));
+    assert.deepEqual(await first.stats(), { entries: 2, bytes: 84 });
+    const owners = await Promise.all([first.acquire("artist", 100, now), second.acquire("artist", 100, now)]);
+    assert.equal(owners.filter(Boolean).length, 1);
+    const oldToken = owners.find(Boolean)!;
+    assert.equal(await first.acquire("artist", 100, now + 99), undefined);
+    const nextToken = await second.acquire("artist", 100, now + 100);
+    assert.ok(nextToken);
+    await first.release("artist", oldToken);
+    assert.equal(await first.acquire("artist", 100, now + 101), undefined, "An expired owner cannot release its successor's lease");
+    await second.release("artist", nextToken);
+    assert.ok(await first.acquire("artist", 100, now + 101));
+  } finally { await first.close(); await second.close(); }
 });
 
 test("stream parser verifies identity and date, excludes guest credits and missing counts", () => {

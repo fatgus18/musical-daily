@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { resolve } from "node:path";
 
 const config: NextConfig = {
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   poweredByHeader: false,
   transpilePackages: ["@musical-daily/accounts"],
   turbopack: { root: resolve(process.cwd(), "..") },

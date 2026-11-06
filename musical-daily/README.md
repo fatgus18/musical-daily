@@ -19,6 +19,18 @@ Open <http://localhost:3001>. Run the sibling games separately: Blackjack on por
 
 ## Configuration and deployment
 
+The workspace includes a [Vercel Services configuration](../vercel.json) for **one Vercel project and one domain**. Services is a Vercel Beta feature. Import the repository root (`.`), not this app's subdirectory. The hub owns `/` and `/rhythm-lab`; Blackjack uses `/blackjack`, Tempo Trap `/tempo-trap`, Encore `/encore`, and Double or Drop `/double-or-drop`. Each service builds independently with Node 24 and the checked-in wrapper. npm workspaces install the shared packages from the root lockfile. The wrapper sets the matching Next.js base path and public links at build time, so local development URLs cannot leak into this services build.
+
+All four games declare the runtime-only `MUSICAL_DAILY_ACCOUNT_SERVICE_URL` binding to the hub, where the account API actually lives. Vercel injects this value; do not add it manually to environment variables. The shared accounts directory is a library, not another deployable service. Browser navigation uses public paths, never a bound internal URL. Service bindings do not replace application-level authorization.
+
+This configuration is a **guest-only preview**: the wrapper sets `NEXT_PUBLIC_GUEST_ONLY=1`. Sign-in controls and account polling are disabled, and hub account routes do not initialize SQLite. Existing account cookies are ignored. Normal standalone development retains its existing account behavior.
+
+Set a stable server-only `TEMPO_SESSION_SECRET` of at least 32 random characters in Vercel. Encore and Double or Drop use separate Turso databases through [the shared database adapter](../shared/database/index.mjs). Connect them with prefixes `ENCORE` and `DOUBLE_DROP`; the generated variables are listed in [the root environment example](../.env.example). Their schemas initialize idempotently at runtime. Both games use Encore's bounded metadata cache and provider pacing unless a dedicated music-cache connection is configured. Generated artist collections are immutable database snapshots, while bundled broad catalogs remain read-only. No game saves depend on the function filesystem. Set `ENCORE_AUDIO_ENABLED=true` to enable the existing audio game for the preview.
+
+To exercise the real service gateway locally, run `vercel dev --local --listen 3100` from the repository root, then run `npx playwright test --config playwright.services.config.ts` from the sibling Double or Drop project. The CLI injects bindings locally. If a platform-specific CLI installation issue prevents this, the [production-app test gateway](../double-or-drop/tests/services/local-gateway.mjs) is a test-only fallback; it verifies application paths and responses, not Vercel's infrastructure. Its local databases are disposable test fixtures and must not be pointed at production credentials.
+
+For separate standalone deployments, the existing URL configuration remains supported:
+
 For a new checkout, start from [.env.example](.env.example); do not overwrite an existing `.env.local` containing the shared service secret. Add the two Google credentials to that existing local file. For deployment, set `NEXT_PUBLIC_BLACKJACK_URL`, `NEXT_PUBLIC_TEMPO_TRAP_URL`, `NEXT_PUBLIC_ENCORE_URL`, and `NEXT_PUBLIC_DOUBLE_DROP_URL` to the public HTTPS addresses **before building**. Each game accepts `NEXT_PUBLIC_HUB_URL` for its home link.
 
 ```sh

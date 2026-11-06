@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import releases from "../../data/catalog-releases.json";
 import { selectTracks } from "./game";
 import type { PublicTrack } from "./types";
+import { withBasePath } from "./app-path";
 
 interface CatalogTrack extends PublicTrack { bpm: number; bpmSource?: string; appleTrackId?: number }
 interface Catalog { version: string; tracks: CatalogTrack[]; rotation?: string[][] }
@@ -38,6 +39,6 @@ export function getTracks(date: string, seed: string, version = getCatalogVersio
 }
 export function publicTracks(date: string, seed: string, version?: string): PublicTrack[] {
   return getTracks(date, seed, version).map(t => ({ id:t.id,title:t.title,artist:t.artist,album:t.album,year:t.year,
-    artworkUrl:t.artworkUrl,previewUrl:t.previewUrl,spotifyUrl:t.spotifyUrl,appleMusicUrl:t.appleMusicUrl,
+    artworkUrl:withBasePath(t.artworkUrl),previewUrl:withBasePath(t.previewUrl),spotifyUrl:t.spotifyUrl,appleMusicUrl:t.appleMusicUrl,
     clipStartSeconds:t.clipStartSeconds,clipSeconds:t.clipSeconds }));
 }

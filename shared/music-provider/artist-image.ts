@@ -85,24 +85,27 @@ export async function loadArtistPortrait(artist: ArtistIdentity): Promise<Artist
   const url = artistPage(artist.url, artist.id); if (!url) return;
   const key = `artist-portrait:v2:${artist.id}:${normalized(artist.name)}`;
   const cache = metadataCache();
-  const cached = cache.get<ArtistPortrait | null>(key); if (cached) return cached.value || undefined;
+  const cached = await cache.get<ArtistPortrait | null>(key); if (cached) return cached.value || undefined;
   const existing = inFlight.get(key); if (existing) return existing;
   if (inFlight.size >= 8) return;
   const pending = (async () => {
-    const previous = cache.get<ArtistPortrait | null>(key, true)?.value;
+    const previous = (await cache.get<ArtistPortrait | null>(key, true))?.value;
+    const lease = await cache.acquire(key, 15_000);
+    if (!lease) return previous || undefined;
     try {
-      const wait = cache.reserve("apple-artist-pages", 250, 1500); if (wait === undefined) return previous || undefined;
+      const completed = await cache.get<ArtistPortrait | null>(key); if (completed) return completed.value || undefined;
+      const wait = await cache.reserve("apple-artist-pages", 250, 1500); if (wait === undefined) return previous || undefined;
       if (wait) await new Promise(resolve => setTimeout(resolve, wait));
       const response = await fetch(url, { headers: { accept: "text/html" }, signal: AbortSignal.timeout(6000), redirect: "error", cache: "no-store" });
       if (!response.ok || !response.headers.get("content-type")?.includes("text/html")) throw new Error("Artist page is unavailable.");
       const portrait = parseAppleArtistPortrait(await boundedResponseText(response, 4_000_000), artist);
-      cache.put(key, portrait || null, portrait ? TTL : MISS_TTL, portrait ? TTL : 0);
+      await cache.put(key, portrait || null, portrait ? TTL : MISS_TTL, portrait ? TTL : 0);
       return portrait;
     } catch {
       // A short negative cache avoids slowing repeated selections during outages.
-      cache.put(key, previous || null, RETRY_TTL, previous ? TTL : 0);
+      await cache.put(key, previous || null, RETRY_TTL, previous ? TTL : 0);
       return previous || undefined;
-    }
+    } finally { await cache.release(key, lease); }
   })();
   inFlight.set(key, pending);
   try { return await pending; } finally { inFlight.delete(key); }

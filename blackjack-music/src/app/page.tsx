@@ -1,5 +1,6 @@
 import StreamBlackjackPage from "@/features/blackjack/blackjack-game";
+import { hubHref } from "@/lib/app-path";
 
 export default function Page() {
-  return <StreamBlackjackPage hubUrl={process.env.NEXT_PUBLIC_HUB_URL || "http://localhost:3001"} />;
+  return <StreamBlackjackPage hubUrl={hubHref()} />;
 }

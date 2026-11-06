@@ -1,4 +1,4 @@
-import { metadataCache } from "./provider-cache.ts";
+import { metadataCache, waitForCached } from "./provider-cache.ts";
 import { boundedResponseText } from "./provider-http.ts";
 
 export interface StreamObservation { title: string; streams: number; spotifyId: string }
@@ -40,7 +40,7 @@ export function parseArtistStreams(html: string, artist: string, sourceUrl: stri
   return { artist, sourceUrl, asOf: date, observations };
 }
 async function html(url: string): Promise<string> {
-  const delay = metadataCache().reserve("kworb", 700, 5000);
+  const delay = await metadataCache().reserve("kworb", 700, 5000);
   if (delay === undefined) throw new Error("Stream source is busy.");
   if (delay) await new Promise(resolve => setTimeout(resolve, delay));
   const result = await fetch(url, { signal: AbortSignal.timeout(12_000), redirect: "error", cache: "no-store", headers: { accept: "text/html" } });
@@ -50,11 +50,21 @@ async function html(url: string): Promise<string> {
 async function cached<T>(key: string, request: () => Promise<T>): Promise<{ value: T; stale: boolean }> {
   const active = pending.get(key); if (active) return active as Promise<{ value: T; stale: boolean }>;
   const promise = (async () => {
-    const cache = metadataCache(); const fresh = cache.get<T>(key); if (fresh) return fresh;
-    const failure = cache.get<boolean>(`${key}:failed`);
-    if (failure) { const previous = cache.get<T>(key, true); if (previous) return previous; throw new Error("Stream source cooling down."); }
-    try { const value = await request(); cache.put(key, value, TTL); return { value, stale: false }; }
-    catch (error) { cache.put(`${key}:failed`, true, 60_000, 0); const previous = cache.get<T>(key, true); if (previous) return previous; throw error; }
+    const cache = metadataCache(); const fresh = await cache.get<T>(key); if (fresh) return fresh;
+    const failure = await cache.get<boolean>(`${key}:failed`);
+    if (failure) { const previous = await cache.get<T>(key, true); if (previous) return previous; throw new Error("Stream source cooling down."); }
+    const lease = await cache.acquire(key, 25_000);
+    if (!lease) {
+      const previous = await cache.get<T>(key, true) || await waitForCached<T>(cache, key);
+      if (previous) return previous;
+      throw new Error("Stream source is busy.");
+    }
+    try {
+      const completed = await cache.get<T>(key); if (completed) return completed;
+      const value = await request(); await cache.put(key, value, TTL); return { value, stale: false };
+    }
+    catch (error) { await cache.put(`${key}:failed`, true, 60_000, 0); const previous = await cache.get<T>(key, true); if (previous) return previous; throw error; }
+    finally { await cache.release(key, lease); }
   })();
   pending.set(key, promise); try { return await promise; } finally { pending.delete(key); }
 }

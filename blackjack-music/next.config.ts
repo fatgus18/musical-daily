@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   transpilePackages: ["@musical-daily/accounts"],
   outputFileTracingRoot: path.resolve(process.cwd(), ".."),
   outputFileTracingIncludes: { "/api/*": ["./data/catalog-releases/*.json", "./data/artwork.json"] },

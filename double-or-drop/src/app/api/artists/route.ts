@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     const query = req.nextUrl.searchParams.get("q")?.trim() || "";
     if (query.length < 2 || query.length > 80) return reply({ artists: [] }, token);
-    rateLimit(store(), player, "artist-search", 20);
+    await rateLimit(await store(), player, "artist-search", 20);
     return reply({ artists: await searchArtists(query) }, token);
   } catch (error) { return errorReply(error, token); }
 }
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await readBody(req);
     if (typeof body.artistId !== "string" || !/^apple:\d{1,15}$/.test(body.artistId) || body.continue !== undefined && typeof body.continue !== "boolean") throw new Error("Choose an artist from search results.");
-    rateLimit(store(), player, "artist-load", 6);
+    await rateLimit(await store(), player, "artist-load", 6);
     return reply(await loadArtistCollection(body.artistId, body.continue === true), token);
   } catch (error) { return errorReply(error, token); }
 }

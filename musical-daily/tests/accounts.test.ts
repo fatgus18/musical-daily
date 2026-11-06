@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { AccountStore, randomToken, hash } from "../src/lib/account-store.ts";
 import { accountHandlers, createAccountHandlers } from "../src/lib/account-handlers.ts";
-import { safeReturnPath } from "../src/lib/account-config.ts";
+import { accountConfig, safeReturnPath } from "../src/lib/account-config.ts";
 import type { AccountConfig } from "../src/lib/account-config.ts";
 import type { GoogleProvider } from "../src/lib/google-provider.ts";
 import { verifiedGoogleIdentity } from "../src/lib/google-provider.ts";
@@ -11,7 +11,7 @@ import type { ResultEvent } from "@musical-daily/accounts";
 
 const config: AccountConfig = { hub: "https://music.example", origins: { blackjack: "https://blackjack.example", tempo: "https://tempo.example", encore: "https://encore.example", "double-drop": "https://double-drop.example" }, secret: "test-server-secret-with-32-characters-minimum", clientId: "test-google-client", clientSecret: "test-client-secret", configured: true, database: ":memory:" };
 const identity = { sub: "google-sub-123", email: "person@example.com", name: "Listener", picture: null };
-function fixture() {
+function fixture(settings: AccountConfig = config) {
   let now = Date.parse("2026-11-02T12:00:00Z");
   const store = new AccountStore(":memory:", () => now);
   let pending: { state: string; nonce: string; challenge: string };
@@ -19,7 +19,7 @@ function fixture() {
     authorization(input) { pending = input; return `https://accounts.google.com/o/oauth2/v2/auth?state=${input.state}`; },
     async identity(code, verifier, nonce) { assert.equal(code, "valid-google-code"); assert.equal(hash(verifier), pending.challenge); assert.equal(nonce, pending.nonce); return identity; },
   };
-  return { store, handlers: createAccountHandlers(config, store, provider), advance: (ms: number) => { now += ms; } };
+  return { store, handlers: createAccountHandlers(settings, store, provider), advance: (ms: number) => { now += ms; } };
 }
 function request(path: string, cookies = "") { return new Request(`${config.hub}${path}`, { headers: cookies ? { cookie: cookies } : {} }); }
 function cookies(response: Response) { return response.headers.getSetCookie().map((value) => value.split(";")[0]).join("; "); }
@@ -287,4 +287,89 @@ test("expired and account-merge results publish once and an invalid incomplete b
   store.results(user.id, "encore", events); store.results(user.id, "encore", events);
   assert.equal(store.stats(user).games.encore.incomplete, 2); assert.equal(store.stats(user).games.encore.totalRounds, 4);
   assert.equal(store.stats(user).games.encore.currentStreak, 0); store.close();
+});
+
+test("guest preview handles stale cookies without opening SQLite, configuring Google, or contacting an account server", async (context) => {
+  const environment = ["NEXT_PUBLIC_GUEST_ONLY", "ACCOUNTS_DB_PATH", "MUSICAL_DAILY_AUTH_ORIGIN"] as const;
+  const previous = environment.map(key => process.env[key]);
+  const storeDescriptor = Object.getOwnPropertyDescriptor(globalThis, "musicalDailyAccounts");
+  // A directory is never a valid SQLite database. No new file is needed to
+  // prove that these routes can operate without access to an account database.
+  process.env.NEXT_PUBLIC_GUEST_ONLY = "1";
+  process.env.ACCOUNTS_DB_PATH = process.cwd();
+  process.env.MUSICAL_DAILY_AUTH_ORIGIN = "not-an-origin";
+  Object.defineProperty(globalThis, "musicalDailyAccounts", {
+    configurable: true,
+    get() { throw new Error("Guest preview must not access the shared account store"); },
+    set() { throw new Error("Guest preview must not initialize the shared account store"); },
+  });
+  const network = context.mock.method(globalThis, "fetch", async () => { throw new Error("Guest accounts must not make network requests"); });
+  try {
+    const handlers = accountHandlers();
+    const stale = `md_hub_session=${randomToken()}; md_google_flow=${randomToken()}`;
+    const response = await handlers.session(request("/api/account/session", stale));
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { user: null, configured: false });
+    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    assert.equal((await handlers.stats(request("/api/account/stats", stale))).status, 401);
+    for (const route of ["login", "authorize", "callback", "service"] as const) {
+      const disabled = await handlers[route](request(`/api/account/${route}`, stale));
+      assert.equal(disabled.status, 503, route);
+      assert.equal(disabled.headers.get("Location"), null, `${route} must not redirect to OAuth`);
+      assert.equal((await disabled.json()).configured, false);
+    }
+    const crossOrigin = new Request(`${config.hub}/api/account/logout`, { method: "POST", headers: { Origin: "https://other.example", cookie: stale } });
+    assert.equal((await handlers.logout(crossOrigin)).status, 403);
+    const logout = await handlers.logout(new Request(`${config.hub}/api/account/logout`, { method: "POST", headers: { Origin: config.hub, cookie: stale } }));
+    assert.equal(logout.status, 200);
+    assert.deepEqual(await logout.json(), { ok: true });
+    assert.equal(logout.headers.getSetCookie().length, 2);
+    for (const cookie of logout.headers.getSetCookie()) assert.match(cookie, /Path=\/; HttpOnly; SameSite=Lax; Max-Age=0; Secure/);
+    assert.equal(network.mock.callCount(), 0);
+  } finally {
+    if (storeDescriptor) Object.defineProperty(globalThis, "musicalDailyAccounts", storeDescriptor);
+    else delete (globalThis as typeof globalThis & { musicalDailyAccounts?: unknown }).musicalDailyAccounts;
+    environment.forEach((key, index) => { if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index]; });
+  }
+});
+
+test("services OAuth handoffs return every game to its public callback path on the hub domain", async () => {
+  const environment = ["NEXT_PUBLIC_MUSICAL_DAILY_SERVICES", "MUSICAL_DAILY_AUTH_ORIGIN", "MUSICAL_DAILY_SERVICE_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] as const;
+  const previous = environment.map(key => process.env[key]);
+  process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES = "1";
+  process.env.MUSICAL_DAILY_AUTH_ORIGIN = config.hub;
+  process.env.MUSICAL_DAILY_SERVICE_SECRET = config.secret;
+  process.env.GOOGLE_CLIENT_ID = config.clientId;
+  process.env.GOOGLE_CLIENT_SECRET = config.clientSecret;
+  const settings = accountConfig();
+  const { store, handlers } = fixture(settings);
+  const mounts = { blackjack: "/blackjack", tempo: "/tempo-trap", encore: "/encore", "double-drop": "/double-or-drop" } as const;
+  try {
+    for (const app of Object.keys(mounts) as (keyof typeof mounts)[]) {
+      const state = randomToken(); const verifier = randomToken();
+      const login = await handlers.authorize(request(`/api/auth/authorize?app=${app}&state=${state}&challenge=${hash(verifier)}`));
+      assert.equal(login.status, 303);
+      const oauthState = new URL(login.headers.get("Location")!).searchParams.get("state");
+      const complete = await handlers.callback(request(`/api/auth/google/callback?state=${oauthState}&code=valid-google-code`, cookies(login)));
+      const callback = new URL(complete.headers.get("Location")!);
+      assert.equal(callback.origin, config.hub, app);
+      assert.equal(callback.pathname, `${mounts[app]}/api/account/callback`, app);
+      assert.equal(callback.searchParams.get("state"), state);
+      const code = callback.searchParams.get("code")!;
+      const exchanged = store.exchange(app, code, state, verifier);
+      assert.equal(exchanged?.user.email, identity.email, app);
+      assert.equal(store.exchange(app, code, state, verifier), null, `${app} handoff remains single-use`);
+
+      // An existing hub session must use the same callback prefix without
+      // starting a second Google sign-in flow.
+      const directState = randomToken(); const directVerifier = randomToken();
+      const direct = await handlers.authorize(request(`/api/auth/authorize?app=${app}&state=${directState}&challenge=${hash(directVerifier)}`, cookies(complete)));
+      const directCallback = new URL(direct.headers.get("Location")!);
+      assert.equal(directCallback.origin + directCallback.pathname, `${config.hub}${mounts[app]}/api/account/callback`);
+      assert.equal(store.exchange(app, directCallback.searchParams.get("code")!, directState, directVerifier)?.user.email, identity.email);
+    }
+  } finally {
+    store.close();
+    environment.forEach((key, index) => { if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index]; });
+  }
 });

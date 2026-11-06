@@ -1,9 +1,9 @@
 import { readSession } from "@/lib/session";
 import { loadAccountMix, saveAccountMix } from "@/lib/account-game";
+import { sameOrigin } from "@/lib/request-origin";
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "Invalid request origin." }, { status: 403 });
+  if (!sameOrigin(request)) return Response.json({ error: "Invalid request origin." }, { status: 403 });
   try {
     const { token } = await request.json();
     const session = readSession(token);

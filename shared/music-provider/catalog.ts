@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { metadataCache } from "./provider-cache.ts";
+import { metadataCache, waitForCached } from "./provider-cache.ts";
 import { loadArtistStreams, type ArtistStreams } from "./stream-provider.ts";
 import { tierPools } from "./ranking.ts";
 import { boundedResponseText } from "./provider-http.ts";
@@ -109,8 +109,8 @@ function safeUrl(value: unknown, domains: string[]): string {
 }
 export function isPreviewUrl(value: string): boolean { return Boolean(safeUrl(value, ["itunes.apple.com", "mzstatic.com", "dzcdn.net"])); }
 
-function cacheGet<T>(key: string): T | undefined { return metadataCache().get<T>(key)?.value; }
-function cachePut(key: string, value: unknown, ttl: number): void { metadataCache().put(key, value, ttl); }
+async function cacheGet<T>(key: string): Promise<T | undefined> { return (await metadataCache().get<T>(key))?.value; }
+async function cachePut(key: string, value: unknown, ttl: number): Promise<void> { await metadataCache().put(key, value, ttl); }
 async function singleFlight<T>(key: string, callback: () => Promise<T>): Promise<T> {
   const existing = inFlight.get(key); if (existing) return existing as Promise<T>;
   const pending = callback(); inFlight.set(key, pending);
@@ -121,7 +121,7 @@ async function requestJson(url: URL): Promise<JsonObject> {
   if (!(apple || url.hostname === "api.deezer.com") || url.protocol !== "https:") throw new CatalogError("Invalid music provider.");
   if (apple) {
     if (waitingAppleRequests >= MAX_WAITING_CALLS) throw new CatalogError("Music search is busy. Please try again in a moment.", 429, "provider_busy");
-    const delay = metadataCache().reserve("apple", APPLE_PACING, 20_000);
+    const delay = await metadataCache().reserve("apple", APPLE_PACING, 20_000);
     if (delay === undefined) throw new CatalogError("Music search is busy. Please try again in a moment.", 429, "provider_busy");
     waitingAppleRequests++;
     try { if (delay) await new Promise(resolveWait => setTimeout(resolveWait, delay)); }
@@ -144,17 +144,25 @@ async function appleRequest(path: "search" | "lookup", params: Record<string, st
   for (const [key, value] of Object.entries({ country: "US", ...params })) url.searchParams.set(key, value);
   const key = `${CACHE_VERSION}:provider:${createHash("sha256").update(url.href).digest("hex")}`;
   return singleFlight(key, async () => {
-    const cached = metadataCache().get<JsonObject[]>(key); if (cached) return { entries: cached.value, stale: false };
+    const cache = metadataCache();
+    const cached = await cache.get<JsonObject[]>(key); if (cached) return { entries: cached.value, stale: false };
+    const lease = await cache.acquire(key, 45_000);
+    if (!lease) {
+      const previous = await cache.get<JsonObject[]>(key, true) || await waitForCached<JsonObject[]>(cache, key);
+      if (previous) return { entries: previous.value, stale: previous.stale };
+      throw new CatalogError("This collection is loading. Please try again in a moment.", 429, "provider_busy");
+    }
     try {
+      const completed = await cache.get<JsonObject[]>(key); if (completed) return { entries: completed.value, stale: false };
       const result = await requestJson(url);
       if (!Array.isArray(result.results)) throw new CatalogError("Music provider returned an invalid response.");
       const entries = result.results.map(object);
-      cachePut(key, entries, CACHE_TTL); return { entries, stale: false };
+      await cachePut(key, entries, CACHE_TTL); return { entries, stale: false };
     } catch (error) {
-      const previous = metadataCache().get<JsonObject[]>(key, true);
+      const previous = await cache.get<JsonObject[]>(key, true);
       if (previous) return { entries: previous.value, stale: true };
       throw error;
-    }
+    } finally { await cache.release(key, lease); }
   });
 }
 
@@ -190,11 +198,11 @@ export async function searchArtists(query: string): Promise<Artist[]> {
   if (cleaned.length < 2 || cleaned.length > 80) throw new CatalogError("Enter an artist name between 2 and 80 characters.", 400, "invalid_query");
   const key = `${CACHE_VERSION}:artists:genre-v2:${normalize(cleaned)}`;
   return singleFlight(key, async () => {
-    const cached = cacheGet<Artist[]>(key); if (cached) return cached;
+    const cached = await cacheGet<Artist[]>(key); if (cached) return cached;
     const { entries: results } = await appleRequest("search", { term: cleaned, media: "music", entity: "musicArtist", attribute: "artistTerm", limit: "12" });
     const artists = results.filter(result => result.wrapperType === "artist").map(appleArtist).filter((artist): artist is Artist => Boolean(artist));
     const deduped = [...new Map(artists.map(artist => [artist.id, artist])).values()];
-    cachePut(key, deduped, SEARCH_TTL); return deduped;
+    await cachePut(key, deduped, SEARCH_TTL); return deduped;
   });
 }
 
@@ -390,61 +398,72 @@ export async function loadArtist(id: string, options: LoadArtistOptions = {}): P
   const key = `${CACHE_VERSION}:pool:${id}`;
   return singleFlight(key, async () => {
     const cache = metadataCache();
-    const fresh = cache.get<ArtistPool>(key);
+    const fresh = await cache.get<ArtistPool>(key);
     // Upgrade the old album-art cache without reloading a whole discography.
     if (fresh && !options.refresh && !(options.continue && fresh.value.coverage?.hasMore)) return withArtistPortrait(fresh.value);
-    const stateKey = `${CACHE_VERSION}:discography:${id}`;
-    let state = cache.get<DiscographyState>(stateKey)?.value;
-    if (state && Date.now() - state.fetchedAt >= CACHE_TTL) state = undefined;
-    const saveState = (value: DiscographyState) => cache.put(stateKey, value, Math.max(1, value.fetchedAt + CACHE_TTL - Date.now()));
-    const numericId = id.slice(6);
-    let message: string | undefined;
-    try {
-      if (!state || options.refresh) {
-        const response = await appleRequest("lookup", { id: numericId, entity: "song", limit: "200" });
-        const artist = response.entries.filter(item => item.wrapperType === "artist" && positiveId(item.artistId) === numericId).map(appleArtist).find(Boolean);
-        if (!artist) throw new CatalogError("This artist is unavailable in the US music catalog. Try another artist.", 404, "artist_unavailable");
-        state = { artist, tracks: [], releases: [], cursor: 0, manifestLoaded: false, limited: false, stale: response.stale, failedReleases: 0, fetchedAt: Date.now() };
-        addTracks(state, response.entries);
-      }
-      if (!state.manifestLoaded) {
-        const response = await appleRequest("lookup", { id: numericId, entity: "album", limit: "200" });
-        state.stale ||= response.stale;
-        const allCollections = response.entries.filter(item => item.wrapperType === "collection").length;
-        state.releases = releasesFrom(response.entries, state.artist);
-        // Apple exposes no supported album-pagination cursor. Surface the ceiling honestly.
-        state.limited ||= allCollections >= 200;
-        state.manifestLoaded = true;
-      }
-      for (let batchNo = 0; batchNo < RELEASE_BATCH_BUDGET && !state.capacityReached && state.cursor < state.releases.length; batchNo++) {
-        const batch = releaseBatch(state.releases, state.cursor);
-        const response = await appleRequest("lookup", { id: batch.map(item => item.id).join(","), entity: "song", limit: "200" });
-        state.stale ||= response.stale;
-        addTracks(state, response.entries);
-        if (state.capacityReached) break;
-        for (const release of batch) {
-          const returned = response.entries.filter(item => item.kind === "song" && positiveId(item.collectionId) === release.id).length;
-          if (returned < release.trackCount) state.failedReleases++;
-        }
-        state.cursor += batch.length;
-        // Checkpoint every completed batch; a timeout never restarts a large discography.
-        saveState(state);
-      }
-    } catch (error) {
-      if (!state) {
-        const previous = cache.get<ArtistPool>(key, true);
-        if (previous) return withArtistPortrait({ ...previous.value, coverage: previous.value.coverage ? { ...previous.value.coverage, stale: true, message: "The provider is unavailable. Showing the previous cached collection." } : undefined });
-        throw error;
-      }
-      message = error instanceof CatalogError ? `${error.message} Your loaded songs are still available; retry loading the remaining releases.` : "Some releases could not load. Your available songs are saved; try loading the rest again.";
+    const lease = await cache.acquire(key, 300_000);
+    if (!lease) {
+      const previous = await cache.get<ArtistPool>(key, true) || await waitForCached<ArtistPool>(cache, key);
+      if (previous) return withArtistPortrait({ ...previous.value, coverage: previous.value.coverage ? { ...previous.value.coverage, stale: previous.stale, message: "This artist's collection is being refreshed. Your loaded recordings remain available." } : undefined });
+      throw new CatalogError("This artist is already loading. Please try again in a moment.", 429, "provider_busy");
     }
-    saveState(state);
-    let streams: ArtistStreams | undefined;
-    try { streams = await loadArtistStreams(state.artist.name); }
-    catch { message ||= "Play counts are temporarily unavailable. Discovery mode still uses the available recordings."; }
-    const pool = await withArtistPortrait(discoveryPool(state, streams, message));
-    // Recover quickly from transient missing rank sources; keep complete metadata for six hours.
-    cache.put(key, pool, Math.max(1, Math.min(pool.ranking.kind === "unranked" || message ? 60_000 : CACHE_TTL, state.fetchedAt + CACHE_TTL - Date.now())));
-    return pool;
+    try {
+      // Another instance may have finished between the first read and our lease acquisition.
+      const completed = await cache.get<ArtistPool>(key);
+      if (completed && !options.refresh && !(options.continue && completed.value.coverage?.hasMore)) return withArtistPortrait(completed.value);
+      const stateKey = `${CACHE_VERSION}:discography:${id}`;
+      let state = (await cache.get<DiscographyState>(stateKey))?.value;
+      if (state && Date.now() - state.fetchedAt >= CACHE_TTL) state = undefined;
+      const saveState = (value: DiscographyState) => cache.put(stateKey, value, Math.max(1, value.fetchedAt + CACHE_TTL - Date.now()));
+      const numericId = id.slice(6);
+      let message: string | undefined;
+      try {
+        if (!state || options.refresh) {
+          const response = await appleRequest("lookup", { id: numericId, entity: "song", limit: "200" });
+          const artist = response.entries.filter(item => item.wrapperType === "artist" && positiveId(item.artistId) === numericId).map(appleArtist).find(Boolean);
+          if (!artist) throw new CatalogError("This artist is unavailable in the US music catalog. Try another artist.", 404, "artist_unavailable");
+          state = { artist, tracks: [], releases: [], cursor: 0, manifestLoaded: false, limited: false, stale: response.stale, failedReleases: 0, fetchedAt: Date.now() };
+          addTracks(state, response.entries);
+        }
+        if (!state.manifestLoaded) {
+          const response = await appleRequest("lookup", { id: numericId, entity: "album", limit: "200" });
+          state.stale ||= response.stale;
+          const allCollections = response.entries.filter(item => item.wrapperType === "collection").length;
+          state.releases = releasesFrom(response.entries, state.artist);
+          // Apple exposes no supported album-pagination cursor. Surface the ceiling honestly.
+          state.limited ||= allCollections >= 200;
+          state.manifestLoaded = true;
+        }
+        for (let batchNo = 0; batchNo < RELEASE_BATCH_BUDGET && !state.capacityReached && state.cursor < state.releases.length; batchNo++) {
+          const batch = releaseBatch(state.releases, state.cursor);
+          const response = await appleRequest("lookup", { id: batch.map(item => item.id).join(","), entity: "song", limit: "200" });
+          state.stale ||= response.stale;
+          addTracks(state, response.entries);
+          if (state.capacityReached) break;
+          for (const release of batch) {
+            const returned = response.entries.filter(item => item.kind === "song" && positiveId(item.collectionId) === release.id).length;
+            if (returned < release.trackCount) state.failedReleases++;
+          }
+          state.cursor += batch.length;
+          // Checkpoint every completed batch; a timeout never restarts a large discography.
+          await saveState(state);
+        }
+      } catch (error) {
+        if (!state) {
+          const previous = await cache.get<ArtistPool>(key, true);
+          if (previous) return withArtistPortrait({ ...previous.value, coverage: previous.value.coverage ? { ...previous.value.coverage, stale: true, message: "The provider is unavailable. Showing the previous cached collection." } : undefined });
+          throw error;
+        }
+        message = error instanceof CatalogError ? `${error.message} Your loaded songs are still available; retry loading the remaining releases.` : "Some releases could not load. Your available songs are saved; try loading the rest again.";
+      }
+      await saveState(state);
+      let streams: ArtistStreams | undefined;
+      try { streams = await loadArtistStreams(state.artist.name); }
+      catch { message ||= "Play counts are temporarily unavailable. Discovery mode still uses the available recordings."; }
+      const pool = await withArtistPortrait(discoveryPool(state, streams, message));
+      // Recover quickly from transient missing rank sources; keep complete metadata for six hours.
+      await cache.put(key, pool, Math.max(1, Math.min(pool.ranking.kind === "unranked" || message ? 60_000 : CACHE_TTL, state.fetchedAt + CACHE_TTL - Date.now())));
+      return pool;
+    } finally { await cache.release(key, lease); }
   });
 }

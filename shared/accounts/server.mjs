@@ -6,6 +6,18 @@ const random = () => randomBytes(32).toString("base64url");
 const digest = (value) => createHash("sha256").update(value).digest("base64url");
 const safePath = (value) => typeof value === "string" && value.startsWith("/") && !value.startsWith("//") && !/[\\\x00-\x1f\x7f]/.test(value) ? value : "/";
 const cookieName = (app) => `md_${app}_session`;
+const guestOnly = () => process.env.NEXT_PUBLIC_GUEST_ONLY === "1";
+function publicPath(value) {
+  const base = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/+$/, "");
+  if (base && (!/^\/[a-zA-Z0-9_/-]+$/.test(base) || base.startsWith("//"))) throw new Error("Invalid game base path");
+  // Normalize dot segments before prefixing, so a return path cannot escape its game.
+  const target = new URL(safePath(value), "https://app.invalid");
+  const path = safePath(target.pathname + target.search + target.hash);
+  return !base || target.pathname === base || target.pathname.startsWith(`${base}/`) ? path : `${base}${path}`;
+}
+function emptyStats() {
+  return { user: null, games: Object.fromEntries(Object.keys(ports).map(app => [app, { played: 0, completed: 0, incomplete: 0, wins: 0, totalScore: 0, bestScore: 0, averageScore: 0, averagePercent: 0, totalCorrect: 0, totalRounds: 0, totalBanked: 0, bestBanked: 0, currentStreak: 0, bestStreak: 0, lastPlayed: null, recent: [] }])) };
+}
 function cookie(request, name) { return request.headers.get("cookie")?.split(";").map((v) => v.trim()).find((v) => v.startsWith(`${name}=`))?.slice(name.length + 1) || ""; }
 function origin(value, fallback) { const url = new URL(value || fallback); if (!["http:", "https:"].includes(url.protocol) || url.pathname !== "/" || url.search || url.hash || url.username || url.password || (url.protocol !== "https:" && (process.env.NODE_ENV === "production" || !["localhost", "127.0.0.1"].includes(url.hostname)))) throw new Error("Invalid account service origin"); return url.origin; }
 function config(app) {
@@ -18,32 +30,41 @@ function json(body, status = 200) { return Response.json(body, { status, headers
 function cookieValue(name, value, appOrigin, maxAge) { return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${appOrigin.startsWith("https:") ? "; Secure" : ""}`; }
 function redirect(location) { return new Response(null, { status: 303, headers: { Location: location, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } }); }
 function sameOrigin(request, expected) { return request.headers.get("origin") === expected; }
+function serviceEndpoint(publicHub) {
+  // Service bindings only exist in running functions. Never use them for public redirects.
+  const binding = process.env.MUSICAL_DAILY_ACCOUNT_SERVICE_URL;
+  const base = new URL(binding || publicHub);
+  if (!["http:", "https:"].includes(base.protocol) || base.username || base.password || base.search || base.hash) throw new Error("Invalid internal account service URL");
+  base.pathname = `${base.pathname.replace(/\/+$/, "")}/`;
+  return new URL("api/account/service", base);
+}
 async function central(request, app, action, data = {}) {
   const settings = config(app);
   if (settings.secret.length < 32) throw new Error("Account service is not configured");
-  const response = await fetch(`${settings.hub}/api/account/service`, { method: "POST", cache: "no-store", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json", "X-Musical-Daily-Service": settings.secret }, body: JSON.stringify({ app, action, token: cookie(request, cookieName(app)), ...data }) });
+  const response = await fetch(serviceEndpoint(settings.hub), { method: "POST", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json", "X-Musical-Daily-Service": settings.secret }, body: JSON.stringify({ app, action, token: cookie(request, cookieName(app)), ...data }) });
   if (response.status >= 500) throw new Error("Account service is temporarily unavailable");
   const payload = await response.json();
   if (!response.ok) { const error = new Error(payload.error || "Account request failed"); error.status = response.status; throw error; }
   return payload;
 }
-export async function getAccount(request, app) { if (!cookie(request, cookieName(app))) return null; return (await central(request, app, "session")).user; }
-export async function publishResult(request, app, event) { if (!cookie(request, cookieName(app))) return { saved: false }; return central(request, app, "result", { event }); }
-export async function publishResults(request, app, events) { if (!Array.isArray(events) || !events.length || events.length > 50) throw new Error("Expected between one and fifty results"); if (!cookie(request, cookieName(app))) return { saved: false }; return central(request, app, "results", { events }); }
-export async function getStats(request, app) { return central(request, app, "stats"); }
-export async function loadProgress(request, app, key) { if (!cookie(request, cookieName(app))) return null; return (await central(request, app, "load-progress", { key })).progress; }
-export async function saveProgress(request, app, key, value, revision = 0, event) { if (!cookie(request, cookieName(app))) return { saved: false, revision: 0 }; return central(request, app, "save-progress", { key, value, revision, ...(event ? { event } : {}) }); }
+export async function getAccount(request, app) { if (guestOnly() || !cookie(request, cookieName(app))) return null; return (await central(request, app, "session")).user; }
+export async function publishResult(request, app, event) { if (guestOnly() || !cookie(request, cookieName(app))) return { saved: false }; return central(request, app, "result", { event }); }
+export async function publishResults(request, app, events) { if (guestOnly()) return { saved: false }; if (!Array.isArray(events) || !events.length || events.length > 50) throw new Error("Expected between one and fifty results"); if (!cookie(request, cookieName(app))) return { saved: false }; return central(request, app, "results", { events }); }
+export async function getStats(request, app) { return guestOnly() ? emptyStats() : central(request, app, "stats"); }
+export async function loadProgress(request, app, key) { if (guestOnly() || !cookie(request, cookieName(app))) return null; return (await central(request, app, "load-progress", { key })).progress; }
+export async function saveProgress(request, app, key, value, revision = 0, event) { if (guestOnly() || !cookie(request, cookieName(app))) return { saved: false, revision: 0 }; return central(request, app, "save-progress", { key, value, revision, ...(event ? { event } : {}) }); }
 
 export function makeAccountRoutes(app, hooks = {}) {
   return {
-    async session(request) { try { const settings = config(app); if (settings.secret.length < 32) { if (cookie(request, cookieName(app))) throw new Error("Account service is not configured"); return json({ user: null, configured: false }); } return json(await central(request, app, "session")); } catch { return cookie(request, cookieName(app)) ? json({ error: "Account service is temporarily unavailable" }, 503) : json({ user: null, configured: false }); } },
+    async session(request) { if (guestOnly()) return json({ user: null, configured: false }); try { const settings = config(app); if (settings.secret.length < 32) { if (cookie(request, cookieName(app))) throw new Error("Account service is not configured"); return json({ user: null, configured: false }); } return json(await central(request, app, "session")); } catch { return cookie(request, cookieName(app)) ? json({ error: "Account service is temporarily unavailable" }, 503) : json({ user: null, configured: false }); } },
     async login(request) {
+      if (guestOnly()) return json({ error: "Google sign-in is disabled for this guest preview" }, 503);
       try {
         const settings = config(app);
         const status = await central(request, app, "session");
-        if (!status.configured) return redirect(`${settings.appOrigin}/?accountError=not-configured`);
+        if (!status.configured) return redirect(`${settings.appOrigin}${publicPath("/?accountError=not-configured")}`);
         const state = random(); const verifier = random();
-        const value = Buffer.from(JSON.stringify({ state, verifier, returnTo: safePath(new URL(request.url).searchParams.get("returnTo")), expires: Date.now() + 600000 })).toString("base64url");
+        const value = Buffer.from(JSON.stringify({ state, verifier, returnTo: publicPath(new URL(request.url).searchParams.get("returnTo")), expires: Date.now() + 600000 })).toString("base64url");
         const signed = `${value}.${createHmac("sha256", settings.secret).update(value).digest("base64url")}`;
         const target = new URL("/api/auth/authorize", settings.hub);
         target.search = new URLSearchParams({ app, state, challenge: digest(verifier) }).toString();
@@ -53,8 +74,9 @@ export function makeAccountRoutes(app, hooks = {}) {
       } catch { return json({ error: "Google sign-in is temporarily unavailable" }, 503); }
     },
     async callback(request) {
+      if (guestOnly()) return json({ error: "Google sign-in is disabled for this guest preview" }, 503);
       const settings = config(app);
-      const fail = () => { const response = redirect(`${settings.appOrigin}/?accountError=sign-in-failed`); response.headers.append("Set-Cookie", cookieValue(`md_${app}_login`, "", settings.appOrigin, 0)); return response; };
+      const fail = () => { const response = redirect(`${settings.appOrigin}${publicPath("/?accountError=sign-in-failed")}`); response.headers.append("Set-Cookie", cookieValue(`md_${app}_login`, "", settings.appOrigin, 0)); return response; };
       try {
         const [value, signature] = cookie(request, `md_${app}_login`).split(".");
         if (!value || !signature || settings.secret.length < 32) return fail();
@@ -65,13 +87,23 @@ export function makeAccountRoutes(app, hooks = {}) {
         if (pending.expires < Date.now() || params.get("state") !== pending.state || !params.get("code")) return fail();
         const exchanged = await central(request, app, "exchange", { code: params.get("code"), state: pending.state, verifier: pending.verifier });
         if (hooks.onLogin) await hooks.onLogin(exchanged.user, request);
-        const response = redirect(new URL(safePath(pending.returnTo), settings.appOrigin).toString());
+        const response = redirect(new URL(publicPath(pending.returnTo), settings.appOrigin).toString());
         response.headers.append("Set-Cookie", cookieValue(cookieName(app), exchanged.token, settings.appOrigin, exchanged.maxAge));
         response.headers.append("Set-Cookie", cookieValue(`md_${app}_login`, "", settings.appOrigin, 0));
         return response;
       } catch { return fail(); }
     },
     async logout(request) {
+      if (guestOnly()) {
+        try {
+          const appOrigin = process.env.MUSICAL_DAILY_APP_ORIGIN ? origin(process.env.MUSICAL_DAILY_APP_ORIGIN) : new URL(request.url).origin;
+          if (!sameOrigin(request, appOrigin)) return json({ error: "Invalid request origin" }, 403);
+          const response = json({ ok: true });
+          response.headers.append("Set-Cookie", cookieValue(cookieName(app), "", appOrigin, 0));
+          response.headers.append("Set-Cookie", cookieValue(`md_${app}_login`, "", appOrigin, 0));
+          return response;
+        } catch { return json({ error: "Could not sign out. Please retry." }, 503); }
+      }
       try { const settings = config(app); if (!sameOrigin(request, settings.appOrigin)) return json({ error: "Invalid request origin" }, 403); if (cookie(request, cookieName(app))) await central(request, app, "logout"); const response = json({ ok: true }); response.headers.append("Set-Cookie", cookieValue(cookieName(app), "", settings.appOrigin, 0)); return response; } catch { return json({ error: "Could not sign out. Please retry." }, 503); }
     },
     async stats(request) { try { return json(await getStats(request, app)); } catch { return json({ error: "Account statistics are temporarily unavailable" }, 503); } },

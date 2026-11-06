@@ -3,6 +3,9 @@
 // Shared source. Run `node scripts/sync-account-ui.mjs` from the workspace root.
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import { withBasePath } from "@/lib/app-path";
+
+export const guestOnly = process.env.NEXT_PUBLIC_GUEST_ONLY === "1";
 
 export interface AccountUser { id: string; name: string; email: string; picture: string | null }
 interface AccountSession { user: AccountUser | null; configured: boolean }
@@ -17,15 +20,16 @@ const CHANGE_KEY = "musical-daily:account-change";
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AccountSession>({ user: null, configured: false });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!guestOnly);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const request = useRef(0);
   const invalidatePending = useCallback(() => { request.current++; }, []);
   const refresh = useCallback(async () => {
+    if (guestOnly) return;
     const current = ++request.current;
     try {
-      const response = await fetch("/api/account/session", { cache: "no-store", credentials: "same-origin" });
+      const response = await fetch(withBasePath("/api/account/session"), { cache: "no-store", credentials: "same-origin" });
       if (!response.ok) throw new Error("Your account could not be loaded. Please try again.");
       const value: AccountSession = await response.json();
       if (current !== request.current) return;
@@ -38,6 +42,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     } finally { if (current === request.current) setLoading(false); }
   }, []);
   useEffect(() => {
+    if (guestOnly) return;
     // Read the browser-only callback result after hydration, then remove it from the URL.
     const noticeFrame = window.requestAnimationFrame(() => {
       const location = new URL(window.location.href);
@@ -65,7 +70,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refresh, invalidatePending]);
   const signOut = useCallback(async () => {
-    const response = await fetch("/api/account/logout", { method: "POST", credentials: "same-origin" });
+    if (guestOnly) return;
+    const response = await fetch(withBasePath("/api/account/logout"), { method: "POST", credentials: "same-origin" });
     if (!response.ok) throw new Error("We could not sign you out. Please try again.");
     invalidatePending();
     setSession(value => ({ ...value, user: null }));
@@ -99,16 +105,18 @@ function currentReturnPath() {
 export function AccountSignIn() {
   const { configured, loading, error, refresh } = useAccount();
   const returnTo = useSyncExternalStore(subscribeLocation, currentReturnPath, () => "/");
+  if (guestOnly) return null;
   if (loading) return <span className="md-account-loading" role="status">Checking your account…</span>;
   if (error) return <div className="md-account-message"><p role="alert">{error}</p><button type="button" onClick={() => void refresh()}>Try again</button></div>;
   if (!configured) return <div className="md-account-message"><p>Google sign-in is being set up. You can keep playing as a guest.</p><button type="button" onClick={() => void refresh()}>Check again</button></div>;
-  return <a className="md-google-sign-in" href={`/api/account/login?returnTo=${encodeURIComponent(returnTo)}`}><GoogleMark /> Continue with Google</a>;
+  return <a className="md-google-sign-in" href={withBasePath(`/api/account/login?returnTo=${encodeURIComponent(returnTo)}`)}><GoogleMark /> Continue with Google</a>;
 }
 
 export function AccountButton({ statsHref = "/stats" }: { statsHref?: string }) {
   const { user } = useAccount();
+  if (guestOnly) return null;
   // A new identity gets fresh menu and avatar state before it is displayed.
-  return <AccountButtonState key={`${user?.id ?? "guest"}:${user?.picture ?? ""}`} statsHref={statsHref} />;
+  return <AccountButtonState key={`${user?.id ?? "guest"}:${user?.picture ?? ""}`} statsHref={withBasePath(statsHref)} />;
 }
 
 function AccountButtonState({ statsHref }: { statsHref: string }) {

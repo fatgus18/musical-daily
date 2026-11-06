@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { withBasePath } from "@/lib/app-path";
 import { useSound } from "./sound-client";
 import type { PublicTrack } from "@/lib/types";
 
@@ -34,7 +35,7 @@ export function useSongPreview(scope: string, allowed: boolean) {
       if (attempt.current !== token) return;
       stop(); setError({ id: track.id, message: "Preview couldn’t play. Tap to retry." });
     };
-    player.volume = 0.7; player.src = track.previewUrl; player.onended = stop; player.onerror = fail;
+    player.volume = 0.7; player.src = withBasePath(track.previewUrl); player.onended = stop; player.onerror = fail;
     timer.current = setTimeout(fail, 8000);
     try {
       await player.play();

@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 export const games = ["blackjack", "tempo", "encore", "double-drop"] as const;
 export type GameId = typeof games[number];
-export interface AccountConfig { hub: string; origins: Record<GameId, string>; secret: string; clientId: string; clientSecret: string; database: string; configured: boolean }
+export interface AccountConfig { hub: string; origins: Record<GameId, string>; paths?: Partial<Record<GameId, string>>; secret: string; clientId: string; clientSecret: string; database: string; configured: boolean }
 function origin(value: string | undefined, fallback: string, production: boolean) {
   if (production && !value) throw new Error("Explicit account origins are required in production");
   const url = new URL(value || fallback);
@@ -15,9 +15,12 @@ export function accountConfig(): AccountConfig {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
   // Without Google credentials, guest pages still work in an unconfigured build.
   const strict = prod && Boolean(clientId || clientSecret || secret);
+  const services = process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES === "1";
+  const hub = origin(process.env.MUSICAL_DAILY_AUTH_ORIGIN, "http://localhost:3001", strict);
   return {
-    hub: origin(process.env.MUSICAL_DAILY_AUTH_ORIGIN, "http://localhost:3001", strict),
-    origins: { blackjack: origin(process.env.MUSICAL_DAILY_BLACKJACK_ORIGIN, "http://localhost:3000", strict), tempo: origin(process.env.MUSICAL_DAILY_TEMPO_ORIGIN, "http://localhost:3002", strict), encore: origin(process.env.MUSICAL_DAILY_ENCORE_ORIGIN, "http://localhost:3004", strict), "double-drop": origin(process.env.MUSICAL_DAILY_DOUBLE_DROP_ORIGIN, "http://localhost:3005", strict) },
+    hub,
+    origins: services ? { blackjack: hub, tempo: hub, encore: hub, "double-drop": hub } : { blackjack: origin(process.env.MUSICAL_DAILY_BLACKJACK_ORIGIN, "http://localhost:3000", strict), tempo: origin(process.env.MUSICAL_DAILY_TEMPO_ORIGIN, "http://localhost:3002", strict), encore: origin(process.env.MUSICAL_DAILY_ENCORE_ORIGIN, "http://localhost:3004", strict), "double-drop": origin(process.env.MUSICAL_DAILY_DOUBLE_DROP_ORIGIN, "http://localhost:3005", strict) },
+    paths: services ? { blackjack: "/blackjack", tempo: "/tempo-trap", encore: "/encore", "double-drop": "/double-or-drop" } : undefined,
     secret, clientId, clientSecret, database: process.env.ACCOUNTS_DB_PATH || "data/accounts.sqlite",
     configured: Boolean(clientId && clientSecret && secret.length >= 32),
   };

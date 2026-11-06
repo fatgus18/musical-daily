@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 const config: NextConfig = {
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
   transpilePackages: ["@musical-daily/accounts"],
   outputFileTracingRoot: path.resolve(process.cwd(), ".."),
   turbopack: { root: path.resolve(process.cwd(), "..") },

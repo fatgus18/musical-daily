@@ -5,6 +5,7 @@ import { EMPTY_STATS, freshProgress, readStats, recordDaily, restoreGame, saveGa
 import type { Mode, Progress, Puzzle, RoundResult, SavedGame, Stats } from "@/lib/types";
 import type { GameStats } from "@musical-daily/accounts";
 import { useSound } from "@/components/sound-client";
+import { withBasePath } from "@/lib/app-path";
 
 export function useTempo(accountId: string | null = null) {
   const { play: playSound } = useSound();
@@ -38,7 +39,7 @@ export function useTempo(accountId: string | null = null) {
 
   const refreshStats = useCallback(async () => {
     if (!accountId) { setStats(readStats()); return; }
-    const response = await fetch("/api/account/stats", { cache: "no-store" });
+    const response = await fetch(withBasePath("/api/account/stats"), { cache: "no-store" });
     if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
     const payload = await response.json() as { games: { tempo: GameStats } };
     const saved = payload.games.tempo;
@@ -58,7 +59,7 @@ export function useTempo(accountId: string | null = null) {
     setLoading(true); setError(null); setElapsed(0); setRemaining(15);
     const controller = new AbortController(); request.current = controller;
     try {
-      const response = await fetch(`/api/daily?mode=${mode}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+      const response = await fetch(withBasePath(`/api/daily?mode=${mode}`), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
       if (!response.ok) throw new Error("Couldn’t load your mix. Please try again.");
       const puzzle: Puzzle = await response.json();
       if (!mounted.current || generation.current !== current) return;
@@ -91,7 +92,7 @@ export function useTempo(accountId: string | null = null) {
   useEffect(() => {
     if (!track || loading) return;
     const controller = new AbortController();
-    const promise = fetch(track.previewUrl, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) }).then(response => {
+    const promise = fetch(withBasePath(track.previewUrl), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) }).then(response => {
       if (!response.ok) throw new Error("This preview is unavailable. Retry the clip in a moment.");
       return response.arrayBuffer();
     });
@@ -109,7 +110,7 @@ export function useTempo(accountId: string | null = null) {
     const guess = /^\d+$/.test(progress.guess) && isGuess(Number(progress.guess)) ? Number(progress.guess) : null;
     commit(puzzle, { ...progress, phase: "submitting" }); setError(null);
     try {
-      const response = await fetch("/api/guess", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: progress.token, guess }), signal: AbortSignal.timeout(12000) });
+      const response = await fetch(withBasePath("/api/guess"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: progress.token, guess }), signal: AbortSignal.timeout(12000) });
       const answer = await response.json() as { result: RoundResult; results: RoundResult[]; token: string; error?: string };
       if (!response.ok) throw new Error(answer.error || "Couldn’t check your guess.");
       if (!mounted.current || generation.current !== requestGeneration) return;
@@ -164,7 +165,7 @@ export function useTempo(accountId: string | null = null) {
         if (!audioData.current || audioData.current.url !== currentTrack.previewUrl) throw new Error("No prefetch");
         bytes = await audioData.current.promise;
       } catch {
-        const response = await fetch(currentTrack.previewUrl, { signal: AbortSignal.timeout(15000) });
+        const response = await fetch(withBasePath(currentTrack.previewUrl), { signal: AbortSignal.timeout(15000) });
         if (!response.ok) throw new Error("The audio preview is currently unavailable.");
         bytes = await response.arrayBuffer();
         audioData.current = { url: currentTrack.previewUrl, promise: Promise.resolve(bytes) };
@@ -184,7 +185,7 @@ export function useTempo(accountId: string | null = null) {
         if (accountId && active.puzzle.mode === "daily") {
           commit(active.puzzle, { ...active.progress, phase: "loading" });
           try {
-            const response = await fetch("/api/round", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: active.progress.token }), signal: AbortSignal.timeout(12000) });
+            const response = await fetch(withBasePath("/api/round"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: active.progress.token }), signal: AbortSignal.timeout(12000) });
             const answer = await response.json();
             if (!response.ok) throw new Error(answer.error || "Your guessing timer couldn't sync.");
             if (!mounted.current || generation.current !== requestGeneration) return;

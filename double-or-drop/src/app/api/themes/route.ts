@@ -6,7 +6,7 @@ export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
   const {token,player}=anonymousIdentity(req);
   try{
-    rateLimit(store(),player,"themes",60);const query=(req.nextUrl.searchParams.get("q")||"").trim();
+    await rateLimit(await store(),player,"themes",60);const query=(req.nextUrl.searchParams.get("q")||"").trim();
     if(query.length>100)throw new Error("Try a shorter artist name.");
     const catalog=loadCatalog();return reply({themes:query?listArtistThemes(catalog,query).slice(0,30):listThemes(catalog)},token);
   }catch(error){return errorReply(error,token);}

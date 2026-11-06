@@ -1,1 +1,9 @@
-{"name":"@musical-daily/music-provider","private":true,"type":"module","version":"1.0.0"}
+{
+  "name": "@musical-daily/music-provider",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {
+    "@musical-daily/database": "file:../database"
+  }
+}

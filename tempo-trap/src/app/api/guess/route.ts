@@ -2,10 +2,10 @@ import { getTracks } from "@/lib/catalog";
 import { isGuess, scoreGuess } from "@/lib/game";
 import { readSession, signSession } from "@/lib/session";
 import { loadAccountMix, saveAccountMix } from "@/lib/account-game";
+import { sameOrigin } from "@/lib/request-origin";
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return Response.json({ error: "Invalid request origin." }, { status: 403 });
+  if (!sameOrigin(request)) return Response.json({ error: "Invalid request origin." }, { status: 403 });
   try {
     const { token, guess } = await request.json();
     if (guess !== null && !isGuess(guess)) return Response.json({ error: "Enter a whole-number BPM between 40 and 220." }, { status: 400 });

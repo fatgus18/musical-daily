@@ -1,5 +1,6 @@
 import { getAccount, loadProgress, saveProgress } from "@musical-daily/accounts/server";
 import { evaluateRank, generateDailyPuzzle, type DailyPuzzleData, type RankTier, type RulesVersion } from "./puzzle";
+export { sameOrigin } from "./request-origin";
 
 export interface AccountHand {
   date: string; catalogVersion: string; rulesVersion: RulesVersion;
@@ -55,8 +56,4 @@ export function handEvent(hand: AccountHand) {
   return { eventId: `daily:${hand.date}`, mode: "daily" as const, date: hand.date,
     score: result.rank === "BUST" ? 0 : result.finalSum / result.targetStreams * 100, maxScore: 100,
     won: result.rank !== "BUST", correct: result.rank === "BLACKJACK" ? 1 : 0, rounds: 1 };
-}
-export function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  return !origin || origin === new URL(request.url).origin;
 }

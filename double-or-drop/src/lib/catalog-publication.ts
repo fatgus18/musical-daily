@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, rename, readdir, stat } from "node:fs/promi
 import { resolve, dirname } from "node:path";
 import { catalogVersion, validateCatalog, MAX_CATALOG_BYTES } from "./catalog.ts";
 import type { Catalog, CatalogSource, CatalogTrack } from "./catalog-types.ts";
+import { persistArtistCatalog } from "./catalog-storage.ts";
 
 async function atomic(path: string, data: string) {
   await mkdir(dirname(path), { recursive: true });
@@ -11,10 +12,14 @@ async function atomic(path: string, data: string) {
 }
 
 /** Artist packs do not replace the broad library pointer. All saved versions remain immutable. */
-export async function publishCatalog(tracks: CatalogTrack[], sources: CatalogSource[], output = process.env.DOUBLE_DROP_CATALOG_DIR || resolve(process.cwd(), "data"), makeCurrent = true): Promise<Catalog> {
+export async function publishCatalog(tracks: CatalogTrack[], sources: CatalogSource[], output?: string, makeCurrent = true): Promise<Catalog> {
   const uniqueSources = [...new Map(sources.map(source => [source.id, source])).values()].sort((a, b) => a.id.localeCompare(b.id));
   const catalog: Catalog = { schema: 1, version: catalogVersion(tracks, uniqueSources), createdAt: new Date().toISOString(), tracks, sources: uniqueSources };
   validateCatalog(catalog);
+  // Runtime discovery writes durable snapshots, never the read-only function bundle.
+  // Maintenance commands pass an explicit output directory for checked-in releases.
+  if (!makeCurrent && output === undefined) return persistArtistCatalog(catalog);
+  output ??= process.env.DOUBLE_DROP_CATALOG_DIR || resolve(process.cwd(), "data");
   const json = JSON.stringify(catalog) + "\n";
   if (Buffer.byteLength(json) > MAX_CATALOG_BYTES) throw new Error("Catalog metadata exceeds the deployment memory budget.");
   const file = resolve(output, "catalog-releases", `${catalog.version}.json`);

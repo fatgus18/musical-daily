@@ -51,6 +51,14 @@ MUSICAL_DAILY_APP_ORIGIN=http://localhost:3004
 
 Use the game's own origin for the last setting: Blackjack 3000, Tempo 3002, Encore 3004, or Double or Drop 3005. Public navigation URLs should agree with these server-side origins. They are not inferred from untrusted incoming Host headers.
 
+### Services and guest previews
+
+In a Vercel services deployment, each game binds to the `musical-daily` service using `MUSICAL_DAILY_ACCOUNT_SERVICE_URL`. Vercel injects this variable at runtime; do not set it manually. The SDK preserves the binding's URL path when calling `api/account/service`. That URL is only used for server requests, never browser redirects. Public authentication origins remain explicitly configured HTTPS origins without a path.
+
+`NEXT_PUBLIC_BASE_PATH` controls each game's public path prefix. The SDK prefixes OAuth return and failure paths once, including when a return path already has the game prefix. An unprefixed standalone deployment retains its existing routes. Shared service-secret authorization is still required when accounts are enabled.
+
+For a guest-only preview, set `NEXT_PUBLIC_GUEST_ONLY=1` at build and runtime. This hides sign-in controls and disables account reads, writes, and login/callback routes, even if an old account cookie remains in the browser. No account database or service secret is required in this mode. A same-origin logout request can still clear the old game cookies. Guest gameplay storage remains each game's responsibility; disabling accounts does not make a local game database suitable for serverless hosting.
+
 ## Sessions and consistency
 
 - Google's library verifies ID tokens. The account key is Google's immutable subject, never an email supplied by a browser.

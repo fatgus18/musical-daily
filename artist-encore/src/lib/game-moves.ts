@@ -1,4 +1,4 @@
-import type {DatabaseSync} from "node:sqlite";
+import type {Database} from "@musical-daily/database";
 import {act} from "./engine.ts";
 import {findGame,saveGame,transaction} from "./store.ts";
 
@@ -12,14 +12,16 @@ export function validateGameMove(body:Record<string,unknown>):GameMove{
 }
 
 /** API mutations always reload the owner's latest state under a write lock. */
-export function applySavedMove(db:DatabaseSync,player:string,body:Record<string,unknown>,now=Date.now()){
+export async function applySavedMove(db:Database,player:string,body:Record<string,unknown>,now?:number){
   const move=validateGameMove(body);
   if(move.action==="replace-clip")throw new Error("Clip replacements require the current provider catalog.");
-  return transaction(db,()=>{
-    const game=findGame(db,player,move.gameId);
+  return transaction(db,async tx=>{
+    const game=await findGame(tx,player,move.gameId);
     if(!game)throw new Error("This mix belongs to another browser or has expired.");
-    const state=act(game,move.action,move.round,move.choiceId,now);
-    saveGame(db,game);
+    // Read the clock after waiting for the lock and the latest saved state.
+    // Queued requests must not shorten a new guess window or accept a late answer.
+    const state=act(game,move.action,move.round,move.choiceId,now??Date.now());
+    await saveGame(tx,game);
     return state;
   });
 }

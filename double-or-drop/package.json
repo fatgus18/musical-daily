@@ -1,13 +1,35 @@
 {
-  "name": "double-or-drop", "version": "1.0.0", "private": true, "type": "module",
-  "engines": { "node": ">=24.0.0" },
+  "name": "double-or-drop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "predev": "node scripts/catalog-refresh.ts --shared --optional",
     "prebuild": "node scripts/catalog-refresh.ts --shared --optional",
-    "dev": "next dev -p 3005", "build": "next build", "start": "next start -p 3005",
-    "typecheck": "tsc --noEmit", "test": "node --test tests/*.test.ts", "test:e2e": "playwright test",
-    "catalog:refresh": "node scripts/catalog-refresh.ts", "storage:prune": "node scripts/storage-prune.ts"
+    "dev": "next dev -p 3005",
+    "build": "next build",
+    "start": "next start -p 3005",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.ts",
+    "test:e2e": "playwright test",
+    "catalog:refresh": "node scripts/catalog-refresh.ts",
+    "storage:prune": "node scripts/storage-prune.ts"
   },
-  "dependencies": { "next": "16.4.3", "react": "19.3.0", "react-dom": "19.3.0", "@musical-daily/accounts": "file:../shared/accounts" },
-  "devDependencies": { "typescript": "^5.9.3", "@types/node": "^24", "@types/react": "^19", "@types/react-dom": "^19", "@playwright/test": "^1.64.1" }
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "@musical-daily/accounts": "file:../shared/accounts",
+    "@musical-daily/database": "file:../shared/database"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@playwright/test": "^1.64.1"
+  }
 }

@@ -7,6 +7,7 @@ import { HandRemix } from "./hand-remix";
 import { MusicalDailyBrand } from "@/components/musical-daily-brand";
 import { AccountButton, useAccount } from "@/components/account-client";
 import { useSound } from "@/components/sound-client";
+import { withBasePath } from "@/lib/app-path";
 import type { GameStats } from "@musical-daily/accounts";
 import type { PublicTrackCard, RankTier, RulesVersion } from "@/lib/puzzle";
 
@@ -170,7 +171,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
   const refreshStats = useCallback(async () => {
     if (!accountId) return;
-    const response = await fetch("/api/account/stats", { cache: "no-store" });
+    const response = await fetch(withBasePath("/api/account/stats"), { cache: "no-store" });
     if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
     const payload = await response.json() as { games: { blackjack: GameStats } };
     const saved = payload.games.blackjack;
@@ -236,7 +237,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
       });
       if (practiceSeed) params.set("seed", practiceSeed);
       if (repair) params.set("repair", "1");
-      const response = await fetch(`/api/preview?${params}`, { signal: controller.signal });
+      const response = await fetch(withBasePath(`/api/preview?${params}`), { signal: controller.signal });
       if (!response.ok) throw new Error("Preview lookup failed.");
       const media = await response.json() as Pick<PublicTrackCard, "previewUrl" | "albumArtUrl" | "previewStatus" | "previewSourceUrl">;
       if (!current()) return;
@@ -250,7 +251,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
     const play = async (url: string, repaired: boolean) => {
       if (!current()) return;
-      const audio = new Audio(url);
+      const audio = new Audio(withBasePath(url));
       audio.volume = 0.5;
       audioRef.current = audio;
       let failed = false;
@@ -378,7 +379,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
             if (saved.catalogVersion) params.set("catalogVersion", saved.catalogVersion);
           }
         }
-        const res = await fetch(`/api/daily?${params.toString()}`);
+        const res = await fetch(withBasePath(`/api/daily?${params.toString()}`));
         if (!res.ok) throw new Error("Couldn't load this hand. Please try again.");
         const data: DailyApiResponse = await res.json();
         if (requestId !== boardRequest.current) return;
@@ -468,7 +469,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
     if (!board) return;
     const soundBoard = boardRequest.current;
     stopAudio();
-    const res = await fetch("/api/finish", {
+    const res = await fetch(withBasePath("/api/finish"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -532,7 +533,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
     const soundBoard = boardRequest.current;
 
     try {
-      const res = await fetch("/api/reveal", {
+      const res = await fetch(withBasePath("/api/reveal"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -709,7 +710,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
             {/* Dedicated game stats */}
             <a
-              href="/stats"
+              href={withBasePath("/stats")}
               className="rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-xs font-semibold text-neutral-200 transition hover:border-white/25 hover:bg-[#252137]"
             >
               📊 Stats

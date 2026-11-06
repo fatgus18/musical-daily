@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AccountButton, AccountSignIn, useAccount, type AccountUser } from "./account-client";
+import { AccountButton, AccountSignIn, useAccount, guestOnly, type AccountUser } from "./account-client";
+import { withBasePath } from "@/lib/app-path";
 import { MusicalDailyBrand } from "./musical-daily-brand";
 import type { AccountStats, GameStats, GameId } from "@musical-daily/accounts";
 
@@ -80,7 +81,7 @@ function StatsCard({ game, stats, href, signedIn, loading }: { game: GameKey; st
           const { denominator, correct } = recentAccuracy(entry);
           return <i key={entry.eventId} className={entry.status === "incomplete" ? "md-stats-bar-incomplete" : undefined} style={{ height: `${Math.max(3, Math.min(100, denominator ? correct / denominator * 100 : 0))}%` }} title={`${entry.date}: ${recentDescription(entry, game)}`}/>;
         })}</div></div>
-      </> : <span className="md-stats-little-note"><span aria-hidden="true">♡</span> {loading ? "Finding your highlights…" : !signedIn ? "Sign in to give your scores a home." : stats ? "Your first score will look lovely here." : "Your scores will appear when we reconnect."}</span>}
+      </> : <span className="md-stats-little-note"><span aria-hidden="true">♡</span> {loading ? "Finding your highlights…" : guestOnly ? "Play a round to see your result inside the game." : !signedIn ? "Sign in to give your scores a home." : stats ? "Your first score will look lovely here." : "Your scores will appear when we reconnect."}</span>}
     </div>
   </article>;
 }
@@ -129,7 +130,7 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
   useEffect(() => {
     if (!accountId || accountLoading || accountError) return;
     const controller = new AbortController();
-    fetch("/api/account/stats", { cache: "no-store", credentials: "same-origin", signal: controller.signal }).then(async response => {
+    fetch(withBasePath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal: controller.signal }).then(async response => {
       if (response.status === 401) { await refresh(); throw new Error("Please sign in again to see your stats."); }
       if (!response.ok) throw new Error("Your stats could not be loaded. Your saved scores are still safe.");
       const result: StatsResponse = await response.json();
@@ -156,7 +157,7 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
   return <div className="md-stats-shell">
     <a href="#your-stats" className="md-stats-skip">Skip to your stats</a>
     <header className="md-stats-header">
-      <MusicalDailyBrand href={game ? hub : "/"} />
+      <MusicalDailyBrand href={game ? hub || "/" : "/"} />
       <nav aria-label="Main navigation">
         <Link href="/">{game ? "← Back to game" : "All games"}</Link>
         <Link href="/stats" aria-current="page">{game ? "Game stats" : "My stats"}</Link>
@@ -167,19 +168,19 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
     <main className="md-stats-page" id="your-stats">
       <section className="md-stats-hero"><div><div className="md-stats-edition"><span/> {game ? `${localName?.toUpperCase()} · YOUR COLLECTION` : "THE SOUND OF YOUR PROGRESS"}</div>
         <h1>{game ? <>Good plays.<br/><span>Little victories.</span></> : <>Your music.<br/><span>Your little legacy.</span></>}</h1>
-        <p>{user ? <>Hey {user.name?.split(" ")[0] || "music lover"}. Every good guess deserves a little home.</> : "The lucky hands. The perfect guesses. The songs you know by heart."}<br/>{game ? `Your ${localName} scores, kept together with your Musical Daily account.` : "Four games. One very you collection."}</p>
+        <p>{user ? <>Hey {user.name?.split(" ")[0] || "music lover"}. Every good guess deserves a little home.</> : "The lucky hands. The perfect guesses. The songs you know by heart."}<br/>{guestOnly ? "Four games to try. No sign-in needed." : game ? `Your ${localName} scores, kept together with your Musical Daily account.` : "Four games. One very you collection."}</p>
         {current && (total > 0 || incompleteTotal > 0) && <span className="md-stats-total"><span aria-hidden="true">✦</span> {number(total)} {total === 1 ? "game" : "games"} finished.{incompleteTotal > 0 ? ` ${number(incompleteTotal)} incomplete ${incompleteTotal === 1 ? "play" : "plays"} saved, too.` : " Look at you go."}</span>}</div><RecordFriend/>
       </section>
-      {!accountLoading && !user && !accountError && <section className="md-stats-sign-in" aria-label="Sign in to save your stats"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>A home for your high notes.</h2><p>Sign in with Google to see your account stats here and across Musical Daily. Guest scores stay with the game in this browser.</p></div><AccountSignIn/></section>}
+      {guestOnly ? <section className="md-stats-sign-in" aria-label="Guest preview"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>Just here for the music.</h2><p>Account stats are paused for this guest preview. You can still play every game and see each round’s result in the game.</p></div></section> : !accountLoading && !user && !accountError && <section className="md-stats-sign-in" aria-label="Sign in to save your stats"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>A home for your high notes.</h2><p>Sign in with Google to see your account stats here and across Musical Daily. Guest scores stay with the game in this browser.</p></div><AccountSignIn/></section>}
       {accountLoading && <p className="md-stats-status" role="status">Getting your little collection ready…</p>}
       {(accountError || failure) && <div className="md-stats-error" role="alert"><span>{accountError || failure}</span><button type="button" onClick={() => { if (accountError) void refresh(); else { setPending(true); setRetry(value => value + 1); } }}>Try again ↻</button></div>}
       <div className="md-stats-section-label"><span className="md-stats-eyebrow">{game ? "YOUR GAME, YOUR GROOVE" : "YOUR LITTLE OBSESSIONS"}</span><span className="md-stats-private"><span aria-hidden="true">♡</span> Just for you</span></div>
-      <section className="md-stats-cards" aria-label="Your game statistics" aria-busy={loading}>{games.map(id => <StatsCard key={id} game={id} stats={current?.games[id]} href={game ? "/" : gameHref(gameUrls[id] || "/", !!user)} signedIn={!!user} loading={loading}/>)}</section>
+      <section className="md-stats-cards" aria-label="Your game statistics" aria-busy={loading}>{games.map(id => <StatsCard key={id} game={id} stats={current?.games[id]} href={game ? withBasePath("/") : gameHref(gameUrls[id] || "/", !!user)} signedIn={!!user} loading={loading}/>)}</section>
       {game && <RecentResults game={game} stats={current?.games[game]} />}
       {game && <a className="md-stats-combined" href={`${hub}/stats`}><span aria-hidden="true">✳</span><span><strong>There’s more to your music.</strong><small>Find all four games together in your Musical Daily stats.</small></span><b aria-hidden="true">↗</b></a>}
       <p className="md-stats-bottom-note"><span aria-hidden="true">♪</span> Tiny victories. Excellent taste. See you for the next round.</p>
     </main>
-    <footer className="md-stats-footer"><span>Made for the love of music.</span><a href={game ? hub : "/"}>Find your next favorite game ↗</a></footer>
+    <footer className="md-stats-footer"><span>Made for the love of music.</span><a href={game ? hub || "/" : "/"}>Find your next favorite game ↗</a></footer>
   </div>;
 }
 
