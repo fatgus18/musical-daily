@@ -96,6 +96,45 @@ test("actual worklet handles changing quantum sizes, silent gaps and exact frame
   assert.equal(recorder.messages.at(-1)?.type, "stopped");
 });
 
+test("worklet start waits for real rendering and acknowledges once before chunks and the frame limit", () => {
+  const recorder = worklet(4200);
+  recorder.send("start");
+  assert.equal(recorder.messages.length, 0, "Receiving a control message does not prove the audio clock is rendering");
+  recorder.process(new Float32Array([.5]));
+  assert.deepEqual(recorder.messages.map(message => message.type), ["started"]);
+  recorder.process(new Float32Array(4096).fill(.25));
+  recorder.process(new Float32Array(200).fill(-.5));
+  recorder.send("stop");
+  assert.deepEqual(recorder.messages.map(message => message.type), ["started", "chunk", "chunk", "limit", "stopped"]);
+  assert.equal(recorder.pcm().length, 4200);
+
+  const short = worklet(1);
+  short.send("start");
+  short.process(new Float32Array([.5, 1]));
+  short.send("stop");
+  assert.deepEqual(short.messages.map(message => message.type), ["started", "chunk", "limit", "stopped"], "Even a one-frame cap preserves control/data FIFO order");
+  assert.deepEqual(short.pcm(), [16384]);
+});
+
+test("stopping before the first render acknowledges cancellation without a late start or captured frames", () => {
+  const recorder = worklet();
+  recorder.send("start", 1);
+  recorder.send("stop", 1);
+  assert.deepEqual(recorder.messages.map(message => [message.type, message.id, message.frames]), [["stopped", 1, 0]]);
+  recorder.process(new Float32Array([1, 1]));
+  assert.equal(recorder.messages.length, 1);
+  recorder.send("start", 2);
+  assert.equal(recorder.messages.length, 1);
+  recorder.process(new Float32Array([.25]));
+  recorder.send("stop", 2);
+  assert.deepEqual(recorder.messages.map(message => [message.type, message.id]), [["stopped", 1], ["started", 2], ["chunk", 2], ["stopped", 2]]);
+  assert.deepEqual(recorder.pcm(), [8192]);
+  recorder.send("start", 3);
+  recorder.send("dispose");
+  assert.equal(recorder.process(new Float32Array([1])), false);
+  assert.equal(recorder.messages.some(message => message.id === 3), false);
+});
+
 class MockContext {
   state = "running";
   sampleRate = 48000;
@@ -120,6 +159,7 @@ class MockNode {
 }
 class MockWorkletNode extends MockNode {
   static nodes: MockWorkletNode[] = [];
+  static acknowledgeStart = true;
   static acknowledgeStop = true;
   onprocessorerror: (() => void) | null = null;
   closed = false;
@@ -129,7 +169,7 @@ class MockWorkletNode extends MockNode {
     postMessage: (message: { type: string; id?: number }) => {
       if (message.type === "start") {
         this.id = message.id!;
-        queueMicrotask(() => this.emit({ type: "started", id: this.id }));
+        if (MockWorkletNode.acknowledgeStart) queueMicrotask(() => this.emit({ type: "started", id: this.id }));
       } else if (message.type === "stop" && MockWorkletNode.acknowledgeStop) {
         queueMicrotask(() => this.emit({ type: "stopped", id: this.id }));
       }
@@ -192,6 +232,29 @@ test("dispose and stop cancel stalled startup and leave no audio graph attached"
       recorder.dispose();
     }
   } finally { globalThis.AudioWorkletNode = previous; }
+});
+
+test("stop cancels a connected recorder awaiting its first render acknowledgement", async () => {
+  const previous = globalThis.AudioWorkletNode;
+  globalThis.AudioWorkletNode = MockWorkletNode as unknown as typeof AudioWorkletNode;
+  MockWorkletNode.acknowledgeStart = false;
+  try {
+    const context = new MockContext();
+    const source = new MockNode(context);
+    const recorder = new StudioRecorder(context as unknown as AudioContext, source as unknown as AudioNode);
+    const started = recorder.start();
+    const cancelled = assert.rejects(started, /cancelled/);
+    await new Promise(resolve => setImmediate(resolve));
+    const node = MockWorkletNode.nodes.at(-1)!;
+    assert.deepEqual(source.connections, [node]);
+    assert.equal(await recorder.stop(), null);
+    await cancelled;
+    assert.equal(node.closed, true);
+    assert.equal(context.listeners.size, 0);
+    node.emit({ type: "started", id: node.id });
+    assert.equal(await recorder.stop(), null, "Late acknowledgements cannot revive a cancelled take");
+    recorder.dispose();
+  } finally { globalThis.AudioWorkletNode = previous; MockWorkletNode.acknowledgeStart = true; }
 });
 
 test("disposing a completed recorder releases its take and promise references", async () => {

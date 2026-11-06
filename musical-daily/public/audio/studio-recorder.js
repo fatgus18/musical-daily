@@ -3,6 +3,7 @@ class StudioPCMRecorder extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.active = false;
+    this.startPending = false;
     this.alive = true;
     this.id = 0;
     this.frames = 0;
@@ -16,15 +17,17 @@ class StudioPCMRecorder extends AudioWorkletProcessor {
       if (data?.type === "start" && !this.active) {
         this.id = data.id;
         this.active = true;
+        this.startPending = true;
         this.frames = 0;
         this.offset = 0;
-        this.port.postMessage({ type: "started", id: this.id });
       } else if (data?.type === "stop" && data.id === this.id) {
         this.active = false;
+        this.startPending = false;
         this.flush();
         this.port.postMessage({ type: "stopped", id: this.id, frames: this.frames });
       } else if (data?.type === "dispose") {
         this.active = false;
+        this.startPending = false;
         this.alive = false;
         this.offset = 0;
       }
@@ -51,6 +54,12 @@ class StudioPCMRecorder extends AudioWorkletProcessor {
       sample = Math.max(-1, Math.min(1, sample));
       this.chunk[this.offset++] = Math.round(sample * (sample < 0 ? 32768 : 32767));
       this.frames++;
+      // A port message can arrive before audio rendering starts. Only arm the UI
+      // after a real render frame exists, before any chunk or limit messages.
+      if (this.startPending) {
+        this.startPending = false;
+        this.port.postMessage({ type: "started", id: this.id });
+      }
       if (this.offset === this.chunk.length) this.flush();
     }
     if (this.frames >= this.maxFrames) {
