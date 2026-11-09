@@ -1,6 +1,21 @@
 # Double or Drop
 
-An unlimited music comparison game in Musical Daily. Choose between two real recordings in **20 seconds**, build a pot, and decide whether to protect it or risk doubling it. Mouse and keyboard both work. An original quiet 144 BPM backing track and action sounds make each round feel alive; everything remains playable with game sounds muted.
+A daily and unlimited music comparison game in Musical Daily. Choose between two real recordings in **20 seconds**, build a pot, and decide whether to protect it or risk doubling it. Mouse and keyboard both work. An original quiet 144 BPM backing track and action sounds make each round feel alive; everything remains playable with game sounds muted.
+
+## The Daily Drop
+
+Open `/?mode=daily` (or `/double-or-drop/?mode=daily` on the shared deployment) to select Daily without starting a timer. The lobby offers Daily and Unlimited independently.
+
+- Every UTC day has **ten identical ordered pairs for everyone**, drawn from the full published collection. Banking, player history and previous answers never change this sequence.
+- Three lives, 20 seconds per pick and the normal bank/risk ladder apply. Pick ten automatically banks any surviving pot. The final pair remains visible for three visible seconds before the result.
+- One attempt per browser/account per UTC date. Early cashout or discard consumes the attempt too; discard is recorded as incomplete. A saved daily can resume until midnight UTC. Unfinished dailies then expire as incomplete, keeping only protected points (an already-expired pick settles first).
+- Unlimited and Daily can each have one active run, so switching modes never discards the other run. Active pick clocks keep running while away.
+- The first server request to start a day's challenge stores its immutable ten-pair snapshot in `daily_challenges`. Concurrent publishers use first-write-wins; new deployments/catalog releases cannot change an already published day. Future pairs and measurements are never included in public responses.
+- The database enforces one attempt per player/date and one active run per player/mode. Retention keeps recent daily attempt rows even if a player completes many unlimited runs. Anonymous play relies on the browser cookie; clearing it or using another browser creates a separate guest identity.
+- `GET /api/game?mode=daily` reads today's attempt and reset time. `POST /api/game` with `{ "action": "create", "mode": "daily", "requestId": "a-new-uuid" }` resumes or creates it. Client-provided dates, seeds, collections, comparison filters and catalog versions are rejected for Daily. Omitted mode keeps the existing unlimited API behavior.
+- Completed daily result events use `mode: "daily"` and the challenge date; unlimited continues using `practice`. The in-game result/ticket and share text distinguish them. Account stats remain subject to the platform's sign-in availability.
+
+`tests/daily.test.ts` covers deterministic sequences, banking-independent pairs, finite completion, timeout/expiry, hidden future answers, immutable publication races, mode coexistence, daily uniqueness after discard/retention and account claims.
 
 ## Run locally
 
@@ -29,14 +44,14 @@ Open **http://localhost:3005** for the game or **http://localhost:3001** for the
 - Each pick has a server-enforced **20-second deadline**. Reloads, help, and returning home do not pause or reset it. Banking decisions have no timer.
 - A wrong pick or timeout loses the pot and one life. Banked points stay. Three misses finish the run.
 - The third miss remains on the pair screen for at least **three visible seconds**, showing the wrong selection and correct values before results. Hidden/home time does not consume this display interval; reloading resumes it. The saved result remains final and is never counted twice.
-- At 3,200 you must bank before continuing. There is no daily quota or normal round limit. Defensive storage limits finish a single extreme run at one million comparisons or one billion banked points; a new run remains available.
+- At 3,200 you must bank before continuing. Unlimited has no quota or normal round limit; Daily has ten picks and one attempt. Defensive storage limits finish a single extreme unlimited run at one million comparisons or one billion banked points; a new unlimited run remains available.
 - Press **1 / 2** to pick, **B** to bank, or **R** to risk. Instructions suppress game shortcuts while open. Reduced-motion preferences disable animations.
 
 The game logo and **Game home** return to the game lobby while preserving the active run. From there, resume or discard the saved run and choose a fresh setup. Discarding records an **incomplete run**, keeps protected banked points, and forfeits any unbanked pot. It does not automatically start another clock; the next run begins only when you press play. Returning home or closing the tab alone does not mark a run incomplete. An active clock keeps running; expired picks settle once when the browser reconnects. Guest persistence requires the anonymous HttpOnly cookie. Signed-in runs belong to the shared Musical Daily account. Legacy untimed runs receive one persisted fresh 20-second deadline on first access.
 
 ## Music and fairness
 
-The broad library now contains **17,191 recordings by 4,629 artists**, including every recording in the current Tempo and Blackjack releases and available Encore cache data. It has **2,016 playable artist collections** and **2,390 existing preview URLs**. Artist collections need two distinct comparable recordings, with no popularity floor. The shared-library synchronization runs before development/build when maintenance sources are present, or manually with `npm run catalog:refresh -- --shared`.
+The November 9, 2026 broad library contains **17,672 recording records by 4,631 artists**, including every recording in the newest Tempo and Blackjack releases and available Encore cache data. It has **2,012 playable artist collections**, **3,198 sourced stream counts** and **4,972 preview references**. Artist collections need two distinct comparable recordings, with no popularity floor. The shared-library synchronization runs before development/build when maintenance sources are present, or manually with `npm run catalog:refresh -- --shared`. Add a named provider collection using `--artist "Hozier"`; repeated `--artist` options and `--continue` support more discoveries without editing arrays.
 
 Search also reaches the same live provider as Encore. Choosing a provider artist loads an immutable collection from its available releases. **Load more releases** continues partial discographies. Only known measurements are used: an unranked song can play in runtime mode without invented BPM or stream counts. Set the same `MUSIC_PROVIDER_CACHE_PATH` in Encore and this app to reuse cached discoveries and request pacing. Provider/region availability remains a limit; this does not claim every recording ever released.
 

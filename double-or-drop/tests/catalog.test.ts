@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, mkdir, writeFile, utimes, readdir } from "node:f
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { loadCatalog, catalogStatus, listThemes, listArtistThemes, filterCatalog, validateTrack, validateCatalog, catalogVersion, eligibleThemeMetric } from "../src/lib/catalog.ts";
-import { applyStreamRows, parseStreamPage, mergeFeed, publishCatalog, pruneCatalogs, importDatabase } from "../scripts/catalog-refresh.ts";
+import { applyStreamRows, parseStreamPage, mergeFeed, publishCatalog, pruneCatalogs, importDatabase, mergeSharedRefresh } from "../scripts/catalog-refresh.ts";
 import type { Catalog, CatalogTrack } from "../src/lib/catalog-types.ts";
 import { artistPoolTracks } from "../src/lib/catalog-artists.ts";
 import { isPreviewUrl } from "../src/lib/catalog.ts";
@@ -147,6 +147,17 @@ test("stream refresh updates existing evidenced identities, preserving misses an
   assert.equal(result.tracks[1], unknown); assert.equal(track.metrics.streams!.value === 123456, false);
   const ambiguous = applyStreamRows([track], [...rows, { ...rows[0], streams: 333333 }], "2026-11-02");
   assert.equal(ambiguous.updated, 0); assert.equal(ambiguous.tracks[0], track);
+});
+
+test("shared refresh keeps published provider songs after cache expiry without reviving excluded bulk rows", () => {
+  const template = loadCatalog().tracks.find(track => track.metrics.streams)!;
+  const provider = { ...template, id: "apple:123456" };
+  const excludedBulk = { ...template, id: "excluded-bulk-recording" };
+  const imported = { ...template, metrics: { ...template.metrics, streams: { ...template.metrics.streams!, asOf: "2026-01-01", value: 1 } } };
+  const output = mergeSharedRefresh([imported], [template, provider, excludedBulk]);
+  assert.deepEqual(output.map(track => track.id), [template.id, provider.id]);
+  assert.equal(output[0].metrics.streams!.asOf, template.metrics.streams!.asOf);
+  assert.equal(output[1], provider);
 });
 
 test("feeds require language evidence and reject duplicates transactionally", () => {

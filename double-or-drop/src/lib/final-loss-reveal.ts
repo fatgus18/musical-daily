@@ -8,6 +8,7 @@ type FinalLossSnapshot = Pick<PublicGame, "id" | "revision" | "phase" | "round" 
 
 /** Only a genuine third miss needs the final answer reveal, including a timeout. */
 export function finalLossRevealKey(game: FinalLossSnapshot | null): string | null {
+  if(game?.phase==="complete"&&game.endReason==="daily-complete"&&game.reveal?.round===game.round)return `${game.id}:${game.revision}`;
   return game?.phase === "complete" && game.endReason === "lives" && game.lives === 0
     && game.completionStatus !== "incomplete" && game.reveal?.correct === false
     && game.reveal.round === game.round ? `${game.id}:${game.revision}` : null;

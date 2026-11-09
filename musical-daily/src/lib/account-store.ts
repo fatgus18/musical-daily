@@ -114,7 +114,7 @@ export class AccountStore {
         currentStreak, bestStreak,
         lastPlayed: events[0]?.date || null,
         recent: events.slice(0, 8).map(({ event, date }) => ({
-          eventId: event.eventId, date: event.date || date.slice(0, 10),
+          eventId: event.eventId, date: event.date || date.slice(0, 10), mode: event.mode,
           status: event.status || "completed",
           ...(event.incompleteReason ? { incompleteReason: event.incompleteReason } : {}),
           score: event.score, maxScore: event.maxScore,
@@ -144,7 +144,7 @@ export function validateEvent(game: GameId, event: ResultEvent) {
   if (!event || typeof event.eventId !== "string" || !/^[\w:.-]{1,160}$/.test(event.eventId) || !["daily", "practice", "artist"].includes(event.mode)) throw new AccountValidationError("Invalid result");
   if (event.status !== undefined && event.status !== "completed" && event.status !== "incomplete") throw new AccountValidationError("Invalid result status");
   const incomplete = event.status === "incomplete";
-  if (incomplete && (game !== "encore" && game !== "double-drop" || event.mode === "daily" || event.won === true)) throw new AccountValidationError("Invalid incomplete result");
+  if (incomplete && (game !== "encore" && game !== "double-drop" || event.mode === "daily" && game !== "double-drop" || event.won === true)) throw new AccountValidationError("Invalid incomplete result");
   if (event.incompleteReason !== undefined && (!incomplete || !["discarded", "replaced", "expired", "account-merge"].includes(event.incompleteReason))) throw new AccountValidationError("Invalid incomplete reason");
   const emptyDrop = incomplete && game === "double-drop" && event.rounds === 0 && event.correct === 0;
   if (![event.score, event.maxScore].every(Number.isFinite) || event.maxScore < 0 || (!emptyDrop && event.maxScore === 0) || event.maxScore > 1000000 || event.score < 0 || event.score > event.maxScore) throw new AccountValidationError("Invalid score");
@@ -156,7 +156,8 @@ export function validateEvent(game: GameId, event: ResultEvent) {
   if (event.artist && (game !== "encore" || typeof event.artist.id !== "string" || event.artist.id.length > 100 || typeof event.artist.name !== "string" || event.artist.name.length > 200)) throw new AccountValidationError("Invalid artist");
   if (event.won !== undefined && typeof event.won !== "boolean") throw new AccountValidationError("Invalid win status");
   if (game === "double-drop") {
-    if (event.mode !== "practice" || !Number.isInteger(event.score) || !Number.isInteger(event.maxScore) || event.correct !== event.score || event.rounds !== event.maxScore || typeof event.won !== "boolean" || !Number.isSafeInteger(event.bankedPoints) || event.bankedPoints! < 0 || event.bankedPoints! > 1000000000 || (!incomplete && !event.won && event.bankedPoints !== 0) || (event.bankedPoints! > 0 && event.correct === 0) || (event.won && !event.bankedPoints)) throw new AccountValidationError("Invalid Double or Drop result");
+    if (!["practice", "daily"].includes(event.mode) || !Number.isInteger(event.score) || !Number.isInteger(event.maxScore) || event.correct !== event.score || event.rounds !== event.maxScore || typeof event.won !== "boolean" || !Number.isSafeInteger(event.bankedPoints) || event.bankedPoints! < 0 || event.bankedPoints! > 1000000000 || (!incomplete && !event.won && event.bankedPoints !== 0) || (event.bankedPoints! > 0 && event.correct === 0) || (event.won && !event.bankedPoints)) throw new AccountValidationError("Invalid Double or Drop result");
+    if (event.mode === "daily" && (event.maxScore > 10 || incomplete && event.maxScore >= 10)) throw new AccountValidationError("Invalid daily Double or Drop length");
   } else if (event.bankedPoints !== undefined) throw new AccountValidationError("Banked points belong to Double or Drop");
   if (Buffer.byteLength(JSON.stringify(event)) > 4096) throw new AccountValidationError("Result is too large");
 }

@@ -1,6 +1,6 @@
 # Double or Drop music catalog
 
-Double or Drop reuses the shared music library and the same live discovery provider as Encore. The current broad release contains **17,191 recordings by 4,629 artists**, with **2,016 playable artist collections** and **2,390 provider preview links**. There are 17,188 known durations, 16,295 sourced BPM measurements and 1,569 dated stream counts. Its JSON metadata is about 10.3 MB; audio and artwork bytes are not downloaded or copied.
+Double or Drop reuses the shared music library and the same live discovery provider as Encore. The November 9, 2026 broad release contains **17,672 recording records by 4,631 artists**, with **2,012 playable artist collections** and **4,972 provider preview links**. There are 17,669 known durations, 16,333 sourced BPM measurements and 3,198 dated stream counts. Audio and artwork bytes are not downloaded or copied.
 
 The previous 5,000-song selection, popularity floor, alternate-version exclusion and twelve-song artist requirement have been removed. Artists need only two different recordings with a fair comparison. Logical duplicate editions cannot be paired against one another, ties are excluded at the displayed precision, and streams must share an observation date.
 
@@ -9,7 +9,7 @@ The previous 5,000-song selection, popularity floor, alternate-version exclusion
 The broad release imports:
 
 - Every English-labelled, language-reviewed recording with a valid duration in the shared maintenance database, including low-popularity songs and alternate recordings.
-- Every suitable recording from all published Tempo Trap and Stream Blackjack releases. The current published pools are included completely: **835/835 Tempo tracks and 897/897 Blackjack tracks**.
+- Every suitable recording from all published Tempo Trap and Stream Blackjack releases. The newest published pools are included completely: **2,160/2,160 Tempo tracks and 1,831/1,831 Blackjack tracks**.
 - Every loaded discovery recording in Encore's unexpired or bounded stale metadata cache, including songs whose popularity is unknown.
 
 Forty-four old Blackjack seed IDs have only undated, unsourced counts and no other known comparison measurement. Those IDs cannot become fair questions by copying their old guessed counts; measured current releases are included completely. Other language-unknown or pending-review rows in the larger maintenance database are not silently called English. Artist-specific live discovery uses the provider's owned catalog without inferring song language from nationality.
@@ -25,6 +25,14 @@ For startup/build hooks, `--shared --optional` keeps the checked-in deployment r
 New source data becomes available after this synchronization. Existing runs keep their pinned immutable version; refreshing metadata never changes an answer already being played.
 
 ## Live artist discovery
+
+The same provider can expand the bundled roster from your laptop, without editing song arrays:
+
+```sh
+npm run catalog:refresh -- --shared --artist "Hozier" --artist "Sabrina Carpenter"
+```
+
+Repeat with `--continue` to load another batch for a partial artist discography. Artist names must match one unambiguous provider identity. Owned recordings, real durations and evidenced stream counts use the exact same validation as live Encore/Double or Drop discovery; unknown language/BPM/streams are never guessed. The updated immutable release must be committed and deployed. Already published provider records survive disposable-cache expiry during later shared-library refreshes. Run one Apple discovery/enrichment process at a time so request pacing is shared correctly.
 
 Encore and Double or Drop use the canonical [shared provider](../shared/music-provider/README.md). The provider searches live artist identities, checks exact artist ownership, walks returned album/EP/single releases, deduplicates recordings, and reports partial/provider-limited coverage. It keeps its existing bounded cache, timeout, request pacing and stale recovery.
 
@@ -42,7 +50,7 @@ Set the same absolute `MUSIC_PROVIDER_CACHE_PATH` in Encore and Double or Drop t
 
 ## Facts, previews and provenance
 
-Tempo is retained as source metadata but is no longer a playable Double or Drop metric. The current catalog has preview URLs for only 1,495 of its 16,295 BPM-tagged recordings. New games, mixed rounds, artist/genre options and direct create requests exclude tempo. Streams/runtime payloads contain no preview audio or playback links; evidence links are shown only after answering. Saved pending tempo rounds migrate without losing points or lives, while old answered results retain their original values.
+Tempo is retained as source metadata but is no longer a playable Double or Drop metric. The November 9 snapshot has preview URLs for only 3,634 of its 16,333 BPM-tagged records. New games, mixed rounds, artist/genre options and direct create requests exclude tempo. Streams/runtime payloads contain no preview audio or playback links; evidence links are shown only after answering. Saved pending tempo rounds migrate without losing points or lives, while old answered results retain their original values.
 
 - Duration and tempo in the historical broad library come from the [Spotify tracks dataset](https://huggingface.co/datasets/maharshipandya/spotify-tracks-dataset) and the existing [documented feature dataset mirror](https://github.com/cu-sanjay/MusicRecommender/blob/main/spotify_songs.csv). Tempo values are provider estimates; half/double-time interpretations can differ. Import timestamps are not measurement dates.
 - English labels come from the existing maintenance catalog with its review exclusions preserved. Script and nationality are not language evidence.

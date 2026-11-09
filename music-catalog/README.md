@@ -10,6 +10,7 @@ Node 24+ is required for built-in SQLite and native TypeScript execution. No pai
 npm ci
 npm run import
 npm run streams
+npm run streams:artists -- --artists 150
 npm run enrich -- --artists 120
 npm run catalog -- check
 npm run publish
@@ -26,6 +27,8 @@ npm run maintain -- --artists 120
 `--artists` is the work budget for one run, **not a catalog size limit**. Subsequent runs continue with other artists. Completed artist jobs are eligible for refresh after 30 days; `--refresh` rechecks them earlier. Failed jobs remain retryable. Metadata imports are transactional and idempotent. Apple requests are paced below approximately 20/minute, with timeouts, retries, and `Retry-After` handling. Preview availability checks run in small batches and store no audio files.
 
 ## What is stored
+
+`streams:artists` adds deeper artist discography counts beyond the global chart. It resumes across the source's artist directory, caches each fetched page for the day, preserves the page's observation date and URL, and rejects observations older than seven days. An exact Spotify ID plus matching artist/title is required: a similar song on another edition cannot inherit its total. This command never invents counts, language labels or new song metadata. Run it before `publish` to expand Blackjack's eligible pool; it is separate from the standard maintenance command so its request budget is explicit.
 
 The local database is [data/music.sqlite](data/music.sqlite), with WAL journaling and indexes for artist, language, and recording identity. It is ignored by Git; back it up as operational data. Generated app releases should be committed with their application source. [data/coverage.json](data/coverage.json) reports the latest publication's measured coverage.
 

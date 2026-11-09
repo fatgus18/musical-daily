@@ -3,6 +3,7 @@ import { importDatasets, importStreams } from "./importers.ts";
 import { enrich, checkMedia } from "./enrich.ts";
 import { publish } from "./publish.ts";
 import { ingest } from "./ingest.ts";
+import { importArtistStreams } from "./artist-streams.ts";
 
 const [command="stats",...args]=process.argv.slice(2);
 function numberOption(name:string,fallback:number){ const i=args.indexOf(name);const value=i<0?fallback:Number(args[i+1]);if(!Number.isInteger(value)||value<1)throw new Error(`Invalid ${name}`);return value; }
@@ -10,6 +11,7 @@ const db=openStore();
 try{
   if(command==="import")await importDatasets(db,args.includes("--refresh"));
   else if(command==="streams")await importStreams(db);
+  else if(command==="artist-streams")await importArtistStreams(db,numberOption("--artists",100));
   else if(command==="enrich")await enrich(db,numberOption("--artists",100),args.includes("--refresh"));
   else if(command==="check")await checkMedia(db,numberOption("--limit",10000));
   else if(command==="ingest")await ingest(db,args[0],args[args.indexOf("--source")+1]);

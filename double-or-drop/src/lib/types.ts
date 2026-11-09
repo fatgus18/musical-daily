@@ -6,6 +6,8 @@ export type Phase = "guess" | "decision" | "miss" | "complete";
 export type MetricFilter = Metric | "mixed";
 export type Move = "guess" | "timeout" | "bank" | "risk" | "next" | "cashout" | "discard";
 export type CompletionStatus = "completed" | "incomplete";
+export type GameMode = "unlimited" | "daily";
+export interface DailyChallenge {date:string;catalogVersion:string;pairs:Pair[]}
 export interface Pair {left:CatalogTrack;right:CatalogTrack;metric:Metric}
 export interface RunHistory {recentTracks:string[];recentPairs:string[]}
 export interface ValueReveal {value:number;formatted:string;source:string;asOf?:string;quality?:string}
@@ -15,6 +17,7 @@ export interface RoundResult {
   explanation:string;earned:number;
 }
 export interface Game {
+  mode?:GameMode;dailyDate?:string;dailyPairs?:Pair[];
   id:string;player:string;requestId:string;revision:number;catalogVersion:string;
   phase:Phase;round:number;lives:number;banked:number;pot:number;ladder:number;
   correct:number;answered:number;currentStreak:number;bestStreak:number;
@@ -22,7 +25,7 @@ export interface Game {
   recentTracks:string[];recentPairs:string[];createdAt:number;updatedAt:number;
   // Undefined only for saved runs written before timed picks were introduced.
   guessDeadline?:number|null;
-  completedAt:number|null;endReason?:"cashout"|"lives"|"score-limit"|"run-limit"|"account-merge"|"expired"|"discarded";
+  completedAt:number|null;endReason?:"cashout"|"lives"|"score-limit"|"run-limit"|"daily-complete"|"account-merge"|"expired"|"discarded";
   // Older terminal snapshots are completed unless an explicit status was recorded.
   completionStatus?:CompletionStatus;
   modeNotice?:string;
@@ -30,6 +33,7 @@ export interface Game {
 }
 export interface PublicTrack {id:string;title:string;artist:string;artwork:string;previewUrl?:string;previewSourceUrl?:string}
 export interface PublicGame {
+  mode?:GameMode;dailyDate?:string;totalPicks?:number|null;
   id:string;revision:number;phase:Phase;round:number;lives:number;banked:number;pot:number;
   ladder:number;correct:number;answered:number;currentStreak:number;bestStreak:number;
   theme:string;metricFilter:MetricFilter;canRisk:boolean;nextReward:number;maxLadder:number;

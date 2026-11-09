@@ -1,0 +1,40 @@
+/* A collector's ticket for the daily drop, with a little arcade sparkle. */
+.play-modes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 20px}
+.play-mode{position:relative;display:flex;align-items:center;gap:18px;text-align:left;min-height:126px;padding:24px;border:1px solid #78678d50;border-radius:18px;color:#ded7e9;background:linear-gradient(125deg,#24202a,#17171c);transition:border-color .2s,transform .2s,background .2s;cursor:pointer}
+.play-mode:hover:not(:disabled){transform:translateY(-3px);border-color:#c6aff1}
+.play-mode.selected{border-color:#ccb7f4;box-shadow:inset 0 0 0 1px #ccb7f421,0 8px 35px #0002;background:linear-gradient(125deg,#3b2c4b,#211d2a)}
+.play-mode.mode-daily.selected{border-color:#c8e5b9;background:linear-gradient(125deg,#303c30,#1e2426)}
+.play-mode>span:nth-child(2){display:flex;flex-direction:column;gap:7px;flex:1}
+.play-mode small{font:600 9px/1.3 monospace;letter-spacing:1.7px;color:#c8b7df}
+.mode-daily small{color:#cce9be}
+.play-mode strong{font-size:18px;letter-spacing:-.5px}
+.play-mode>span>span{color:#b8afc4;font-size:11px;line-height:1.5}
+.play-mode>b{font-size:23px;font-weight:400;align-self:flex-start}
+.mode-glyph{display:grid;place-items:center;width:49px;height:49px;flex:none;font-size:36px;color:#d6c4f5;filter:drop-shadow(3px 3px 0 #0005)}
+.mode-daily .mode-glyph{color:#d3edc1;animation:daily-spark 6s ease-in-out infinite}
+.daily-invitation{display:grid;grid-template-columns:160px 1fr;gap:38px;align-items:center;padding:15px 4px 8px}
+.daily-stamp{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;height:190px;background:#d4e9c4;color:#242b24;transform:rotate(-5deg);clip-path:polygon(6% 0,94% 0,94% 4%,100% 4%,100% 96%,94% 96%,94% 100%,6% 100%,6% 96%,0 96%,0 4%,6% 4%);box-shadow:inset 0 0 0 9px #d4e9c4,inset 0 0 0 10px #34432a33}
+.daily-stamp small{font:700 10px monospace;letter-spacing:2px}.daily-stamp strong{font:800 82px/.95 monospace;letter-spacing:-7px;margin:18px 0 12px}.daily-stamp>span{font:700 9px monospace;letter-spacing:1px}.daily-stamp i{position:absolute;top:10px;right:13px;font-style:normal;font-size:20px}
+.daily-invitation-copy h3{font-size:clamp(24px,3vw,33px);line-height:1.14;letter-spacing:-1.1px;max-width:580px;margin:12px 0}
+.daily-invitation-copy>p{max-width:620px;font-size:13px;line-height:1.8;color:#b9b0c6;margin:0}
+.daily-rules{display:flex;flex-wrap:wrap;gap:10px 18px;margin:18px 0 25px;color:#d5c8e5;font:10px monospace}
+.daily-rules>span:nth-child(2){color:#d7b3ce;letter-spacing:4px}
+.daily-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.daily-fine{display:block;font-size:10px;line-height:1.7;color:#b1a6bd;margin-top:18px;max-width:560px}
+.daily-progress{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:17px 20px;margin:0 0 15px;border:1px dashed #b9a4db60;border-radius:12px;background:#c5b4f807}
+.daily-progress>span{font:9px/1.6 monospace;letter-spacing:1.4px;color:#d3c3e7}.daily-progress>span>b{display:block;font-weight:400;color:#b7a8c5;letter-spacing:1px}
+.daily-progress ol{display:grid;grid-template-columns:repeat(10,1fr);gap:7px;list-style:none;padding:0;margin:0}
+.daily-progress li{display:grid;place-items:center;width:34px;height:34px;border:1px solid #7a658c55;border-radius:5px;background:#18161e;color:#9f90b1;font:11px monospace;transition:background .2s,transform .2s}
+.daily-progress li.hit{background:#c4e3b4;color:#1f2a19;border-color:#c4e3b4;box-shadow:2px 2px 0 #79906b;font-size:20px}
+.daily-progress li.missed{background:#5a3048;border-color:#bc7d9f;color:#ffd2e5;font-size:20px}
+.daily-progress li.current{border-color:#dbc5ff;color:#f0e4ff;background:#4d3868;box-shadow:0 0 0 3px #ccb7f41a;animation:daily-current 2s ease-in-out infinite}
+.play-mode:focus-visible{outline:3px solid #dbf3bf;outline-offset:5px}
+@keyframes daily-spark{0%,100%{transform:rotate(-12deg) scale(.94)}50%{transform:rotate(12deg) scale(1.08)}}
+@keyframes daily-current{50%{box-shadow:0 0 0 4px #ccb7f43a}}
+@media(max-width:760px){.play-modes{gap:10px}.play-mode{padding:17px;gap:10px;min-height:145px}.play-mode strong{font-size:16px}.play-mode>b{display:none}.mode-glyph{width:27px;font-size:29px}.daily-invitation{grid-template-columns:105px 1fr;gap:23px}.daily-stamp{height:160px}.daily-stamp strong{font-size:62px}.daily-progress{align-items:flex-start;flex-direction:column;gap:12px}.daily-progress>span{display:flex;justify-content:space-between;gap:15px;width:100%}.daily-progress ol{width:100%;gap:6px}.daily-progress li{width:auto;height:32px}}
+@media(max-width:500px){.play-mode{align-items:flex-start;padding:15px 12px;gap:8px}.play-mode small{font-size:8px;letter-spacing:1px}.play-mode strong{font-size:15px;line-height:1.3}.play-mode>span>span{font-size:10px}.mode-glyph{width:20px;font-size:23px;height:28px}.daily-invitation{display:block;padding:4px 0}.daily-stamp{float:right;width:76px;height:95px;margin:0 0 12px 14px;transform:rotate(7deg)}.daily-stamp strong{font-size:41px;letter-spacing:-3px;margin:9px 0 5px}.daily-stamp small{font-size:6px;letter-spacing:1px}.daily-stamp>span{font-size:6px;letter-spacing:0}.daily-stamp i{display:none}.daily-invitation-copy>.eyebrow{font-size:8px;letter-spacing:1px}.daily-invitation-copy h3{font-size:27px}.daily-invitation-copy>p{clear:both;font-size:12px}.daily-rules{font-size:9px;gap:10px}.daily-progress{padding:13px}.daily-progress ol{gap:4px}.daily-progress li{height:27px;font-size:9px}}
+html[data-contrast="high"] .play-mode,html[data-contrast="high"] .daily-progress{background:#101216;border-color:#c9ced7;color:#fff}
+html[data-contrast="high"] .play-mode.selected{border:2px solid #e1ffd1;background:#1c2c1b}
+html[data-contrast="high"] :is(.play-mode small,.play-mode>span>span,.daily-invitation-copy>p,.daily-fine,.daily-rules,.daily-progress>span,.daily-progress>span>b){color:#f0eef5}
+html[data-contrast="high"] .daily-progress li{border-color:#c9ced7;color:#fff}html[data-contrast="high"] .daily-progress li.hit{color:#10200a}
+@media(prefers-reduced-motion:reduce){.mode-daily .mode-glyph,.daily-progress li.current{animation:none}.play-mode,.daily-progress li{transition:none}.play-mode:hover:not(:disabled){transform:none}}

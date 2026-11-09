@@ -9,6 +9,7 @@ export { publishCatalog } from "../src/lib/catalog-publication.ts";
 import type { Catalog, CatalogSource, CatalogTrack } from "../src/lib/catalog-types.ts";
 import { artistPoolTracks, LIVE_SOURCES } from "../src/lib/catalog-artists.ts";
 import type { ArtistPool } from "../../shared/music-provider/catalog.ts";
+import { searchArtists, loadArtist, normalize as normalizeArtist } from "../../shared/music-provider/catalog.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const KWORB = "https://kworb.net/spotify/songs.html";
@@ -112,6 +113,19 @@ export function importEncoreCache(path: string, baseline: CatalogTrack[], now = 
     for (const row of rows) for (const track of artistPoolTracks(JSON.parse(row.value) as ArtistPool, baseline)) tracks.set(track.id, track);
     return [...tracks.values()];
   } finally { db.close(); }
+}
+
+/** Cache expiry must not erase a provider recording already published to players. */
+export function mergeSharedRefresh(imported: CatalogTrack[], previous: CatalogTrack[]): CatalogTrack[] {
+  const latest = new Map(previous.map(track => [track.id, track]));
+  const tracks = imported.map(track => {
+    const prior = latest.get(track.id)?.metrics.streams;
+    return prior && (!track.metrics.streams || prior.asOf! > track.metrics.streams.asOf!)
+      ? { ...track, metrics: { ...track.metrics, streams: prior } } : track;
+  });
+  const importedIds = new Set(tracks.map(track => track.id));
+  tracks.push(...previous.filter(track => track.id.startsWith("apple:") && !importedIds.has(track.id)));
+  return tracks;
 }
 
 function unescapeHtml(value: string): string {
@@ -219,8 +233,8 @@ export async function main(args = process.argv.slice(2)) {
       const pointer = JSON.parse(await readFile(resolve(output, "catalog-releases.json"), "utf8")) as { current: string };
       if (!/^[a-f0-9]{16}$/.test(pointer.current)) throw new Error("Invalid existing catalog pointer.");
       const previous = JSON.parse(await readFile(resolve(output, "catalog-releases", `${pointer.current}.json`), "utf8")) as Catalog; validateCatalog(previous);
-      const latest = new Map(previous.tracks.map(track => [track.id, track]));
-      tracks = tracks.map(track => { const prior = latest.get(track.id)?.metrics.streams; return prior && (!track.metrics.streams || prior.asOf! > track.metrics.streams.asOf!) ? { ...track, metrics: { ...track.metrics, streams: prior } } : track; });
+      tracks = mergeSharedRefresh(tracks, previous.tracks);
+      sources = [...new Map([...previous.sources, ...sources].map(source => [source.id, source])).values()];
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
   const feedUrl = option("--feed");
@@ -231,6 +245,17 @@ export async function main(args = process.argv.slice(2)) {
     const update = applyStreamRows(tracks, rows, new Date().toISOString().slice(0, 10));
     if (update.updated < 20) throw new Error("Too few verified stream identities matched; no release published.");
     tracks = update.tracks; console.log(`Updated ${update.updated} evidenced stream counts.`);
+  }
+  const artistNames = args.flatMap((argument, index) => argument === "--artist" ? [args[index + 1]] : []);
+  if (artistNames.some(name => !name || name.startsWith("--"))) throw new Error("Each --artist requires an artist name.");
+  for (const name of artistNames) {
+    const matches = (await searchArtists(name)).filter(artist => normalizeArtist(artist.name) === normalizeArtist(name));
+    if (matches.length !== 1) throw new Error(`Artist name '${name}' is missing or ambiguous in the provider catalog; no release published.`);
+    const pool = await loadArtist(matches[0].id, { continue: args.includes("--continue") });
+    const discovered = artistPoolTracks(pool, tracks);
+    tracks = [...new Map([...tracks, ...discovered].map(track => [track.id, track])).values()];
+    sources = [...new Map([...sources, ...LIVE_SOURCES].map(source => [source.id, source])).values()];
+    console.log(`${pool.artist.name}: ${discovered.length} provider recordings imported (${pool.coverage?.status || "loaded"}).`);
   }
   tracks.sort((a, b) => a.id.localeCompare(b.id));
   const published = await publishCatalog(tracks, sources, output);

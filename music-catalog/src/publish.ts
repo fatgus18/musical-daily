@@ -7,7 +7,7 @@ import { isAlternate } from "./recordings.ts";
 import { buildRotation } from "./rotation.ts";
 import { flagLanguageUncertainty } from "./importers.ts";
 
-type MediaTrack=Track & {preview_url:string;artwork_url:string;purchase_url:string;provider_id:string;media_album:string;media_release:string;checked_at:string;status:string;streams?:number;observed_on?:string};
+type MediaTrack=Track & {preview_url:string;artwork_url:string;purchase_url:string;provider_id:string;media_album:string;media_release:string;checked_at:string;status:string;streams?:number;observed_on?:string;stream_source?:string};
 interface Release {version:string;effectiveOn:string;selection:string;count:number}
 interface Index {schema:number;releases:Release[]}
 export async function atomicJson(path:string,data:unknown){await mkdir(resolve(path,".."),{recursive:true});await writeFile(path+".tmp",JSON.stringify(data,null,2)+"\n");await rename(path+".tmp",path);}
@@ -35,13 +35,13 @@ export async function publish(db:DatabaseSync,effectiveOn?:string){
     appleMusicUrl:t.purchase_url,appleTrackId:Number(t.provider_id),artworkUrl:t.artwork_url,previewUrl:t.preview_url,
     year:Number((t.release_date||t.media_release||"").slice(0,4)),clipStartSeconds:7.5,clipSeconds:15,previewCheckedAt:t.checked_at,
   })).filter(t=>t.year>=1900&&t.year<=new Date().getUTCFullYear());
-  const streamRows=db.prepare(`SELECT t.*,s.streams,s.observed_on,m.preview_url,m.artwork_url,m.release_date media_release FROM tracks t
+  const streamRows=db.prepare(`SELECT t.*,s.streams,s.observed_on,s.source stream_source,m.preview_url,m.artwork_url,m.release_date media_release FROM tracks t
     JOIN stream_snapshots s ON s.track_id=t.id AND s.observed_on=(SELECT max(s2.observed_on) FROM stream_snapshots s2 WHERE s2.track_id=t.id)
     LEFT JOIN media m ON m.track_id=t.id WHERE t.language='en' AND t.language_review_required=0 AND s.observed_on>=? ORDER BY s.streams DESC,t.popularity DESC,t.id`).all(cutoff.slice(0,10)) as unknown as MediaTrack[];
   const blackjack=uniqueRecordings(streamRows.filter(t=>!isAlternate(t.title))).map(t=>({
     id:t.id,title:t.title,artist:t.artist,releaseYear:Number((t.release_date||t.media_release||"").slice(0,4)),streams:t.streams!,
     ...(t.artwork_url?{albumArtUrl:t.artwork_url}:{}),...(t.preview_url?{previewUrl:t.preview_url}:{}),
-    streamsObservedOn:t.observed_on,streamsSource:"https://kworb.net/spotify/songs.html",language:t.language,languageSource:t.language_source,
+    streamsObservedOn:t.observed_on,streamsSource:t.stream_source,language:t.language,languageSource:t.language_source,
   })).filter(t=>t.releaseYear>=1900&&t.releaseYear<=new Date().getUTCFullYear());
   if(tempo.length<100)throw new Error(`Only ${tempo.length} eligible Tempo tracks. Enrich/check more recordings before publication (minimum 100).`);
   if(blackjack.filter(t=>t.streams>=1800000000).length<2||blackjack.filter(t=>t.streams>=850000000&&t.streams<1800000000).length<4||blackjack.filter(t=>t.streams<850000000).length<3)throw new Error("Insufficient Blackjack stream tiers; import more real stream snapshots first.");

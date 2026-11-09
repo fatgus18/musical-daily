@@ -18,6 +18,12 @@
       "effectiveOn": "2026-11-02",
       "selection": "seeded",
       "count": 897
+    },
+    {
+      "version": "ace5ba42b56e0e81",
+      "effectiveOn": "2026-11-10",
+      "selection": "seeded",
+      "count": 1831
     }
   ]
 }

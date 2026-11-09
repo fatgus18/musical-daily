@@ -18,6 +18,12 @@
       "effectiveOn": "2026-11-02",
       "selection": "rotation",
       "count": 835
+    },
+    {
+      "version": "af12a4c3def1b957",
+      "effectiveOn": "2026-11-10",
+      "selection": "rotation",
+      "count": 2160
     }
   ]
 }

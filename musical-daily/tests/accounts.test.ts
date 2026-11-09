@@ -181,11 +181,37 @@ test("Double or Drop banks and accuracy aggregate independently and retries cann
 test("Double or Drop rejects impossible money, incompatible modes, and inaccurate comparison totals", () => {
   const { store } = fixture(); const user = store.user(identity);
   const event = { eventId: "valid-run", mode: "practice" as const, score: 2, maxScore: 4, correct: 2, rounds: 4, bankedPoints: 100, won: true };
-  for (const invalid of [{ bankedPoints: -1 }, { bankedPoints: 1.5 }, { bankedPoints: Infinity }, { bankedPoints: 1000000001 }, { bankedPoints: undefined }, { won: false }, { score: 1 }, { rounds: 5 }, { correct: 0 }, { mode: "daily", date: "2026-11-02" }]) {
+  for (const invalid of [{ bankedPoints: -1 }, { bankedPoints: 1.5 }, { bankedPoints: Infinity }, { bankedPoints: 1000000001 }, { bankedPoints: undefined }, { won: false }, { score: 1 }, { rounds: 5 }, { correct: 0 }, { mode: "artist" }]) {
     assert.throws(() => store.result(user.id, "double-drop", { ...event, ...invalid } as typeof event));
   }
   assert.throws(() => store.result(user.id, "tempo", event));
   assert.equal(store.stats(user).games["double-drop"].played, 0); store.close();
+});
+
+test("daily Double or Drop results are date-idempotent, labelled, bounded and separate from unlimited", () => {
+  const { store } = fixture(); const user = store.user(identity);
+  const daily: ResultEvent = { eventId: "daily-drop-1", mode: "daily", date: "2026-11-02", score: 8, maxScore: 10, correct: 8, rounds: 10, bankedPoints: 800, won: true };
+  store.result(user.id, "double-drop", daily);
+  const retry = store.result(user.id, "double-drop", { ...daily, eventId: "daily-reroll", score: 10, correct: 10, bankedPoints: 1000 });
+  assert.equal(retry.duplicate, true); assert.equal(retry.event.score, 8);
+  store.result(user.id, "double-drop", { ...daily, eventId: "unlimited-today", mode: "practice" });
+  const stats = store.stats(user).games["double-drop"];
+  assert.equal(stats.played, 2); assert.equal(stats.totalBanked, 1600); assert.equal(stats.currentStreak, 1);
+  assert.deepEqual(new Set(stats.recent.map(entry => entry.mode)), new Set(["daily", "practice"]));
+  assert.throws(() => store.result(user.id, "double-drop", { ...daily, eventId: "too-many", date: "2026-11-01", maxScore: 11, rounds: 11 }));
+  assert.throws(() => store.result(user.id, "double-drop", { ...daily, eventId: "no-date", date: undefined }));
+  store.close();
+});
+
+test("discarding a daily attempt records its actual answers and cannot be replaced by a win", () => {
+  const { store } = fixture(); const user = store.user(identity);
+  const discarded: ResultEvent = { eventId: "daily-discard", mode: "daily", date: "2026-11-02", status: "incomplete", incompleteReason: "discarded", score: 0, maxScore: 0, correct: 0, rounds: 0, bankedPoints: 0, won: false };
+  store.result(user.id, "double-drop", discarded);
+  const retry = store.result(user.id, "double-drop", { ...discarded, eventId: "daily-retry", status: "completed", incompleteReason: undefined, score: 10, maxScore: 10, correct: 10, rounds: 10, bankedPoints: 1000, won: true });
+  assert.equal(retry.duplicate, true); assert.equal(retry.event.status, "incomplete");
+  const stats = store.stats(user).games["double-drop"];
+  assert.equal(stats.incomplete, 1); assert.equal(stats.completed, 0); assert.equal(stats.totalRounds, 0); assert.equal(stats.currentStreak, 0);
+  store.close();
 });
 
 test("Double or Drop uses the existing Google identity through an app-bound SSO handoff", async () => {

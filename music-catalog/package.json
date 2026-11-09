@@ -11,6 +11,7 @@
     "import": "node src/cli.ts import",
     "enrich": "node src/cli.ts enrich",
     "streams": "node src/cli.ts streams",
+    "streams:artists": "node src/cli.ts artist-streams",
     "publish": "node src/cli.ts publish",
     "stats": "node src/cli.ts stats",
     "test": "node --test tests/*.test.ts",

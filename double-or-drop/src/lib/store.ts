@@ -1,5 +1,5 @@
 import {databaseFor,openLocalDatabase,type Database,type SqlExecutor} from "@musical-daily/database";
-import type {Game,RunHistory} from "./types.ts";
+import type {Game,GameMode,RunHistory} from "./types.ts";
 import {queueAccountResult} from "./account-results.ts";
 import {discardGame,migrateRetiredMetric,settleClock} from "./engine.ts";
 import {loadCatalog} from "./catalog.ts";
@@ -11,11 +11,18 @@ export async function openStore(path?:string):Promise<Database>{
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS games(id TEXT PRIMARY KEY,player TEXT NOT NULL,request_id TEXT NOT NULL,revision INTEGER NOT NULL,active INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,state TEXT NOT NULL,UNIQUE(player,request_id));
     CREATE INDEX IF NOT EXISTS games_player ON games(player,created_at DESC);
-    CREATE UNIQUE INDEX IF NOT EXISTS games_one_active ON games(player) WHERE active=1;
+    CREATE TABLE IF NOT EXISTS daily_challenges(date TEXT PRIMARY KEY,payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS limits(player TEXT NOT NULL,kind TEXT NOT NULL,window INTEGER NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(player,kind));
     CREATE TABLE IF NOT EXISTS maintenance(key TEXT PRIMARY KEY,last_run INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS account_result_outbox(game_id TEXT PRIMARY KEY,player TEXT NOT NULL,event TEXT NOT NULL,created_at INTEGER NOT NULL,last_attempt INTEGER NOT NULL,synced_at INTEGER);
     CREATE INDEX IF NOT EXISTS account_result_player ON account_result_outbox(player,synced_at);`);
+  // Replace the original one-run index atomically: one unlimited and one daily may
+  // coexist, but no request race may create another attempt for a UTC date.
+  await db.transaction(async tx=>{
+    await tx.execute("DROP INDEX IF EXISTS games_one_active");
+    await tx.execute("CREATE UNIQUE INDEX IF NOT EXISTS games_one_active_mode ON games(player,coalesce(json_extract(state,'$.mode'),'unlimited')) WHERE active=1");
+    await tx.execute("CREATE UNIQUE INDEX IF NOT EXISTS games_daily_attempt ON games(player,json_extract(state,'$.dailyDate')) WHERE json_extract(state,'$.mode')='daily'");
+  });
   await initializeRecords(db);await initializeCatalogStorage(db);return db;
 }
 const globalStore=globalThis as typeof globalThis&{doubleDropAsyncStore?:Promise<Database>;doubleDropPruning?:Promise<unknown>;doubleDropLastPrune?:number};
@@ -30,6 +37,10 @@ export async function store(){
 export function transaction<T>(db:Database,fn:(tx:SqlExecutor)=>Promise<T>){return db.transaction(fn);}
 export async function findGame(db:SqlExecutor,player:string,id?:string){
   const row=(id?await db.execute("SELECT state FROM games WHERE player=? AND id=?",[player,id]):await db.execute("SELECT state FROM games WHERE player=? ORDER BY active DESC,created_at DESC,id DESC LIMIT 1",[player])).rows[0];
+  return row?JSON.parse(String(row.state)) as Game:null;
+}
+export async function findModeGame(db:SqlExecutor,player:string,mode:GameMode){
+  const row=(await db.execute("SELECT state FROM games WHERE player=? AND coalesce(json_extract(state,'$.mode'),'unlimited')=? ORDER BY active DESC,created_at DESC,id DESC LIMIT 1",[player,mode])).rows[0];
   return row?JSON.parse(String(row.state)) as Game:null;
 }
 export async function findRequest(db:SqlExecutor,player:string,requestId:string){const row=(await db.execute("SELECT state FROM games WHERE player=? AND request_id=?",[player,requestId])).rows[0];return row?JSON.parse(String(row.state)) as Game:null;}
@@ -80,11 +91,12 @@ export async function pruneStore(db:Database,now=Date.now(),force=false){
   });
   const cleanup=await db.batch([
     {sql:"DELETE FROM games WHERE active=0 AND updated_at<?",args:[now-90*86400000]},
-    {sql:"DELETE FROM games WHERE id IN (SELECT id FROM (SELECT id,row_number() OVER(PARTITION BY player ORDER BY created_at DESC,id DESC) n FROM games WHERE active=0) WHERE n>50)"},
+    {sql:"DELETE FROM games WHERE id IN (SELECT id FROM (SELECT id,row_number() OVER(PARTITION BY player ORDER BY created_at DESC,id DESC) n FROM games WHERE active=0 AND (json_extract(state,'$.mode') IS NOT 'daily' OR json_extract(state,'$.dailyDate')<date(?/1000,'unixepoch','-2 days'))) WHERE n>50)",args:[now]},
     {sql:"DELETE FROM limits WHERE window<?",args:[now-7*86400000]},
     {sql:"DELETE FROM account_result_outbox WHERE synced_at IS NOT NULL AND synced_at<?",args:[now-90*86400000]},
     {sql:"DELETE FROM catalog_snapshots WHERE last_used_at<? AND NOT EXISTS(SELECT 1 FROM games WHERE json_extract(state,'$.catalogVersion')=catalog_snapshots.version)",args:[now-35*86400000]},
     {sql:"INSERT OR REPLACE INTO maintenance VALUES('retention',?)",args:[abandoned.length===10?now-86400000:now]},
+    {sql:"DELETE FROM daily_challenges WHERE date<date(?/1000,'unixepoch','-90 days')",args:[now]},
   ]);
   return {skipped:false,expired,games:cleanup[0].rowsAffected+cleanup[1].rowsAffected,limits:cleanup[2].rowsAffected,syncedResults:cleanup[3].rowsAffected,catalogs:cleanup[4].rowsAffected};
 }
