@@ -93,3 +93,222 @@ html[data-contrast=high] .studio-recording-dock button{background:#ffdfbf;border
 html[data-contrast=high] body:has(.studio-page){background:#08090b}html[data-contrast=high] .studio-shell{--studio-muted:#e1ead8;--studio-line:#b5c5a3}html[data-contrast=high] .studio-atmosphere{display:none}html[data-contrast=high] .studio-shell :is(.studio-panel,.studio-transport,.studio-help){background:#0c100d;border-color:#b5c5a3;box-shadow:none}html[data-contrast=high] .studio-shell :is(.studio-subtitle,.studio-eyebrow,.studio-chip,.studio-keyboard-caption>span,.studio-keyboard-caption>p,.studio-take-empty,.studio-take-footnote,.studio-take-status>span,.studio-sequencer-foot p,.studio-sequencer-foot>span,.studio-pad-hint,.studio-footer>p,.studio-octave>span,.studio-tone>span,.studio-step-label>span,.studio-guide-button small,.studio-transport label>span,.studio-transport output small,.studio-master-control label>span,.studio-new-take>span,.studio-seek>span:last-child,.studio-help li p,.studio-help .studio-help-note,.studio-help-shortcuts b){color:#e0e9d5}html[data-contrast=high] .studio-shell :is(.studio-instruments button,.studio-presets button,.studio-guide-button,.studio-panic,.studio-record-button,.studio-octave button,.studio-preview-button,.studio-panel-number,.studio-chip,.studio-help-shortcuts){background:#0c100d;border-color:#a5b694;color:#e8f1dc;box-shadow:none}html[data-contrast=high] .studio-shell :is(.studio-instruments button[aria-pressed=true],.studio-presets button[aria-pressed=true]){background:#d1ebac;color:#11170c;border-color:#d1ebac}html[data-contrast=high] .studio-shell .studio-record-button.is-recording{background:#63281c;color:#fff2e8;border-color:#ffc4ac}html[data-contrast=high] .studio-shell .studio-drum-pad{background:#0c100d;border-color:var(--drum-color);box-shadow:none}html[data-contrast=high] .studio-shell .studio-drum-pad.is-hit{background:var(--drum-color);color:#101410}html[data-contrast=high] .studio-shell .studio-step{background:#101710;border-color:#94a583}html[data-contrast=high] .studio-shell .studio-step[aria-pressed=true]{background:var(--drum-color);border-color:#f2ffe0}html[data-contrast=high] .studio-shell .studio-step-scale>span{color:#d6e7c6}html[data-contrast=high] .studio-shell .studio-step-scale>span.current{color:#fff36b}html[data-contrast=high] .studio-shell .studio-step-label,html[data-contrast=high] .studio-step-scale>span:first-child{background:#0c100d;box-shadow:6px 0 7px #0c100d}html[data-contrast=high] .studio-shell .studio-piano-key{color:#202b17}html[data-contrast=high] .studio-shell .studio-piano-key.is-black{color:#e3f1d3}html[data-contrast=high] .studio-shell .studio-piano-key kbd{opacity:1}html[data-contrast=high] .studio-shell .studio-piano-key.is-white.is-down{background:#b5eb73;color:#102500}html[data-contrast=high] .studio-shell .studio-piano-key.is-black.is-down{background:#5d8d3d;color:#fff}html[data-contrast=high] .studio-shell .studio-take-wave>i{background:#c3b492}html[data-contrast=high] .studio-shell .studio-take-wave>i.is-played{background:#ffe4b7}html[data-contrast=high] .studio-shell :is(.studio-panel-heading,.studio-take-footnote,.studio-tempo-control,.studio-swing-control,.studio-master-control,.studio-sequencer-foot,.studio-footer){border-color:#869b72}html[data-contrast=high] .studio-shell .hub-header-studio{border-color:#b5c5a3}html[data-contrast=high] .studio-shell .studio-footer>span{color:#e0e9d5}
 @media(prefers-reduced-motion:reduce){.studio-shell *,.studio-shell *::before,.studio-shell *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.studio-drum-pad.is-hit,.studio-drum-pad:active{transform:none}.studio-rec-light.on{outline:2px solid #ffad92;outline-offset:3px}}
 @media(forced-colors:active){.studio-shell :is(.studio-panel,.studio-transport,.studio-help,.studio-keyboard,.studio-piano-key,.studio-step,.studio-drum-pad,.studio-record-button,.studio-beat-button){border:1px solid CanvasText;box-shadow:none}.studio-shell :is(.studio-step[aria-pressed=true],.studio-instruments button[aria-pressed=true],.studio-presets button[aria-pressed=true],.studio-piano-key.is-down){outline:2px solid Highlight;outline-offset:-4px}.studio-step[aria-pressed=true]>i{background:Highlight;forced-color-adjust:none;height:6px;width:6px}.studio-tape,.studio-atmosphere{display:none}.studio-piano-key.is-black{border-bottom:4px solid CanvasText}.studio-shell input[type=range]{forced-color-adjust:auto}}
+
+/* Pixel studio edition. Real controls, clear channel colors, tactile surfaces. */
+body:has(.studio-page) {
+  background: radial-gradient(ellipse at 50% 0, #c4f58a06, transparent 50%), #101114;
+}
+.studio-shell {
+  --studio-mint: #c4f58a;
+  --studio-peach: #f2c5a3;
+  --studio-lilac: #cdb6f6;
+  --studio-muted: #adaab6;
+  --studio-line: #ffffff24;
+  --studio-mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+.studio-shell .studio-intro { padding-block: 31px 26px; }
+.studio-shell .studio-intro h1 { font-size: clamp(34px, 3.7vw, 48px); letter-spacing: -2px; }
+.studio-shell .studio-intro h1 > span { font: 500 clamp(21px, 2.3vw, 30px)/1.2 Manrope, Arial, sans-serif; color: #c4f58a; letter-spacing: -1px; }
+.studio-shell .studio-subtitle { color: #b2afba; font-size: 13px; }
+.studio-shell .studio-eyebrow { font-family: var(--studio-mono); font-size: 8px; letter-spacing: 1.1px; }
+.studio-shell .studio-intro > div > .studio-eyebrow { font-size: 9px; letter-spacing: 1.5px; color: #bdc6b4; }
+.studio-shell .studio-intro .studio-eyebrow > span { width: 5px; height: 5px; border-radius: 0; background: #c4f58a; box-shadow: 8px 0 #c4f58a70, 16px 0 #c4f58a30; margin-right: 18px; }
+.studio-shell .studio-guide-button { border-radius: 7px; background: #1b1c21; border-color: #ffffff24; color: #e0dedb; }
+.studio-shell .studio-guide-button small { font: 7px/1.4 var(--studio-mono); color: #b4b0bc; letter-spacing: .6px; }
+.studio-shell .studio-transport { border-radius: 10px; border-color: #ffffff35; background: #24252b; box-shadow: 0 5px 0 #090a0c, inset 0 1px #ffffff07; padding: 20px 23px; gap: 24px; margin-bottom: 25px; }
+.studio-shell .studio-transport-actions > button { border-radius: 5px; min-height: 45px; font-size: 12px; }
+.studio-shell .studio-beat-button { background: #c4f58a; border-color: #c4f58a; color: #1a2810; box-shadow: 0 3px 0 #7e9e57; }
+.studio-shell .studio-beat-button.is-playing { background: #aede76; border-color: #aede76; }
+.studio-shell .studio-record-button { background: #352823; border-color: #f2b99d60; color: #ffcead; }
+.studio-shell .studio-record-button > small { font: 7px/1 var(--studio-mono); color: #dfb7a3; letter-spacing: .7px; }
+.studio-shell .studio-record-button.is-recording { background: #552b28; border-color: #ffb9a4; }
+.studio-shell .studio-transport-actions > .studio-panic { min-height: 35px; height: 35px; background: #17181c; border-color: #ffffff25; color: #c2bdc9; }
+.studio-shell :is(.studio-tempo-control, .studio-swing-control, .studio-master-control) { border-color: #ffffff20; }
+.studio-shell :is(.studio-tempo-control, .studio-swing-control) > span { font: 8px/1.4 var(--studio-mono); color: #c2bdc9; letter-spacing: .7px; }
+.studio-shell .studio-transport output { font-family: var(--studio-mono); font-size: 24px; color: #d8f0b8; background: #111610; border: 1px solid #b6d49130; border-radius: 3px; padding: 3px 6px; box-shadow: inset 0 2px 4px #0005; }
+.studio-shell .studio-transport output small { font-family: var(--studio-mono); font-size: 7px; color: #bfd4a5; }
+.studio-shell .studio-master-control label > span { font: 8px/1.3 var(--studio-mono); letter-spacing: .2px; color: #c2bdc9; gap: 8px; }
+.studio-shell .studio-master-control label output { font-size: 10px; padding: 3px 4px; letter-spacing: 0; }
+.studio-shell .studio-output-meter > span { font-size: 6px; color: #a6b397; }
+.studio-shell input[type=range]::-webkit-slider-runnable-track { background: #ffffff25; }
+.studio-shell input[type=range]::-moz-range-track { background: #ffffff25; }
+.studio-shell .studio-panel { --channel: #c4f58a; border-radius: 10px; border-color: #ffffff24; background: #1b1c21; box-shadow: 0 4px 0 #090a0c, inset 0 1px #ffffff05; padding: 23px; }
+.studio-shell .studio-panel::before { content: ""; position: absolute; top: -1px; left: 23px; width: 42px; height: 3px; background: var(--channel); pointer-events: none; }
+.studio-shell .studio-panel-heading { border-bottom: 1px dashed #ffffff20; padding-bottom: 17px; margin-bottom: 20px; }
+.studio-shell .studio-panel-number { border: 1px solid color-mix(in srgb, var(--channel) 40%, transparent); background: color-mix(in srgb, var(--channel) 6%, #17181d); color: var(--channel); transform: none; border-radius: 4px; width: 29px; height: 28px; font: 9px/1 var(--studio-mono); }
+.studio-shell .studio-panel h2 { font-size: 25px; letter-spacing: -.9px; }
+.studio-shell .studio-panel h2 > span { color: var(--channel); }
+.studio-shell .studio-panel .studio-eyebrow { color: #b5b2bc; font-size: 8px; letter-spacing: 1px; }
+.studio-shell .studio-chip { color: #bab5c2; font: 7px/1.5 var(--studio-mono); border: 1px solid #ffffff20; border-radius: 3px; letter-spacing: .5px; padding: 6px 7px; }
+.studio-shell .studio-instruments { gap: 8px; }
+.studio-shell .studio-instruments button { min-height: 42px; font-size: 11px; border-radius: 5px; background: #14151a; color: #bab6c3; border-color: #ffffff20; }
+.studio-shell .studio-instruments button[aria-pressed=true] { color: #d8f5b8; background: #c4f58a12; border-color: #c4f58a80; box-shadow: inset 0 -2px #c4f58a; }
+.studio-shell .studio-octave > span, .studio-shell .studio-tone > span { font: 8px/1.4 var(--studio-mono); letter-spacing: .3px; color: #b5b1bd; }
+.studio-shell .studio-octave button { border-radius: 4px; border-color: #ffffff29; background: #111216; width: 28px; height: 28px; }
+.studio-shell .studio-octave output { font-family: var(--studio-mono); color: #dedbdc; font-size: 11px; }
+.studio-shell .studio-keyboard { height: 178px; border-color: #0b0c0f; background: #0b0c0f; border-radius: 5px; box-shadow: 0 5px 0 #07080a, 0 8px 18px #0004; }
+.studio-shell .studio-piano-key.is-white { background: linear-gradient(#e6e1d8, #faf6ee 73%, #e9e5dd); box-shadow: inset 0 -6px #bcb9b2, inset -1px 0 #fff; color: #4a4b4d; border-radius: 0 0 3px 3px; }
+.studio-shell .studio-piano-key.is-black { background: linear-gradient(95deg, #2e3036, #15161b 35%, #34363e); box-shadow: inset 0 -5px #090a0d, 2px 4px 6px #0008; color: #c4bfcc; border-radius: 0 0 3px 3px; }
+.studio-shell .studio-piano-key .studio-note-name { font: 650 9px/1.5 var(--studio-mono); }
+.studio-shell .studio-piano-key kbd { font-size: 10px; opacity: .7; }
+.studio-shell .studio-piano-key.is-black .studio-note-name { font-size: 7px; }
+.studio-shell .studio-piano-key.is-black kbd { font-size: 7px; }
+.studio-shell .studio-keyboard .studio-piano-key.is-white.is-down { background: #c4f58a; color: #19330c; box-shadow: inset 0 -2px #7ba253; padding-bottom: 7px; }
+.studio-shell .studio-keyboard .studio-piano-key.is-black.is-down { background: #5f8e3d; color: #f3ffe6; box-shadow: inset 0 -2px #34531f; }
+.studio-shell .studio-keyboard-caption > span { font: 8px/1.5 var(--studio-mono); color: #b0adaf; letter-spacing: .4px; }
+.studio-shell .studio-keyboard-caption > span > i { border-radius: 0; }
+.studio-shell .studio-keyboard-caption > p { color: #b0acb7; font-size: 10px; }
+.studio-shell .studio-recorder { --channel: #f2c5a3; background: #222023; }
+.studio-shell .studio-tape { border-radius: 6px; background: #d9cdb7; border-color: #efe4d1; transform: rotate(-1deg); }
+.studio-shell .studio-tape-label { font-family: var(--studio-mono); font-size: 6px; letter-spacing: .3px; }
+.studio-shell .studio-tape-window { border-radius: 4px; background: #303238; border-color: #ada797; }
+.studio-shell .studio-tape-bottom { font-family: var(--studio-mono); font-size: 5px; letter-spacing: 0; }
+.studio-shell .studio-take-status { flex-wrap: wrap; }
+.studio-shell .studio-take-status > span { color: #c4b8ae; font: 7px/1.5 var(--studio-mono); letter-spacing: .5px; }
+.studio-shell .studio-take-status > strong { font: 500 23px/1.2 var(--studio-mono); }
+.studio-shell .studio-take-status small { font-size: 9px; color: #b6a99c; }
+.studio-shell .studio-take-wave { border-radius: 4px; background: #131317; padding: 7px; height: 41px; border: 1px solid #f2c5a31d; }
+.studio-shell .studio-take-wave > i { border-radius: 0; }
+.studio-shell .studio-take-empty { font-size: 12px; color: #c8beb6; line-height: 1.8; }
+.studio-shell .studio-take-footnote { font-size: 10px; color: #b5aaa3; line-height: 1.8; border-color: #ffffff22; }
+.studio-shell :is(.studio-preview-button, .studio-download) { min-height: 41px; font-size: 10px !important; border-radius: 5px; }
+.studio-shell .studio-new-take { font-size: 10px !important; flex-wrap: wrap; }
+.studio-shell .studio-new-take > span { font-size: 9px; color: #bcb0a7; }
+.studio-shell .studio-sequencer { --channel: #cdb6f6; }
+.studio-shell .studio-presets button { min-height: 34px; border-radius: 5px; font-size: 10px; background: #15161c; border-color: #ffffff22; padding-inline: 10px; }
+.studio-shell .studio-presets button[aria-pressed=true] { background: #cdb6f619; border-color: #cdb6f68c; color: #e9ddfc; }
+.studio-shell .studio-presets .studio-clear-pattern { color: #bab5c2; font-size: 10px; }
+.studio-shell .studio-step-scroll { scrollbar-color: #7e738f #131419; }
+.studio-shell .studio-step-scale > span { color: #a5a0b1; font: 9px/1.2 var(--studio-mono); }
+.studio-shell .studio-step-scale > span:first-child { font-size: 6px; letter-spacing: .2px; }
+.studio-shell .studio-step-scale > span.current { color: #e8d7ff; }
+.studio-shell .studio-step-label > span { color: #d1cbd9; font-size: 10px; }
+.studio-shell .studio-step-label input[type=range] { opacity: 1; }
+.studio-shell .studio-step { border-radius: 3px; height: 31px; border-color: #ffffff24; background: #23242c; box-shadow: 0 2px 0 #090a0e; }
+.studio-shell .studio-step.is-beat { border-color: #cdb6f64a; background: #30303c; }
+.studio-shell .studio-step > i { width: 4px; height: 3px; border-radius: 0; background: #ffffff36; }
+.studio-shell .studio-step[aria-pressed=true] { border-color: var(--drum-color); background: var(--drum-color); box-shadow: 0 2px 0 color-mix(in srgb, var(--drum-color) 40%, #000); }
+.studio-shell .studio-step[aria-pressed=true] > i { background: #1c1b2766; }
+.studio-shell .studio-step.is-current { outline: 2px solid #e9d6ff; outline-offset: 2px; }
+.studio-shell .studio-sequencer-foot { border-top-style: dashed; border-color: #ffffff24; }
+.studio-shell .studio-sequencer-foot p { font-size: 10px; color: #b9b3c2; }
+.studio-shell .studio-sequencer-foot > span { font: 7px/1.5 var(--studio-mono); color: #beb6cb; letter-spacing: .3px; }
+.studio-shell .studio-sequencer-foot > span > i { border-radius: 0; }
+.studio-shell .studio-drums { --channel: #a9e7cc; background: #1c2023; }
+.studio-shell .studio-drum-pad { border-radius: 6px; min-height: 96px; background: color-mix(in srgb, var(--drum-color) 9%, #1b1c23); border-color: color-mix(in srgb, var(--drum-color) 50%, transparent); box-shadow: 0 4px 0 #090a0d, inset 0 1px #ffffff08; }
+.studio-shell .studio-drum-pad > kbd { font-size: 9px; opacity: .9; border: 1px solid currentColor; border-radius: 2px; padding: 2px 3px; top: 8px; left: 8px; }
+.studio-shell .studio-drum-pad > strong { font-size: 11px; }
+.studio-shell .studio-drum-pad.is-hit, .studio-shell .studio-drum-pad:active { background: var(--drum-color); color: #201d25; box-shadow: 0 1px 0 #090a0d; transform: translateY(3px); }
+.studio-shell .studio-pad-hint { font-size: 11px; color: #bcb4c5; }
+.studio-shell .studio-footer > p { color: #b0aab9; font-size: 10px; }
+.studio-shell .studio-footer > span { font-size: 11px; }
+.studio-shell .studio-atmosphere { opacity: .5; }
+.studio-shell .studio-recording-dock > div { border-radius: 8px; background: #241f23; }
+.studio-shell .studio-help { border-radius: 10px; background: #1b1c22; border-color: #ffffff3a; }
+.studio-shell .studio-help > h2 > em { font-family: Manrope, Arial, sans-serif; font-style: normal; font-weight: 500; letter-spacing: -1.3px; }
+.studio-shell .studio-help li > b { border-radius: 4px; }
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  .studio-shell .studio-transport { padding: 17px; gap: 17px; }
+  .studio-shell .studio-transport-actions > button { font-size: 11px; }
+  .studio-shell .studio-panel { padding: 18px; }
+  .studio-shell .studio-panel h2 { font-size: 22px; }
+  .studio-shell .studio-panel .studio-eyebrow { font-size: 7px; letter-spacing: .5px; }
+  .studio-shell .studio-chip { display: none; }
+  .studio-shell .studio-instruments button { font-size: 10px; }
+  .studio-shell .studio-piano-key .studio-note-name { font-size: 7px; }
+  .studio-shell .studio-piano-key.is-black .studio-note-name { font-size: 5px; }
+  .studio-shell .studio-piano-key.is-black kbd { font-size: 6px; }
+  .studio-shell .studio-octave > span, .studio-shell .studio-tone > span { font-size: 6px; }
+  .studio-shell .studio-octave { gap: 5px; }
+  .studio-shell .studio-octave output { font-size: 9px; }
+  .studio-shell .studio-keyboard-tools { gap: 8px; }
+  .studio-shell .studio-keyboard-caption > span { font-size: 7px; }
+  .studio-shell .studio-take-empty { font-size: 11px; }
+  .studio-shell :is(.studio-preview-button, .studio-download) { font-size: 9px !important; padding-inline: 6px; gap: 4px; }
+}
+@media (max-width: 760px) {
+  .studio-shell .studio-intro { padding-block: 24px 22px; }
+  .studio-shell .studio-intro h1 { font-size: 36px; }
+  .studio-shell .studio-intro h1 > span { font-size: 26px; margin-top: 8px; }
+  .studio-shell .studio-subtitle { font-size: 12px; }
+  .studio-shell .studio-panel { padding: 21px; }
+  .studio-shell .studio-keyboard { height: 190px; }
+  .studio-shell .studio-chip { font-size: 7px; }
+  .studio-shell .studio-drum-pad > strong { font-size: 10px; }
+  .studio-shell .studio-drum-pad { min-height: 95px; }
+}
+@media (max-width: 600px) {
+  .studio-shell .studio-intro h1 { font-size: 34px; letter-spacing: -1.7px; }
+  .studio-shell .studio-intro h1 > span { font-size: 23px; letter-spacing: -.8px; }
+  .studio-shell .studio-intro > div > .studio-eyebrow { font-size: 7px; letter-spacing: 1px; }
+  .studio-shell .studio-subtitle { font-size: 11px; max-width: 280px; }
+  .studio-shell .studio-guide-button { border-radius: 6px; }
+  .studio-shell .studio-transport { padding: 16px; gap: 18px; }
+  .studio-shell .studio-transport-actions { gap: 9px; }
+  .studio-shell .studio-transport output { font-size: 23px; }
+  .studio-shell .studio-master-control label > span { font-size: 7px; min-width: 104px; }
+  .studio-shell .studio-master-control label output { font-size: 9px; padding: 2px 3px; }
+  .studio-shell .studio-panel { padding: 18px; border-radius: 9px; }
+  .studio-shell .studio-panel::before { left: 18px; }
+  .studio-shell .studio-panel-heading { gap: 8px; padding-bottom: 15px; margin-bottom: 18px; }
+  .studio-shell .studio-panel h2 { font-size: 24px; }
+  .studio-shell .studio-panel .studio-eyebrow { font-size: 7px; letter-spacing: .7px; }
+  .studio-shell .studio-panel-number { width: 25px; height: 27px; font-size: 8px; }
+  .studio-shell .studio-chip { display: none; }
+  .studio-shell .studio-instruments button { min-height: 39px; font-size: 11px; }
+  .studio-shell .studio-keyboard { height: 180px; }
+  .studio-shell .studio-keyboard-tools { gap: 8px; flex-wrap: wrap; }
+  .studio-shell .studio-octave { gap: 6px; }
+  .studio-shell .studio-octave > span { font-size: 7px; margin-right: 0; }
+  .studio-shell .studio-octave output { font-size: 10px; }
+  .studio-shell .studio-tone { gap: 5px; }
+  .studio-shell .studio-tone > span { font-size: 6px; }
+  .studio-shell .studio-tone input[type=range] { width: 57px; }
+  .studio-shell .studio-keyboard-caption > span { font-size: 7px; }
+  .studio-shell .studio-step-scale > span:first-child, .studio-shell .studio-step-label { background: #1b1c21; box-shadow: 6px 0 7px #1b1c21; }
+  .studio-shell .studio-step { height: 33px; }
+  .studio-shell .studio-step-label > span { font-size: 10px; }
+  .studio-shell .studio-presets button { min-height: 34px; font-size: 10px; }
+  .studio-shell .studio-recorder .studio-panel-heading { margin-bottom: 22px; }
+  .studio-shell .studio-tape { margin-bottom: 23px; }
+  .studio-shell .studio-take-status > span { font-size: 8px; }
+  .studio-shell .studio-drum-pad { min-height: 101px; }
+  .studio-shell .studio-drum-pad > strong { font-size: 11px; }
+  .studio-shell .studio-pad-hint { font-size: 11px; }
+  .studio-shell .studio-footer > p { font-size: 9px; }
+}
+@media (max-width: 360px) {
+  .studio-shell .studio-panel { padding: 15px; }
+  .studio-shell .studio-panel::before { left: 15px; }
+  .studio-shell .studio-transport { padding: 13px; gap: 16px; }
+  .studio-shell .studio-transport-actions { gap: 7px; }
+  .studio-shell .studio-tempo-control, .studio-shell .studio-swing-control { padding-left: 0; border-left: 0; }
+  .studio-shell .studio-transport-actions > button { font-size: 11px !important; }
+  .studio-shell .studio-master-control label > span { min-width: 100px; }
+  .studio-shell .studio-intro h1 > span { font-size: 21px; }
+  .studio-shell .studio-panel .studio-eyebrow { font-size: 6px; }
+  .studio-shell .studio-keyboard { height: 169px; }
+  .studio-shell .studio-tone { margin-left: auto; }
+  .studio-shell .studio-tone input[type=range] { width: 47px; }
+  .studio-shell .studio-keyboard-tools { row-gap: 12px; }
+}
+html[data-contrast=high] body:has(.studio-page) { background: #08090b; }
+html[data-contrast=high] .studio-shell :is(.studio-panel, .studio-transport, .studio-help, .studio-guide-button, .studio-keyboard, .studio-take-wave) { background: #08090b; border-color: #cbd2dc; box-shadow: none; }
+html[data-contrast=high] .studio-shell :is(.studio-panel .studio-eyebrow, .studio-subtitle, .studio-chip, .studio-keyboard-caption > span, .studio-keyboard-caption > p, .studio-take-empty, .studio-take-footnote, .studio-take-status > span, .studio-sequencer-foot p, .studio-pad-hint, .studio-footer > p, .studio-tone > span, .studio-octave > span, .studio-guide-button small, .studio-new-take > span) { color: #f0eef4; }
+html[data-contrast=high] .studio-shell :is(.studio-instruments button, .studio-presets button, .studio-step, .studio-octave button, .studio-panel-number) { background: #08090b; border-color: #cbd2dc; color: #fff; box-shadow: none; }
+html[data-contrast=high] .studio-shell .studio-instruments button[aria-pressed=true] { background: #d7ffad; color: #17230d; border-color: #d7ffad; }
+html[data-contrast=high] .studio-shell .studio-presets button[aria-pressed=true] { background: #e3ceff; color: #20132e; border-color: #e3ceff; }
+html[data-contrast=high] .studio-shell .studio-step[aria-pressed=true] { background: var(--drum-color); border-color: #fff; }
+html[data-contrast=high] .studio-shell .studio-drum-pad { background: #08090b; border-color: var(--drum-color); }
+html[data-contrast=high] .studio-shell .studio-drum-pad.is-hit { background: var(--drum-color); color: #111; }
+html[data-contrast=high] .studio-shell .studio-step-label, html[data-contrast=high] .studio-shell .studio-step-scale > span:first-child { background: #08090b; box-shadow: 6px 0 7px #08090b; }
+@media (prefers-reduced-motion: reduce) {
+  .studio-shell *, .studio-shell *::before, .studio-shell *::after { transition: none !important; animation: none !important; }
+  .studio-shell .studio-drum-pad.is-hit, .studio-shell .studio-drum-pad:active { transform: none; }
+}
+@media (forced-colors: active) {
+  .studio-shell :is(.studio-panel, .studio-transport, .studio-help, .studio-guide-button, .studio-keyboard, .studio-take-wave, .studio-step, .studio-drum-pad) { border: 1px solid CanvasText; box-shadow: none; }
+  .studio-shell :is(.studio-step[aria-pressed=true], .studio-instruments button[aria-pressed=true], .studio-presets button[aria-pressed=true], .studio-piano-key.is-down) { outline: 2px solid Highlight; outline-offset: -4px; }
+  .studio-shell .studio-panel::before { display: none; }
+}

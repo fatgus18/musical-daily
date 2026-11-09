@@ -1,0 +1,64 @@
+/* Shared visual foundation. Run node scripts/sync-design.mjs after editing. */
+:root {
+  --md-pixel-ink: #f4f1e8;
+  --md-pixel-muted: #a6a4ad;
+  --md-pixel-line: #ffffff20;
+  --md-pixel-panel: #191a1f;
+  --md-pixel-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --md-pixel-radius: 10px;
+  --md-pixel-focus: #d6f5a7;
+}
+
+::selection { background: #c4f58a; color: #111510; }
+:where(button, a, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--md-pixel-focus);
+  outline-offset: 4px;
+}
+
+/* Keep the same wordmark everywhere; the surrounding details do the work. */
+.musical-daily-navigation .musical-daily-back {
+  font-family: var(--md-pixel-mono);
+  font-size: 10px;
+  letter-spacing: .025em;
+  color: var(--md-pixel-muted);
+  border-color: var(--md-pixel-line);
+  transition: color 160ms ease;
+}
+.musical-daily-navigation .musical-daily-back:hover { color: var(--md-pixel-ink); }
+.md-game-stats-link {
+  border-radius: 6px;
+  font-family: var(--md-pixel-mono);
+  font-size: 10px;
+  letter-spacing: .025em;
+}
+
+/* The floating controls feel like a tiny piece of studio equipment. */
+.md-sound .md-sound-bar {
+  border-radius: 8px;
+  backdrop-filter: blur(18px);
+}
+.md-sound :is(.md-sound-toggle, .md-sound-settings, .md-contrast-toggle) {
+  font-family: var(--md-pixel-mono);
+  letter-spacing: -.02em;
+}
+.md-sound .md-sound-settings { border-radius: 0 8px 8px 0 !important; }
+.md-sound .md-sound-popover {
+  border-radius: 10px;
+  background: #18191ef5;
+  border-color: #ffffff26;
+  box-shadow: 0 16px 48px #0007, inset 0 1px #ffffff08;
+}
+.md-sound .md-sound-popover > strong {
+  color: var(--md-pixel-ink);
+  font-size: 14px;
+  letter-spacing: -.025em;
+}
+.md-sound .md-sound-popover :is(p, small, label > span) { color: #b0adb8; }
+
+html[data-contrast="high"] {
+  --md-pixel-ink: #fff;
+  --md-pixel-muted: #e0e2e6;
+  --md-pixel-line: #a0a7b3;
+  --md-pixel-panel: #101216;
+  --md-pixel-focus: #fff36b;
+}

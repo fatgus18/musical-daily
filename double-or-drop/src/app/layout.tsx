@@ -8,6 +8,8 @@ import "./collection-controls.css";
 import "./visual-upgrade.css";
 import "./run-goals.css";
 import "./daily.css";
+import "./pixel-system.css";
+import "./pixel-polish.css";
 import "./display.css";
 import { contrastBootstrap } from "@/components/display-preferences";
 import { SoundProvider } from "@/components/sound-client";

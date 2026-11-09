@@ -67,3 +67,110 @@
 @media(max-width:760px){.md-stats-shell .md-stats-header{flex-wrap:wrap;padding:18px 24px 0;gap:12px}.md-stats-shell .md-stats-header>.musical-daily-navigation{flex:1}.md-stats-shell .md-stats-header>.md-account{order:2}.md-stats-shell .md-stats-header nav{order:3;margin:0;width:100%;gap:25px;min-height:42px}.md-stats-shell .md-stats-header nav>a{font-size:11px}.md-stats-shell .md-stats-page{padding:0 24px 20px}.md-stats-shell .md-stats-footer{padding:22px 24px}.md-stats-shell .md-stats-hero h1{font-size:40px}.md-stats-shell .md-stats-edition{font-size:8px;letter-spacing:.6px}.md-stats-history{padding:22px;border-radius:17px}.md-stats-history h2{font-size:23px}.md-stats-history li{gap:12px}.md-stats-history li>strong{font-size:16px}.md-stats-history li>strong>small{display:block;text-align:right;font-size:9px}.md-stats-history time{font-size:11px}.md-stats-history-label>span{font-size:10px}.md-stats-history-icon{width:29px;height:29px;font-size:15px}.md-stats-combined{padding:19px;gap:12px}.md-stats-combined small{font-size:10px;line-height:1.7}}
 @media(max-width:420px){.md-stats-shell .md-stats-page{padding-left:18px;padding-right:18px}.md-stats-shell .md-stats-header{padding-left:18px;padding-right:18px}.md-stats-shell .md-stats-header .musical-daily-logo{width:168px}.md-stats-shell .md-stats-header nav{gap:20px}.md-stats-shell .md-stats-hero h1{font-size:37px}.md-stats-shell .md-stats-footer{font-size:9px;flex-wrap:wrap}.md-stats-history{padding:20px 17px}.md-stats-history li>strong{font-size:15px}.md-stats-history h2{font-size:21px}}
 
+/* Stats are record sleeves with a quiet digital readout. */
+body:has(.md-stats-shell) {
+  background: radial-gradient(circle at 75% 0, #c4f58a06, transparent 35%), #111215;
+}
+.md-stats-shell { color: var(--md-pixel-ink); }
+.md-stats-shell .md-stats-header {
+  border-bottom: 1px solid var(--md-pixel-line);
+}
+.md-stats-shell .md-stats-header nav > a { color: #bbb8c1; }
+.md-stats-shell :is(.md-stats-edition, .md-stats-eyebrow, .md-stats-private, .md-stats-recent > span) {
+  font-family: var(--md-pixel-mono);
+  letter-spacing: .065em;
+}
+.md-stats-shell .md-stats-edition > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  box-shadow: 9px 0 #c4f58a45;
+  margin-right: 9px;
+}
+.md-stats-shell .md-stats-hero p { color: var(--md-pixel-muted); }
+.md-stats-shell .md-stats-total {
+  border-radius: 5px;
+  background: #c4f58a08;
+  border-color: #c4f58a30;
+  font-family: var(--md-pixel-mono);
+  font-size: 10px;
+}
+.md-stats-shell :is(.md-stats-game-card, .md-stats-history, .md-stats-sign-in, .md-stats-combined) {
+  border-radius: var(--md-pixel-radius);
+  background: linear-gradient(120deg, #1c1d22, #17181c);
+  border-color: var(--md-pixel-line);
+  box-shadow: 0 8px 24px #0002;
+}
+.md-stats-shell .md-stats-game-card {
+  position: relative;
+  --stat-muted: #b8b3bf;
+  border-top: 2px solid var(--stat-accent);
+}
+.md-stats-shell .md-stats-game-card::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  width: 4px;
+  height: 4px;
+  color: var(--stat-accent);
+  background: currentColor;
+  box-shadow: -7px 0 currentColor, -14px 0 currentColor;
+  opacity: .45;
+  pointer-events: none;
+}
+.md-stats-shell .md-stats-sticker {
+  border-radius: 7px;
+  transform: rotate(-3deg);
+  background: color-mix(in srgb, var(--stat-accent) 8%, #191a1f);
+  border-color: color-mix(in srgb, var(--stat-accent) 30%, transparent);
+  box-shadow: 3px 3px 0 #0003;
+}
+.md-stats-shell .md-stats-game-card:hover .md-stats-sticker { transform: rotate(0); }
+.md-stats-shell .md-sticker-wave i { border-radius: 0; }
+.md-stats-shell .md-stats-play {
+  border-radius: 5px;
+  font-family: var(--md-pixel-mono);
+  font-size: 10px;
+  background: color-mix(in srgb, var(--stat-accent) 5%, transparent);
+}
+.md-stats-shell .md-stats-metrics {
+  background: #00000012;
+  border-top-style: dashed;
+  border-color: #ffffff26;
+}
+.md-stats-shell .md-stats-metric dd {
+  font-family: var(--md-pixel-mono);
+  font-weight: 600;
+  letter-spacing: -.06em;
+}
+.md-stats-shell :is(.md-stats-metric dt, .md-stats-game-title p, .md-stats-history-label > span, .md-stats-history-heading > span, .md-stats-bottom-note, .md-stats-sign-in p) {
+  color: #afadb7;
+}
+.md-stats-shell .md-stats-card-foot { border-top: 1px dashed #ffffff20; }
+.md-stats-shell .md-stats-mini-bars i { border-radius: 0; }
+.md-stats-shell .md-stats-history-icon { border-radius: 5px; }
+.md-stats-shell .md-stats-footer { border-color: var(--md-pixel-line); color: var(--md-pixel-muted); }
+.md-stats-shell .md-stats-sign-in { border-left: 3px solid #c4f58a; }
+.md-stats-shell .md-stats-save-icon { border-radius: 6px; }
+
+html[data-contrast="high"] .md-stats-shell :is(.md-stats-game-card, .md-stats-history, .md-stats-sign-in, .md-stats-combined) {
+  background: #101216;
+  border-color: #b8bec8;
+  box-shadow: none;
+}
+html[data-contrast="high"] .md-stats-shell :is(.md-stats-header nav > a, .md-stats-game-title p, .md-stats-metric dt, .md-stats-history-label > span, .md-stats-hero p, .md-stats-sign-in p) { color: #e0e2e6; }
+html[data-contrast="high"] .md-stats-shell .md-stats-metric dd { color: #fff; }
+html[data-contrast="high"] .md-stats-shell .md-stats-metrics { background: none; border-color: #92969e; }
+html[data-contrast="high"] .md-stats-shell .md-stats-card-foot { border-color: #92969e; }
+@media (prefers-reduced-motion: reduce) {
+  .md-stats-shell :is(.md-stats-game-card, .md-stats-sticker, .md-friend-record, .md-friend-note) {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+@media (forced-colors: active) {
+  .md-stats-shell :is(.md-stats-game-card, .md-stats-history, .md-stats-sign-in, .md-stats-combined) { border: 1px solid CanvasText; }
+  .md-stats-shell .md-stats-play { border: 1px solid LinkText; }
+}

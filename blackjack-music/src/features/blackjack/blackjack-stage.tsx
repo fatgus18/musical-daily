@@ -23,11 +23,9 @@ export function BlackjackStage() {
 export function BlackjackEmblem() {
   return (
     <div className="bj-heading-emblem" aria-hidden="true">
-      <svg viewBox="0 0 120 120" fill="none">
-        <circle cx="60" cy="60" r="52" stroke="currentColor" strokeDasharray="1 6" />
-        <circle cx="60" cy="60" r="42" stroke="currentColor" strokeOpacity=".32" />
-        <path d="M60 29C52 43 36 47 36 61c0 12 17 17 23 6-2 10-5 16-11 22h24c-6-6-9-12-11-22 6 11 23 6 23-6 0-14-16-18-24-32Z" fill="currentColor" />
-        <path d="m98 12 2 8 8 2-8 2-2 8-2-8-8-2 8-2 2-8Z" fill="#fb897c" />
+      <svg viewBox="0 0 24 24" fill="none" shapeRendering="crispEdges">
+        <path d="M1 7V1h6M17 1h6v6M23 17v6h-6M7 23H1v-6" stroke="currentColor" strokeOpacity=".6" />
+        <path d="M11 4h2v2h2v2h2v2h2v6h-2v2h-4v-2h-2v2H7v-2H5v-6h2V8h2V6h2Zm0 14h2v2h2v1H9v-1h2Z" fill="currentColor" />
       </svg>
     </div>
   );

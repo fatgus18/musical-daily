@@ -1,0 +1,192 @@
+/* Tempo's listening deck: coral controls, pixel details, room to hear. */
+html:not([data-contrast="high"]) body { background: #101114; }
+.game-main { padding-top: 34px; }
+.game-heading { margin-bottom: 27px; }
+.game-heading h1 { font-weight: 750; letter-spacing: -.065em; }
+.game-heading .eyebrow { font: 600 10px/1.6 "SFMono-Regular", Consolas, monospace; letter-spacing: .14em; }
+.game-heading .eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 14px;
+  background: #f7b29a;
+  box-shadow: 5px 5px 0 #f7b29a44;
+  vertical-align: 2px;
+}
+.game-heading p { line-height: 1.7; }
+.mode-toggle { border-radius: 8px; padding: 4px; box-shadow: none; }
+.mode-toggle button { border-radius: 5px; min-height: 40px; padding-inline: 17px; }
+.mode-toggle .live-dot { border-radius: 1px; }
+html:not([data-contrast="high"]) .mode-toggle { background: #1b1c21; border-color: #ffffff26; }
+.round-toolbar { margin-bottom: 16px; }
+.round-tracker { gap: 7px; }
+.round-tracker > span:not(.edition-label) { border-radius: 5px; width: 33px; height: 33px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; }
+.round-tracker > span.current { box-shadow: 0 3px 0 #9f6653; }
+.round-tracker > .edition-label { font-size: 9px; letter-spacing: .08em; }
+.score-total { border-radius: 6px; padding: 10px 15px; }
+html:not([data-contrast="high"]) .score-total { background: #202126; border-color: #ffffff25; }
+.score-total > small { font: 500 9px "SFMono-Regular", Consolas, monospace; letter-spacing: .08em; }
+.score-total > strong { font-family: "SFMono-Regular", Consolas, monospace; font-size: 18px; letter-spacing: -.06em; }
+.game-panel { border-radius: 12px; }
+html:not([data-contrast="high"]) .game-panel {
+  background: var(--md-pixel-panel, #191a1f);
+  border-color: #ffffff2b;
+  box-shadow: 0 20px 45px -22px #000b, inset 0 1px 0 #ffffff0a;
+}
+.player-layout { grid-template-columns: 45% 55%; min-height: 580px; }
+.record-panel { padding: 27px 37px; }
+html:not([data-contrast="high"]) .record-panel {
+  background: linear-gradient(150deg, #29262a, #1c1d22 65%);
+  border-color: #ffffff21;
+}
+.record-panel::after { width: 5px; height: 5px; border-radius: 1px; border-color: #ffffff3b; bottom: 13px; left: 14px; box-shadow: 9px 0 0 #ffffff10, 18px 0 0 #ffffff08; }
+.record-topline { padding-bottom: 17px; border-bottom: 1px dashed #ffffff25; font: 500 9px/1.5 "SFMono-Regular", Consolas, monospace; letter-spacing: .07em; margin-bottom: 29px; }
+.record-topline > span:last-child { font-size: 9px; padding: 3px 6px; border-color: #ffffff38; border-radius: 2px; margin-top: 0; }
+.record-topline .live-dot { border-radius: 1px; }
+.album-cover { border-radius: 3px; transform: rotate(-2deg); box-shadow: 0 10px 22px #0007; }
+.album-wrapper { max-width: 246px; margin-left: 11px; }
+.tempo-record-grooves { transform: translateX(24%); }
+.cut-label { border-radius: 3px; padding: 8px 10px; font: 600 8px "SFMono-Regular", Consolas, monospace; letter-spacing: .07em; transform: rotate(3deg); }
+.artist-name { font-size: 12px; letter-spacing: .04em; }
+.track-meta h2 { color: var(--md-pixel-ink, #f4f1e8); font-size: 21px; letter-spacing: -.035em; }
+.track-year { font: 500 9px/1.5 "SFMono-Regular", Consolas, monospace; letter-spacing: .06em; }
+.audio-wave { border-radius: 5px; padding: 11px 10px; box-shadow: none; }
+html:not([data-contrast="high"]) .audio-wave { background: #121317; border-color: #ffffff22; }
+.sound-bars > i { border-radius: 0; }
+.playback-progress { font-family: "SFMono-Regular", Consolas, monospace; font-size: 9px; }
+.playback-progress > div { border-radius: 1px; height: 4px; background: #ffffff1b; }
+.playback-progress > div > i { border-radius: 0; }
+.player-controls { margin-top: 18px; }
+.audio-source { font-size: 9px; }
+.volume-control input { width: 76px; }
+.challenge-panel { padding: 29px 35px; }
+html:not([data-contrast="high"]) .challenge-panel { background: #191a1f; }
+.phase-steps { padding: 12px 9px; border-radius: 5px; }
+html:not([data-contrast="high"]) .phase-steps { border-color: #ffffff23; background: #202126; }
+.phase-steps > span { font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; }
+.phase-steps > span > b { font-size: 8px; }
+.phase-steps > i { width: 26px; background: #ffffff25; }
+.phase-content { min-height: 428px; }
+.phase-content h2 { font-weight: 750; letter-spacing: -.045em; }
+.phase-content > .eyebrow { font-family: "SFMono-Regular", Consolas, monospace; font-size: 9px; letter-spacing: .12em; }
+.phase-content > p { font-size: 13px; line-height: 1.8; }
+.headphone-emblem {
+  position: relative;
+  border-radius: 10px;
+  width: 76px;
+  height: 76px;
+  margin-top: 8px;
+  background: #f7b29a0a;
+  border-color: #f7b29a4a;
+  box-shadow: 5px 5px 0 #f7b29a08;
+}
+.headphone-emblem::before, .headphone-emblem::after { content: ""; position: absolute; width: 11px; height: 11px; pointer-events: none; }
+.headphone-emblem::before { top: -5px; left: -5px; border-top: 2px solid #f7b29a; border-left: 2px solid #f7b29a; }
+.headphone-emblem::after { bottom: -5px; right: -5px; border-bottom: 2px solid #f7b29a; border-right: 2px solid #f7b29a; }
+.rule-pills > span { font-size: 10px; border-radius: 5px; }
+html:not([data-contrast="high"]) .rule-pills > span { border-color: #ffffff25; background: #222126; }
+.primary-button { border-radius: 6px; min-height: 47px; font-size: 13px; box-shadow: 0 3px 0 #a56f5d; }
+.primary-button:hover:not(:disabled) { box-shadow: 0 4px 0 #a56f5d; transform: translateY(-1px); }
+.primary-button:active:not(:disabled) { box-shadow: 0 1px 0 #a56f5d; }
+.secondary-button { border-radius: 6px; border-color: #ffffff35; font-size: 12px; }
+.under-button { font-size: 10px; margin-top: 18px; }
+.timer-ring { width: 164px; height: 164px; box-shadow: 0 0 0 8px #f7b29a04, 0 0 0 9px #f7b29a24; }
+html:not([data-contrast="high"]) .timer-ring > div { background: #191a1f; }
+.timer-ring strong { font-family: "SFMono-Regular", Consolas, monospace; font-size: 61px; letter-spacing: -.08em; }
+.timer-ring span { font: 500 9px "SFMono-Regular", Consolas, monospace; letter-spacing: .12em; }
+.guess-time { border-radius: 5px; font-family: "SFMono-Regular", Consolas, monospace; font-size: 11px; letter-spacing: .04em; }
+html:not([data-contrast="high"]) .guess-time:not(.urgent) { background: #f7b29a0b; border-color: #f7b29a55; }
+.bpm-input-wrap { border-radius: 7px; padding-block: 9px; }
+html:not([data-contrast="high"]) .bpm-input-wrap { background: #101115; border-color: #f7b29a60; }
+.bpm-input-wrap input { font-family: "SFMono-Regular", Consolas, monospace; font-size: 55px; letter-spacing: -.05em; }
+.bpm-label { font-family: "SFMono-Regular", Consolas, monospace; letter-spacing: .13em; }
+.input-hint { font-size: 10px; }
+.guess-timer-track { height: 6px; border-radius: 1px; }
+.guess-timer-track i { background-image: repeating-linear-gradient(90deg, transparent 0 12px, #191a1f70 12px 15px); }
+.reveal-tempo { font-family: "SFMono-Regular", Consolas, monospace; font-size: 68px; letter-spacing: -.07em; text-shadow: none; }
+.comparison { border-radius: 6px; border-style: dashed; }
+html:not([data-contrast="high"]) .comparison { background: #212126; border-color: #ffffff30; }
+.comparison > div > span { font: 500 8px "SFMono-Regular", Consolas, monospace; letter-spacing: .09em; }
+.comparison > div > strong { font-family: "SFMono-Regular", Consolas, monospace; }
+.reveal-content > .feedback { font-size: 11px; }
+.listen-link { font-size: 10px; }
+.game-bottom-note { margin-top: 20px; font-size: 10px; }
+.results-panel { padding-top: 34px; }
+html:not([data-contrast="high"]) .results-panel { background: #191a1f; }
+.results-panel > h2 { font-size: 35px; letter-spacing: -.045em; }
+.final-score { font-family: "SFMono-Regular", Consolas, monospace; letter-spacing: -.065em; }
+.result-tracks { border-top: 1px dashed #ffffff35; }
+.result-tracks > div { border-bottom-style: dashed; border-color: #ffffff24; }
+.result-track-title > strong { font-size: 13px; }
+.result-track-title > span, .result-track-guess > span { font-size: 10px; }
+.result-track-score { font-family: "SFMono-Regular", Consolas, monospace; }
+.tempo-atmosphere::before { background-image: radial-gradient(#dcb7a815 .8px, transparent .8px); background-size: 32px 32px; }
+.tempo-orbit { opacity: .45; }
+.tempo-side-disc, .tempo-side-ticket { opacity: .65; }
+.tempo-side-ticket { border-radius: 3px; }
+.tempo-margin-note { font-family: monospace; font-size: 8px; opacity: .8; }
+footer { border-top-style: dashed; }
+dialog { border-radius: 10px; }
+html:not([data-contrast="high"]) dialog { background: #1b1c21; border-color: #ffffff40; }
+@media (max-width: 1000px) {
+  .record-panel { padding: 25px; }
+  .album-wrapper { max-width: 220px; margin-left: 0; }
+  .challenge-panel { padding: 26px; }
+  .phase-content h2 { font-size: 29px; }
+}
+@media (max-width: 700px) {
+  .game-main { padding-top: 24px; }
+  .game-heading { gap: 17px; margin-bottom: 23px; }
+  .game-heading h1 { font-size: 42px; }
+  .game-heading .eyebrow { font-size: 8px; letter-spacing: .08em; }
+  .game-heading p { font-size: 12px; }
+  .mode-toggle button { min-height: 36px; padding: 8px 14px; font-size: 11px; }
+  .round-tracker { gap: 6px; }
+  .round-tracker > span:not(.edition-label) { width: 28px; height: 28px; font-size: 9px; }
+  .score-total { padding: 8px 10px; }
+  .score-total > strong { font-size: 16px; }
+  .game-panel { border-radius: 10px; }
+  .player-layout { grid-template-columns: 1fr; min-height: 0; }
+  .record-panel { grid-template-columns: 104px minmax(0, 1fr); gap: 0 23px; padding: 20px; }
+  .record-topline { font-size: 8px; margin-bottom: 19px; padding-bottom: 13px; }
+  .record-topline > span:last-child { font-size: 8px; }
+  .album-wrapper { width: 104px; margin: 0; }
+  .tempo-record-grooves { transform: translateX(14%); }
+  .cut-label { padding: 5px 6px; font-size: 6px; }
+  .artist-name { font-size: 10px; letter-spacing: 0; }
+  .track-meta h2 { font-size: 16px; }
+  .track-year { font-size: 7px; letter-spacing: 0; }
+  .audio-wave { padding: 5px; }
+  .audio-source { font-size: 8px; }
+  .playback-progress { font-size: 8px; }
+  .challenge-panel { padding: 20px 23px 27px; }
+  .phase-steps { padding: 11px 7px; gap: 9px; }
+  .phase-steps > span { font-size: 9px; }
+  .phase-steps > span > b { font-size: 7px; }
+  .phase-content { min-height: 355px; }
+  .phase-content h2 { font-size: 29px; }
+  .phase-content > p { font-size: 12px; }
+  .headphone-emblem { width: 61px; height: 61px; margin: 17px 0 22px; }
+  .rule-pills > span { font-size: 10px; padding: 8px; }
+  .bpm-input-wrap input { font-size: 49px; }
+  .bpm-input-wrap { padding-block: 4px; }
+  .results-panel { padding: 28px 18px; }
+  .results-panel > h2 { font-size: 29px; }
+  .result-track-title > strong { font-size: 12px; }
+  .result-track-title > span, .result-track-guess > span { font-size: 9px; }
+}
+@media (max-width: 370px) {
+  .record-panel { grid-template-columns: 88px minmax(0, 1fr); padding: 17px; gap: 0 20px; }
+  .album-wrapper { width: 88px; }
+  .challenge-panel { padding-inline: 18px; }
+  .round-tracker > span:not(.edition-label) { width: 25px; height: 25px; }
+  .score-total { padding-inline: 7px; }
+  .score-total > strong { font-size: 15px; }
+}
+html[data-contrast="high"] .game-heading .eyebrow::before { background: #ffd1b9; box-shadow: 5px 5px 0 #ffd1b9; }
+html[data-contrast="high"] .headphone-emblem { background: #151a16; border-color: #ffd1b9; box-shadow: none; }
+html[data-contrast="high"] :is(.record-topline, .result-tracks, .result-tracks > div) { border-color: #b1bcac; }
+@media (prefers-reduced-motion: reduce) {
+  .album-cover, .primary-button { transform: none !important; }
+}

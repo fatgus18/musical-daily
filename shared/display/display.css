@@ -1,6 +1,6 @@
 /* Common display controls and readable high-contrast shared surfaces. */
-.md-sound .md-sound-bar {background:linear-gradient(145deg,#292631f5,#19191ef5);border-color:#b5a5cd42;box-shadow:0 4px 24px #0005,inset 0 1px 0 #ffffff08}
-.md-sound .md-contrast-toggle {display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 12px!important;background:transparent!important;border-radius:24px 0 0 24px!important;border-right:1px solid #ffffff1c!important;font-size:10px!important;white-space:nowrap}
+.md-sound .md-sound-bar {background:linear-gradient(145deg,#23242af5,#17181df5);border-color:#ffffff26;box-shadow:0 4px 24px #0005,inset 0 1px 0 #ffffff08}
+.md-sound .md-contrast-toggle {display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 12px!important;background:transparent!important;border-radius:8px 0 0 8px!important;border-right:1px solid #ffffff1c!important;font-size:10px!important;white-space:nowrap}
 .md-contrast-toggle b {font-weight:400;opacity:.75}
 .md-sound .md-sound-toggle {border-radius:0!important}
 .md-sound .md-contrast-toggle[aria-pressed="true"] {color:#efffb3;background:#e5fca412!important}

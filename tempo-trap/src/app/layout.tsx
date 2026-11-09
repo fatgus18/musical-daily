@@ -5,6 +5,8 @@ import "./account-client.css";
 import { AccountProvider } from "@/components/account-client";
 import "./sound-client.css";
 import "./visual-upgrade.css";
+import "./pixel-system.css";
+import "./pixel-polish.css";
 import "./display.css";
 import { contrastBootstrap } from "@/components/display-preferences";
 import { SoundProvider } from "@/components/sound-client";
