@@ -25,6 +25,23 @@ export function selectTracks<T extends { artist: string }>(tracks: T[], seedText
   const seen = new Set<string>();
   return shuffled.filter(track => { if (seen.has(track.artist)) return false; seen.add(track.artist); return true; }).slice(0, ROUNDS);
 }
-export function utcDate(now = new Date()) { return now.toISOString().slice(0, 10); }
+// A mix belongs to an Indian calendar day everywhere in the world. India does
+// not observe daylight saving time, so this fixed offset is unambiguous.
+export const DAILY_TIME_ZONE = "Asia/Kolkata";
+export const IST_OFFSET_MS = 330 * 60 * 1000;
+export function dailyDate(now = new Date()) { return new Date(now.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10); }
+export function nextDailyReset(now = new Date()) {
+  return Date.parse(`${dailyDate(now)}T00:00:00Z`) + 86400000 - IST_OFFSET_MS;
+}
+export function previousDailyDate(date: string) { return new Date(Date.parse(`${date}T00:00:00Z`) - 86400000).toISOString().slice(0, 10); }
+export function shouldRefreshDaily(
+  puzzle: { mode: string; date: string },
+  progress: { phase: string; round: number; results: unknown[] },
+  today: string,
+  keepCompletedResult = false,
+) {
+  return puzzle.mode === "daily" && puzzle.date !== today &&
+    (progress.phase === "complete" && !keepCompletedResult || progress.phase === "ready" && progress.round === 0 && progress.results.length === 0);
+}
 export function puzzleNumber(date: string) { return Math.max(1, Math.floor((Date.parse(date) - Date.parse("2026-10-30")) / 86400000) + 1); }
 export function rank(score: number) { return score >= 4500 ? "Human metronome" : score >= 3500 ? "In the pocket" : score >= 2000 ? "Finding your groove" : "Soundcheck complete"; }

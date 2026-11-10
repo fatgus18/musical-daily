@@ -98,6 +98,25 @@ test("statistics aggregate all games while a bust breaks Blackjack's daily win s
   const stats = store.stats(user); assert.equal(stats.games.blackjack.currentStreak, 0); assert.equal(stats.games.blackjack.bestStreak, 1); assert.equal(stats.games.encore.averagePercent, 70); assert.equal(stats.games.encore.totalCorrect, 7); assert.equal(stats.games.encore.recent[0].artist?.name, "Hozier"); store.close();
 });
 
+test("Tempo streak expires at midnight IST while other games retain their UTC boundary", () => {
+  let now = Date.parse("2026-11-09T18:29:59.999Z");
+  const store = new AccountStore(":memory:", () => now);
+  try {
+    const user = store.user(identity);
+    for (const game of ["tempo", "blackjack"] as const) {
+      store.result(user.id, game, { eventId: "daily:2026-11-08", date: "2026-11-08", mode: "daily", score: 100, maxScore: 100, won: true });
+      assert.equal(store.stats(user).games[game].currentStreak, 1);
+    }
+    now = Date.parse("2026-11-09T18:30:00.000Z");
+    assert.equal(store.stats(user).games.tempo.currentStreak, 0);
+    assert.equal(store.stats(user).games.blackjack.currentStreak, 1);
+    store.result(user.id, "tempo", { eventId: "daily:2026-11-09", date: "2026-11-09", mode: "daily", score: 100, maxScore: 100, won: true });
+    assert.equal(store.stats(user).games.tempo.currentStreak, 2);
+    store.result(user.id, "tempo", { eventId: "daily:2026-11-10", date: "2026-11-10", mode: "daily", score: 100, maxScore: 100, won: true });
+    assert.equal(store.stats(user).games.tempo.currentStreak, 3);
+  } finally { store.close(); }
+});
+
 test("verified Google claims still require the expected audience, issuer, nonce and verified email", () => {
   const payload = { sub: "one", email: "one@example.com", email_verified: true, aud: config.clientId, iss: "https://accounts.google.com", nonce: "expected-nonce" };
   assert.equal(verifiedGoogleIdentity(payload, config.clientId, "expected-nonce").sub, "one");

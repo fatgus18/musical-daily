@@ -21,7 +21,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 
 ## Game rules
 
-- Five rounds. The daily set is deterministic, has five distinct artists, and changes at midnight UTC.
+- Five rounds. The daily set is deterministic, has five distinct artists, and changes at midnight IST (Asia/Kolkata, 18:30 UTC), independent of the player’s time zone.
 - Artist and album artwork appear before playback. The track title is revealed after the guess.
 - Press Play to hear exactly 15 seconds. Audio is downloaded and decoded before playback; buffering never uses answer time.
 - When playback finishes, BPM entry unlocks and a separate 15-second timer begins.
@@ -69,7 +69,7 @@ Guest games use browser storage. Signed-in daily games use the hub's shared Musi
 
 Sign in with Google on this game or the hub to use the same account. Configure the hub's Google client first, following its [README](../musical-daily/README.md). Google's local authorized redirect URI is exactly `http://localhost:3001/api/auth/google/callback`; production uses `/api/auth/google/callback` on the public HTTPS hub origin. This app's callback is an internal account handoff and is not registered with Google. This app uses the sibling [account service package](../shared/accounts/), so retain it during dependency installation and deployment.
 
-Daily progress is stored by account and UTC date. Completed rounds and guessing deadlines restore on other devices. After audio ends, the server starts a 15-second deadline; repeating that request cannot restart it. Submitted answers are scored on the server, with a two-second transport allowance. A newer device's saved state wins over stale requests; the UI offers a reload instead of silently replacing it. Completion and statistics are saved atomically, and retrying a lost response returns the original saved result. Signing out stops playback and restores the separate guest space.
+Daily progress is stored by account and IST puzzle date. Completed rounds and guessing deadlines restore on other devices. After audio ends, the server starts a 15-second deadline; repeating that request cannot restart it. Submitted answers are scored on the server, with a two-second transport allowance. A newer device's saved state wins over stale requests; the UI offers a reload instead of silently replacing it. Completion and statistics are saved atomically, and retrying a lost response returns the original saved result. Signing out stops playback and restores the separate guest space.
 
 Guest aggregates remain on their original device and are not silently imported into an account because old client-only history cannot be revalidated. Account requests fail closed during service outages; the saved answer can be retried. Local save keys are scoped to account identity, and an old account's signed round cannot be submitted by another account.
 
@@ -101,3 +101,7 @@ npm start
 ```
 
 On Vercel choose `tempo-trap` as the root directory. Configure the hub's `NEXT_PUBLIC_TEMPO_TRAP_URL` with this app's public URL. Secrets remain server-side. Keep the deployed catalog consistent across instances. Rotating the session secret expires unfinished sessions.
+
+### Daily rollover
+
+The daily API, puzzle number, countdown, guest streak and account streak use the same IST calendar day. New-day checks run while the page is open and when it regains focus. An untouched mix or one already completed before midnight refreshes automatically. Listening, guessing, and partly played mixes keep their original signed session and deadline, with a visible button to switch after the current round. Finishing an in-progress mix after midnight keeps its results and share button on screen until the player chooses the new daily mix. Practice is never interrupted. Saved entries and results retain their original date keys, including entries from before the UTC-to-IST change; there is no renaming, deletion, or new seed for an already published calendar date. An open previous-day mix can still finish while its signed session remains valid (48 hours from creation). Catalog effective dates now refer to the IST daily date for Tempo.

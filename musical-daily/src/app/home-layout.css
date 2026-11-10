@@ -33,7 +33,7 @@
 .home-hub .card-bottom{padding:13px 0 16px;flex-direction:column;align-items:flex-start;gap:10px;margin-top:auto}
 .home-hub .card-bottom>span{font-size:9px}.home-hub .card-bottom>strong{width:100%;justify-content:space-between;font-size:11px}
 .home-hub .daily-note{margin:24px 0 30px;padding:19px 22px}
-.home-hub .daily-note h2{font-size:12px}.home-hub .daily-note p{font-size:11px}
+.home-hub .daily-note h2{font-size:13px}.home-hub .daily-note p{font-size:13px}
 @media(min-width:1500px){.home-hub .hero-compact{padding-top:32px;padding-bottom:25px}.home-hub .hero-art{height:145px}.home-hub .game-art{height:180px}.home-hub .game-scene{transform:translate(-50%,-50%) scale(.76)}}
 @media(min-width:641px) and (max-width:1099px){
   .home-hub .hero-compact{grid-template-columns:minmax(0,1fr) 155px;padding:22px 0 18px;gap:18px}
@@ -86,8 +86,8 @@
   .home-hub .card-bottom>strong{font-size:9px;font-weight:600;gap:5px;white-space:nowrap;line-height:1.3}
   .home-hub .card-bottom svg{width:13px;height:13px}
   .home-hub .daily-note{margin:18px 0 22px;padding:16px;gap:11px}
-  .home-hub .daily-note .headphone-icon{height:30px;width:30px}.home-hub .daily-note h2{font-size:10px}.home-hub .daily-note p{font-size:9px;max-width:240px}
-  .home-hub .daily-note button{margin:0 0 0 41px;font-size:10px}
+  .home-hub .daily-note .headphone-icon{height:30px;width:30px}.home-hub .daily-note h2{font-size:13px}.home-hub .daily-note p{font-size:13px;max-width:240px}
+  .home-hub .daily-note button{margin:0 0 0 41px;font-size:13px}
 }
 @media(max-width:400px){
   .hub-header-games .musical-daily-logo{width:156px}

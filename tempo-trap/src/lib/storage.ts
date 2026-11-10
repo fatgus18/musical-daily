@@ -1,4 +1,5 @@
 import type { Progress, Puzzle, SavedGame, Stats } from "./types";
+import { previousDailyDate } from "./game.ts";
 export const EMPTY_STATS: Stats = { played: 0, totalScore: 0, best: 0, streak: 0, longestStreak: 0, lastDate: null, history: [] };
 export const storageKey = (puzzle: Puzzle, accountId?: string | null) => `${accountId ? `account:${accountId}:` : ""}${puzzle.mode === "daily" ? `tempo:daily:${puzzle.date}` : "tempo:practice"}`;
 export function freshProgress(puzzle: Puzzle): Progress { return { round: 0, phase: "ready", guess: "", deadline: null, results: [], token: puzzle.token }; }
@@ -27,9 +28,16 @@ export function readStats(): Stats {
 export function recordDaily(date: string, score: number): Stats {
   const stats = readStats();
   if (stats.history.some(item => item.date === date)) return stats;
-  const yesterday = new Date(Date.parse(date) - 86400000).toISOString().slice(0, 10);
-  const streak = stats.lastDate === yesterday ? stats.streak + 1 : 1;
-  const next = { played: stats.played + 1, totalScore: stats.totalScore + score, best: Math.max(stats.best, score), streak, longestStreak: Math.max(stats.longestStreak, streak), lastDate: date, history: [...stats.history, { date, score }].slice(-366) };
+  const history = [...stats.history, { date, score }].sort((a, b) => a.date.localeCompare(b.date)).slice(-366);
+  const lastDate = history.at(-1)!.date;
+  const dates = new Set(history.map(item => item.date));
+  let observedStreak = 0;
+  for (let day = lastDate; dates.has(day); day = previousDailyDate(day)) observedStreak++;
+  // An old tab can finish yesterday's signed mix after today's. Count it once
+  // without moving lastDate backwards, and preserve streaks beyond history's cap.
+  const priorStreak = stats.lastDate === previousDailyDate(date) ? stats.streak + 1 : stats.lastDate === lastDate ? stats.streak : 1;
+  const streak = Math.max(observedStreak, priorStreak);
+  const next = { played: stats.played + 1, totalScore: stats.totalScore + score, best: Math.max(stats.best, score), streak, longestStreak: Math.max(stats.longestStreak, streak), lastDate, history };
   try { localStorage.setItem("tempo:stats", JSON.stringify(next)); } catch { /* Local storage can be unavailable; gameplay still works. */ }
   return next;
 }

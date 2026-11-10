@@ -40,7 +40,7 @@ export function MusicFact() {
   if (hidden) return <div className="music-fact-hidden"><span aria-hidden="true">✳</span><span>Rabbit hole closed. For now.</span><button ref={showButton} type="button" onClick={() => { returnFocus.current = true; setHidden(false); }}>Show music fact <span aria-hidden="true">↗</span></button></div>;
 
   return <aside className="music-fact" aria-label="Off the record: a surprising music fact" aria-busy={!fact} data-fact-id={fact?.id}>
-    <div className="music-fact-top"><span><b aria-hidden="true">✳</b> OFF THE RECORD <i /> <small>{fact?.kind || "MUSIC"}</small></span><button ref={hideButton} type="button" className="music-fact-hide" aria-label="Hide music fact for this visit" title="Hide for this visit" onClick={() => { returnFocus.current = true; setHidden(true); }}>Hide <span aria-hidden="true">×</span></button></div>
+    <div className="music-fact-top"><span><b aria-hidden="true">✳</b> Music fact</span><button ref={hideButton} type="button" className="music-fact-hide" aria-label="Hide music fact for this visit" title="Hide for this visit" onClick={() => { returnFocus.current = true; setHidden(true); }}>Hide <span aria-hidden="true">×</span></button></div>
     <div className="music-fact-story" aria-live="polite" aria-atomic="true">
       {fact ? <><h2>{fact.headline}</h2><p>{fact.text}</p></> : <><h2>A little music rabbit hole.</h2><p className="music-fact-loading">Finding you a wonderfully strange story…</p></>}
     </div>

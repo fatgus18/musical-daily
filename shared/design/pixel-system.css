@@ -18,7 +18,7 @@
 /* Keep the same wordmark everywhere; the surrounding details do the work. */
 .musical-daily-navigation .musical-daily-back {
   font-family: var(--md-pixel-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: .025em;
   color: var(--md-pixel-muted);
   border-color: var(--md-pixel-line);
@@ -28,7 +28,7 @@
 .md-game-stats-link {
   border-radius: 6px;
   font-family: var(--md-pixel-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: .025em;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isGuess } from "@/lib/game";
+import { dailyDate, isGuess, shouldRefreshDaily } from "@/lib/game";
 import { EMPTY_STATS, freshProgress, readStats, recordDaily, restoreGame, saveGame } from "@/lib/storage";
 import type { Mode, Progress, Puzzle, RoundResult, SavedGame, Stats } from "@/lib/types";
 import type { GameStats } from "@musical-daily/accounts";
@@ -19,6 +19,10 @@ export function useTempo(accountId: string | null = null) {
   const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState(15);
   const [volume, setVolumeState] = useState(80);
+  const [clockNow, setClockNow] = useState(Date.now);
+  const clockSync = useRef({ server: Date.now(), local: Date.now() });
+  const rolloverRequested = useRef<string | null>(null);
+  const keepCompletedDaily = useRef<string | null>(null);
   const volumeRef = useRef(80);
   const context = useRef<AudioContext | null>(null);
   const gain = useRef<GainNode | null>(null);
@@ -31,6 +35,16 @@ export function useTempo(accountId: string | null = null) {
   const audioData = useRef<{ url: string; promise: Promise<ArrayBuffer> } | null>(null);
 
   const commit = useCallback((puzzle: Puzzle, progress: Progress) => {
+    const previous = gameRef.current;
+    const serverNow = clockSync.current.server + Date.now() - clockSync.current.local;
+    if (puzzle.mode === "daily" && progress.phase === "complete" &&
+      previous?.puzzle.date === puzzle.date && previous.progress.phase !== "complete" &&
+      puzzle.date !== dailyDate(new Date(serverNow))) {
+      // A player finishing across midnight gets to keep, read and share the
+      // result they just earned. Only a result already complete at rollover
+      // should give way to the new mix automatically.
+      keepCompletedDaily.current = puzzle.date;
+    }
     const next = { puzzle, progress };
     gameRef.current = next; setGame(next);
     // Persist synchronously, including every input change and locked submission.
@@ -43,8 +57,9 @@ export function useTempo(accountId: string | null = null) {
     if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
     const payload = await response.json() as { games: { tempo: GameStats } };
     const saved = payload.games.tempo;
+    const latestDailyDate = saved.recent.filter(result => result.mode === "daily").map(result => result.date).sort().at(-1) || null;
     setStats({ played: saved.played, totalScore: saved.totalScore, best: saved.bestScore, streak: saved.currentStreak,
-      longestStreak: saved.bestStreak, lastDate: saved.lastPlayed?.slice(0, 10) || null,
+      longestStreak: saved.bestStreak, lastDate: latestDailyDate,
       history: [...saved.recent].reverse().map(result => ({ date: result.date, score: result.score })) });
   }, [accountId]);
 
@@ -59,10 +74,13 @@ export function useTempo(accountId: string | null = null) {
     setLoading(true); setError(null); setElapsed(0); setRemaining(15);
     const controller = new AbortController(); request.current = controller;
     try {
-      const response = await fetch(withBasePath(`/api/daily?mode=${mode}`), { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
+      const response = await fetch(withBasePath(`/api/daily?mode=${mode}`), { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
       if (!response.ok) throw new Error("Couldn’t load your mix. Please try again.");
       const puzzle: Puzzle = await response.json();
       if (!mounted.current || generation.current !== current) return;
+      const receivedAt = Date.now();
+      clockSync.current = { server: puzzle.serverNow ?? receivedAt, local: receivedAt };
+      setClockNow(clockSync.current.server);
       let restored = resume ? restoreGame(puzzle, accountId) : null;
       if (accountId && mode === "daily") {
         if (!puzzle.accountProgress) throw new Error("Your account session changed. Reload to continue.");
@@ -87,6 +105,25 @@ export function useTempo(accountId: string | null = null) {
     void load();
     return () => { mounted.current = false; generation.current++; request.current?.abort(); stop(); void context.current?.close().catch(() => {}); context.current = null; };
   }, [load, stop]);
+
+  // Keep open/background tabs aligned with the server's IST day. Clock sync is
+  // separate from a restored puzzle, whose original date and signed token stay intact.
+  useEffect(() => {
+    const tick = () => setClockNow(clockSync.current.server + Date.now() - clockSync.current.local);
+    const timer = setInterval(tick, 1000);
+    window.addEventListener("focus", tick);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(timer); window.removeEventListener("focus", tick); document.removeEventListener("visibilitychange", tick); };
+  }, []);
+  const today = dailyDate(new Date(clockNow));
+  const newDailyAvailable = !!game && game.puzzle.mode === "daily" && game.puzzle.date !== today;
+  useEffect(() => {
+    if (!game || loading || !shouldRefreshDaily(game.puzzle, game.progress, today, keepCompletedDaily.current === game.puzzle.date) || rolloverRequested.current === today) return;
+    // Only untouched/completed mixes refresh automatically. A playing round's
+    // audio, deadline, signed results, and previous-date storage are never reset.
+    rolloverRequested.current = today;
+    void load("daily");
+  }, [game, loading, today, load]);
 
   const track = game?.puzzle.tracks[game.progress.round];
   useEffect(() => {
@@ -222,5 +259,5 @@ export function useTempo(accountId: string | null = null) {
     commit(current.puzzle, { ...current.progress, phase: current.progress.round === 4 ? "complete" : "ready", round: Math.min(4, current.progress.round + 1), guess: "", deadline: null });
   };
   const setVolume = (value: number) => { volumeRef.current = value; setVolumeState(value); if (gain.current) gain.current.gain.value = value / 100; };
-  return { game, loading, error, stats, elapsed, remaining, volume, storageWarning, load, play, submit, setGuess, next, setVolume };
+  return { game, loading, error, stats, elapsed, remaining, volume, storageWarning, today, clockNow, newDailyAvailable, load, play, submit, setGuess, next, setVolume };
 }

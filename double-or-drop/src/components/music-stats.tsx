@@ -38,7 +38,7 @@ function RecordFriend() {
 }
 
 function GameSticker({ game }: { game: GameKey }) {
-  return <div className={`md-stats-sticker md-sticker-${game}`} aria-hidden="true">{game === "blackjack" ? <><span className="md-sticker-suit">♠</span><small>GOOD HANDS CLUB</small></> : game === "tempo" ? <><span className="md-sticker-wave"><i/><i/><i/><i/><i/><i/><i/></span><small>ON YOUR BEAT</small></> : game === "double-drop" ? <><span className="md-sticker-double">2×</span><small>TRUST YOUR GUT</small></> : <><span className="md-sticker-disc"><i/></span><small>NUMBER ONE FAN</small></>}</div>;
+  return <div className={`md-stats-sticker md-sticker-${game}`} aria-hidden="true">{game === "blackjack" ? <><span className="md-sticker-suit">♠</span></> : game === "tempo" ? <><span className="md-sticker-wave"><i/><i/><i/><i/><i/><i/><i/></span></> : game === "double-drop" ? <><span className="md-sticker-double">2×</span></> : <><span className="md-sticker-disc"><i/></span></>}</div>;
 }
 
 function StatValue({ value, label, suffix, title, loading }: { value: string; label: string; suffix?: string; title?: string; loading: boolean }) {
@@ -71,7 +71,7 @@ function StatsCard({ game, stats, href, signedIn, loading }: { game: GameKey; st
   const recent = (stats?.recent ?? []).slice(0, 7).reverse();
   const lastArtist = game === "encore" ? stats?.recent.find(item => item.artist)?.artist?.name : null;
   return <article className={`md-stats-game-card md-stats-${game}`} aria-labelledby={`md-stats-title-${game}`}>
-    <div className="md-stats-card-heading"><GameSticker game={game}/><div className="md-stats-game-title"><span className="md-stats-eyebrow">{detail.label}</span><h2 id={`md-stats-title-${game}`}>{detail.name}<span>.</span></h2><p>{played ? game === "blackjack" ? "Knowing when to stop is a talent, too." : game === "tempo" ? "Turns out, you do have a pretty good ear." : game === "double-drop" ? "A little nerve. A lovely little nest egg." : "Some call it an obsession. We call it good taste." : detail.empty}</p></div><a className="md-stats-play" href={href}>{detail.play} <span aria-hidden="true">↗</span></a></div>
+    <div className="md-stats-card-heading"><GameSticker game={game}/><div className="md-stats-game-title"><h2 id={`md-stats-title-${game}`}>{detail.name}<span>.</span></h2><p>{played ? game === "blackjack" ? "Knowing when to stop is a talent, too." : game === "tempo" ? "Turns out, you do have a pretty good ear." : game === "double-drop" ? "A little nerve. A lovely little nest egg." : "Some call it an obsession. We call it good taste." : detail.empty}</p></div><a className="md-stats-play" href={href}>{detail.play} <span aria-hidden="true">↗</span></a></div>
     <dl className={`md-stats-metrics${tracksIncomplete ? " md-stats-metrics-expanded" : ""}`}>{metrics.map(metric => <StatValue key={metric.label} {...metric} loading={loading}/>)}</dl>
     {tracksIncomplete && played && <p className="md-stats-accounting-note">Incomplete {game === "encore" ? "mixes" : "runs"} keep their answered {game === "encore" ? "songs" : "picks"} in your accuracy.{game === "double-drop" ? " Banked points stay protected." : " Unplayed songs don't count as misses."}</p>}
     <div className="md-stats-card-foot">
@@ -101,7 +101,7 @@ function gameHref(url: string, signedIn: boolean) {
 function RecentResults({ game, stats }: { game: GameId; stats?: GameStats }) {
   if (!stats?.recent.length) return null;
   return <section className="md-stats-history" aria-labelledby="recent-results">
-    <div className="md-stats-history-heading"><div><span className="md-stats-eyebrow">FRESH OFF THE RECORD</span><h2 id="recent-results">Your recent plays<span>.</span></h2></div><span>Latest {stats.recent.length}</span></div>
+    <div className="md-stats-history-heading"><div><h2 id="recent-results">Your recent plays<span>.</span></h2></div><span>Latest {stats.recent.length}</span></div>
     <ol>{stats.recent.map(entry => {
       const incomplete = entry.status === "incomplete";
       const { denominator } = recentAccuracy(entry);
@@ -166,7 +166,7 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
       <AccountButton statsHref="/stats" />
     </header>
     <main className="md-stats-page" id="your-stats">
-      <section className="md-stats-hero"><div><div className="md-stats-edition"><span/> {game ? `${localName?.toUpperCase()} · YOUR COLLECTION` : "THE SOUND OF YOUR PROGRESS"}</div>
+      <section className="md-stats-hero"><div>
         <h1>{game ? <>Good plays.<br/><span>Little victories.</span></> : <>Your music.<br/><span>Your little legacy.</span></>}</h1>
         <p>{user ? <>Hey {user.name?.split(" ")[0] || "music lover"}. Every good guess deserves a little home.</> : "The lucky hands. The perfect guesses. The songs you know by heart."}<br/>{guestOnly ? "Four games to try. No sign-in needed." : game ? `Your ${localName} scores, kept together with your Musical Daily account.` : "Four games. One very you collection."}</p>
         {current && (total > 0 || incompleteTotal > 0) && <span className="md-stats-total"><span aria-hidden="true">✦</span> {number(total)} {total === 1 ? "game" : "games"} finished.{incompleteTotal > 0 ? ` ${number(incompleteTotal)} incomplete ${incompleteTotal === 1 ? "play" : "plays"} saved, too.` : " Look at you go."}</span>}</div><RecordFriend/>
@@ -174,11 +174,11 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
       {guestOnly ? <section className="md-stats-sign-in" aria-label="Guest preview"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>Just here for the music.</h2><p>Account stats are paused for this guest preview. You can still play every game and see each round’s result in the game.</p></div></section> : !accountLoading && !user && !accountError && <section className="md-stats-sign-in" aria-label="Sign in to save your stats"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>A home for your high notes.</h2><p>Sign in with Google to see your account stats here and across Musical Daily. Guest scores stay with the game in this browser.</p></div><AccountSignIn/></section>}
       {accountLoading && <p className="md-stats-status" role="status">Getting your little collection ready…</p>}
       {(accountError || failure) && <div className="md-stats-error" role="alert"><span>{accountError || failure}</span><button type="button" onClick={() => { if (accountError) void refresh(); else { setPending(true); setRetry(value => value + 1); } }}>Try again ↻</button></div>}
-      <div className="md-stats-section-label"><span className="md-stats-eyebrow">{game ? "YOUR GAME, YOUR GROOVE" : "YOUR LITTLE OBSESSIONS"}</span><span className="md-stats-private"><span aria-hidden="true">♡</span> Just for you</span></div>
+
       <section className="md-stats-cards" aria-label="Your game statistics" aria-busy={loading}>{games.map(id => <StatsCard key={id} game={id} stats={current?.games[id]} href={game ? withBasePath("/") : gameHref(gameUrls[id] || "/", !!user)} signedIn={!!user} loading={loading}/>)}</section>
       {game && <RecentResults game={game} stats={current?.games[game]} />}
       {game && <a className="md-stats-combined" href={`${hub}/stats`}><span aria-hidden="true">✳</span><span><strong>There’s more to your music.</strong><small>Find all four games together in your Musical Daily stats.</small></span><b aria-hidden="true">↗</b></a>}
-      <p className="md-stats-bottom-note"><span aria-hidden="true">♪</span> Tiny victories. Excellent taste. See you for the next round.</p>
+
     </main>
     <footer className="md-stats-footer"><span>Made for the love of music.</span><a href={game ? hub || "/" : "/"}>Find your next favorite game ↗</a></footer>
   </div>;

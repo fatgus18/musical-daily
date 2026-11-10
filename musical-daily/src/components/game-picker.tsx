@@ -37,13 +37,11 @@ export function GamePicker({ games, onLaunch }: { games: PickerGame[]; onLaunch:
     <button type="button" className="hub-pick-trigger" onClick={() => { dialog.current?.showModal(); spin(); }}>Surprise me <span aria-hidden="true">↗</span></button>
     <dialog ref={dialog} className="game-picker-dialog" aria-labelledby={heading} onClose={() => { stop(); setSpinning(false); }} onClick={event => { if (event.target === event.currentTarget) dialog.current?.close(); }}>
       <button className="picker-close" type="button" aria-label="Close game picker" onClick={() => dialog.current?.close()}>×</button>
-      <span className="picker-eyebrow">LET YOUR NEXT OBSESSION FIND YOU</span>
       <h2 id={heading}>Your next spin<span>.</span></h2>
       <p className="picker-copy">{games.length < 4 ? "Picked from your current filter." : "Four games. Let a little chance choose."} Nothing starts until you’re ready.</p>
-      <div className={`picker-record ${spinning ? "is-spinning" : ""}`} style={{ "--pick-color": shown?.color || "#c4f58a" } as React.CSSProperties} aria-hidden="true"><div><strong>{shown?.icon || "♫"}</strong><small>MUSICAL DAILY / SIDE YOU</small></div></div>
+      <div className={`picker-record ${spinning ? "is-spinning" : ""}`} style={{ "--pick-color": shown?.color || "#c4f58a" } as React.CSSProperties} aria-hidden="true"><div><strong>{shown?.icon || "♫"}</strong></div></div>
       <div className="picker-selection" aria-live="polite" aria-atomic="true"><span>{spinning ? "FINDING YOUR GROOVE…" : shown?.format}</span><h3 aria-hidden={spinning}>{shown?.name || "A fresh pick"}</h3><p>{spinning ? "A little suspense. A good record." : shown?.description}</p></div>
       <div className="picker-actions">{shown && !spinning ? <a href={shown.href} onClick={onLaunch} onAuxClick={event => { if (event.button === 1) onLaunch(); }}>Play {shown.name} <span aria-hidden="true">↗</span></a> : <button type="button" className="picker-wait" disabled>Choosing your game…</button>}<button type="button" onClick={spin} disabled={spinning}>Spin again <span aria-hidden="true">↻</span></button></div>
-      <small className="picker-footnote">No repeat picks back to back. Just good choices.</small>
     </dialog>
   </>;
 }

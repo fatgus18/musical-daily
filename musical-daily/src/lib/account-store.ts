@@ -97,7 +97,9 @@ export class AccountStore {
       const dates = [...new Set(streakEvents.map(({ event, date }) => event.date || date.slice(0, 10)))].sort();
       let bestStreak = 0; let run = 0; let previous = 0;
       for (const date of dates) { const day = Date.parse(date) / 86400000; run = day === previous + 1 ? run + 1 : 1; previous = day; bestStreak = Math.max(bestStreak, run); }
-      const today = Math.floor(this.now() / 86400000);
+      // Tempo's shared puzzle changes at midnight India time; the other games
+      // keep their existing UTC streak boundary.
+      const today = Math.floor((this.now() + (game === "tempo" ? 330 * 60 * 1000 : 0)) / 86400000);
       const lastBlackjack = game === "blackjack" ? completed.filter(({ event }) => event.mode === "daily").sort((a, b) => (b.event.date || "").localeCompare(a.event.date || ""))[0] : null;
       const currentStreak = previous >= today - 1 && (!lastBlackjack || lastBlackjack.event.won) ? run : 0;
       const stats: GameStats = {

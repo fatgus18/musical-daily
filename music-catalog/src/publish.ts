@@ -12,7 +12,12 @@ interface Release {version:string;effectiveOn:string;selection:string;count:numb
 interface Index {schema:number;releases:Release[]}
 export async function atomicJson(path:string,data:unknown){await mkdir(resolve(path,".."),{recursive:true});await writeFile(path+".tmp",JSON.stringify(data,null,2)+"\n");await rename(path+".tmp",path);}
 export function uniqueRecordings<T extends {recording_key:string}>(tracks:T[]):T[]{ const seen=new Set<string>();return tracks.filter(t=>{if(seen.has(t.recording_key))return false;seen.add(t.recording_key);return true;}); }
-export function tomorrow(){return new Date(Date.now()+86400000).toISOString().slice(0,10);}
+// The shared publication date must be future for both consumers: Tempo's IST
+// day is ahead of Blackjack's UTC day during the final 5.5 hours of UTC.
+export function tomorrow(now=Date.now()){return new Date(now+330*60000+86400000).toISOString().slice(0,10);}
+export function validatePublicationDate(date:string,now=Date.now()){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date||date<tomorrow(now))throw new Error("Publish to a future IST and UTC date so today's puzzles cannot change.");
+}
 export function nextAvailableDate(start:string,occupied:Iterable<string>){
   const used=new Set(occupied);let date=start;
   while(used.has(date))date=new Date(Date.parse(date)+86400000).toISOString().slice(0,10);
@@ -23,7 +28,7 @@ export async function publish(db:DatabaseSync,effectiveOn?:string){
     const indexes=await Promise.all(["tempo-trap","blackjack-music"].map(async name=>JSON.parse(await readFile(resolve(WORKSPACE,name,"data/catalog-releases.json"),"utf8")) as Index));
     effectiveOn=nextAvailableDate(tomorrow(),indexes.flatMap(index=>index.releases.map(release=>release.effectiveOn)));
   }
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(effectiveOn)||!Number.isFinite(Date.parse(effectiveOn))||new Date(effectiveOn).toISOString().slice(0,10)!==effectiveOn||effectiveOn<=new Date().toISOString().slice(0,10))throw new Error("Publish to a future UTC date so today's puzzle cannot change.");
+  validatePublicationDate(effectiveOn);
   flagLanguageUncertainty(db);
   const cutoff=new Date(Date.now()-7*86400000).toISOString();
   const candidates=db.prepare(`SELECT t.*,m.preview_url,m.artwork_url,m.purchase_url,m.provider_id,m.album media_album,m.release_date media_release,m.checked_at,m.status FROM tracks t JOIN media m ON m.track_id=t.id
@@ -55,10 +60,13 @@ export async function publish(db:DatabaseSync,effectiveOn?:string){
     staged.push({name,version,tracks,index,path:indexPath,...(name==="tempo-trap"?{rotation:buildRotation(tempo,version)}:{})});
   }
   // Validate both pools before writing either. Each app's pointer is atomically replaced last.
+  // Recheck after preparation in case the job itself crossed the daily boundary.
+  validatePublicationDate(effectiveOn);
   for(const item of staged){
     await atomicJson(resolve(WORKSPACE,item.name,"data/catalog-releases",`${item.version}.json`),{version:item.version,effectiveOn,createdAt:new Date().toISOString(),tracks:item.tracks,...(item.rotation?{rotation:item.rotation}:{}),provenance:"music-catalog/data/music.sqlite"});
     item.index.releases.push({version:item.version,effectiveOn,selection:item.rotation?"rotation":"seeded",count:item.tracks.length});
     item.index.releases.sort((a,b)=>a.effectiveOn.localeCompare(b.effectiveOn));
+    validatePublicationDate(effectiveOn);
     await atomicJson(item.path,item.index);
     db.prepare("INSERT INTO releases VALUES(?,?,?,?,?)").run(item.name,item.version,effectiveOn,item.tracks.length,new Date().toISOString());
     console.log(`${item.name}: ${item.tracks.length} tracks; practice uses new pool immediately, daily activates ${effectiveOn}${item.rotation?`; ${item.rotation.length} daily mixes before a recording repeats`:""}`);

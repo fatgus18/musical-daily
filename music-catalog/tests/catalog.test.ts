@@ -4,7 +4,7 @@ import { openStore,trackWriter,stats,type Track } from "../src/store.ts";
 import { matchRecording,recordingKey } from "../src/recordings.ts";
 import { buildRotation } from "../src/rotation.ts";
 import { parseStreams,flagLanguageUncertainty } from "../src/importers.ts";
-import { uniqueRecordings,nextAvailableDate } from "../src/publish.ts";
+import { uniqueRecordings,nextAvailableDate,tomorrow,validatePublicationDate } from "../src/publish.ts";
 import { ingest } from "../src/ingest.ts";
 import { mkdtemp,writeFile,rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -53,6 +53,18 @@ test("release deduplication collapses album/single IDs for the same recording",(
 test("maintenance queues the next unused day without overwriting existing puzzles",()=>{
   assert.equal(nextAvailableDate("2026-11-01",["2026-11-01","2026-11-02"]),"2026-11-03");
   assert.equal(nextAvailableDate("2026-12-31",["2026-12-31"]),"2027-01-01");
+});
+
+test("publication dates remain future for Tempo IST and Blackjack UTC across midnight",()=>{
+  const before=Date.parse("2026-11-09T18:29:59.999Z");
+  const midnight=Date.parse("2026-11-09T18:30:00.000Z");
+  assert.equal(tomorrow(before),"2026-11-10");
+  assert.equal(tomorrow(midnight),"2026-11-11");
+  assert.doesNotThrow(()=>validatePublicationDate("2026-11-10",before));
+  assert.throws(()=>validatePublicationDate("2026-11-10",midnight),/future IST and UTC/);
+  assert.doesNotThrow(()=>validatePublicationDate("2026-11-11",midnight));
+  assert.equal(tomorrow(Date.parse("2026-12-31T18:30:00Z")),"2027-01-02");
+  for(const invalid of ["2026-02-30","bad","2026-11-09"]){assert.throws(()=>validatePublicationDate(invalid,before));}
 });
 test("invalid provider feed rolls back the whole import",async()=>{
   const db=openStore(":memory:");const dir=await mkdtemp(join(tmpdir(),"music-catalog-test-"));

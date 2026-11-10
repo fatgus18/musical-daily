@@ -4,17 +4,16 @@ export function BlackjackStage() {
     <div className="bj-stage" aria-hidden="true">
       <div className="bj-stage-grid" />
       <div className="bj-side bj-side-left">
-        <span className="bj-side-caption">A LITTLE TASTE. A LITTLE LUCK.</span>
-        <div className="bj-vinyl"><div className="bj-vinyl-label"><span>MD / 001</span><b>♠</b><small>TRUST YOUR EARS</small></div></div>
-        <div className="bj-stage-ticket"><span>ADMIT ONE</span><b>GOOD<br />INSTINCTS</b><i /><small>THE LISTENING CLUB</small></div>
+        <div className="bj-vinyl"><div className="bj-vinyl-label"><b>♠</b></div></div>
+        <div className="bj-stage-ticket"><b>GOOD<br />INSTINCTS</b><i /></div>
         <span className="bj-orbit-star">✳</span>
       </div>
       <div className="bj-side bj-side-right">
         <span className="bj-orbit-star">✧</span>
         <div className="bj-playing-card bj-playing-card-back"><span>A</span><b>♣</b></div>
-        <div className="bj-playing-card bj-playing-card-front"><span>A<small>♥</small></span><b>♥</b><i>PLAY IT BY EAR</i></div>
+        <div className="bj-playing-card bj-playing-card-front"><span>A<small>♥</small></span><b>♥</b></div>
         <div className="bj-side-wave">{Array.from({ length: 17 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 19) % 39)}px` }} />)}</div>
-        <span className="bj-side-caption">THE SWEET SPOT IS CALLING.</span>
+        <span className="bj-pixel-note" />
       </div>
     </div>
   );

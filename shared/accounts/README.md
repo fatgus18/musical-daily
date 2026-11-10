@@ -72,7 +72,7 @@ For a guest-only preview, set `NEXT_PUBLIC_GUEST_ONLY=1` at build and runtime. T
 
 The hub's **My stats** page displays four stacked cards for the current verified account. Empty accounts show empty states, never invented scores.
 
-Blackjack and Tempo validate daily progression on the server and save progress/results atomically with revision checks. Retried requests cannot duplicate a daily result or overwrite its completed score. Account daily dates use UTC consistently across devices; guest Blackjack retains local dates.
+Blackjack and Tempo validate daily progression on the server and save progress/results atomically with revision checks. Retried requests cannot duplicate a daily result or overwrite its completed score. Tempo account daily dates and streaks use IST (Asia/Kolkata) consistently across devices. Blackjack and Double or Drop account daily dates use UTC; guest Blackjack retains local dates.
 
 Encore uses the central account ID in its own game database. The last answer queues a completed result in a durable outbox. Discarded or replaced mixes queue an incomplete result instead. Batches publish idempotently; network failure keeps the pending result for retry. The interface identifies pending synchronization.
 
