@@ -7,7 +7,7 @@ import { useSound } from "./sound-client";
 
 export function HubHeader({ active, onHelp }: { active: "games" | "stats" | "studio"; onHelp?: () => void }) {
   const { setMusic } = useSound();
-  return <header className={`site-header hub-header hub-header-with-studio ${active === "games" ? "hub-header-games" : active === "studio" ? "hub-header-studio" : ""}`}>
+  return <header className={`site-header hub-header hub-header-with-studio md-arcade-header ${active === "games" ? "hub-header-games" : active === "studio" ? "hub-header-studio" : ""}`}>
     <MusicalDailyBrand href="/" />
     <nav aria-label="Main navigation">
       <Link className={active === "games" ? "active" : ""} aria-current={active === "games" ? "page" : undefined} href="/"><span aria-hidden="true">▦</span> All games</Link>

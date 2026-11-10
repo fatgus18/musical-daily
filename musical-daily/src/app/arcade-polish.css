@@ -1,0 +1,212 @@
+/* The music arcade: a colorful gallery with readable, warm-paper game sleeves. */
+body:has(.home-hub) { background: radial-gradient(ellipse at 95% 5%, #bda4ff13, transparent 36%), #121323; }
+.home-hub { --arcade-ink: #121323; --arcade-paper: #faf7ef; --hub-ink: #faf7ef; max-width: 1320px; font-family: var(--md-font-sans, Arial, Helvetica, sans-serif); }
+.home-hub .hero-compact { grid-template-columns: minmax(0, 1fr) minmax(310px, 390px); gap: 42px; padding-block: 30px 28px; }
+.home-hub .hero-title-row { display: flex; align-items: center; gap: 14px; }
+.home-hub .hero-title-row h1 { flex: 1; margin: 9px 0 12px; font: 850 clamp(34px, 3.6vw, 49px)/1.03 var(--md-font-sans, Arial, sans-serif); letter-spacing: -2.5px; }
+.home-hub .hero-title-row h1 > span { display: block; margin-top: 4px; color: #c7f77b; font: inherit; }
+.home-hub .edition { color: #d0ccdf; font: 700 12px/1.4 var(--md-font-sans, Arial, sans-serif); letter-spacing: 1.5px; }
+.home-hub .hero-studio-invite { margin: 2px 0 0; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.home-hub .hero-studio-invite > span { color: #d0ccdf; font-size: 15px; }
+.home-hub .hero-studio-invite > a { color: #ffb5a6; font-size: 14px; font-weight: 700; }
+.arcade-mascot { width: 128px; flex: none; pointer-events: none; }
+.arcade-mascot svg { display: block; width: 100%; overflow: visible; }
+.mascot-buddy { transform-origin: 90px 135px; }
+.mascot-note, .mascot-twinkle { transform-box: fill-box; transform-origin: center; }
+.home-hub .section-top { border: 0; padding-top: 0; margin: 0 0 16px; }
+.home-hub .section-top h2 { font: 800 27px/1.2 var(--md-font-sans, Arial, sans-serif); letter-spacing: -.8px; }
+.home-hub .section-top h2 > span { color: #ff9b8e; }
+.home-hub .game-count { font: 600 13px/1.4 var(--md-font-sans, Arial, sans-serif); background: #24253a; color: #e5def7; border: 1px solid #bda4ff45; border-radius: 10px; padding: 7px 12px; }
+.home-hub .game-count .live-dot { background: #c7f77b; width: 6px; height: 6px; }
+.home-hub .game-filters { padding: 5px; border: 1px solid #ffffff25; border-radius: 13px; background: #202135; gap: 5px; margin-bottom: 23px; }
+.home-hub .game-filters button { min-height: 42px; border-radius: 8px; padding: 9px 17px; font: 700 14px/1.3 var(--md-font-sans, Arial, sans-serif); color: #ded9ee; }
+.home-hub .game-filters button[aria-pressed=true] { background: #faf7ef; color: #121323; border-color: #faf7ef; box-shadow: 0 2px #bcb8d4; }
+.home-hub .game-filter-count { font-family: inherit; font-size: 12px; font-weight: 800; background: #ffffff10; }
+.home-hub .game-filters button[aria-pressed=true] .game-filter-count { color: #121323; background: #12132315; }
+.home-hub .games-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.home-hub .game-card { display: flex; border: 2px solid #090a18; background: #faf7ef; color: #121323; border-radius: 21px; box-shadow: 5px 6px 0 #060713; overflow: hidden; transition: transform .2s ease, box-shadow .2s ease; }
+.home-hub .game-card[hidden] { display: none; }
+.home-hub .blackjack-card { --sleeve: #c7f77b; }
+.home-hub .tempo-card { --sleeve: #ff9b8e; }
+.home-hub .encore-card { --sleeve: #8ae4cb; }
+.home-hub .double-drop-card { --sleeve: #c9b3ff; }
+.home-hub .game-art { height: 180px; min-height: 0; background: var(--sleeve); border-bottom: 2px solid #121323; }
+.home-hub .game-art::before { display: none; }
+.home-hub .game-art::after { content: ""; width: 8px; height: 8px; top: 19px; right: 19px; opacity: 1; background: #12132355; box-shadow: -12px 0 #12132325, 0 12px #12132325; }
+.home-hub .art-grid { background-image: radial-gradient(#12132338 1px, transparent 1px); background-size: 17px 17px; opacity: .6; }
+.home-hub .game-scene { transform: translate(-50%, -50%) scale(.73); }
+.home-hub .playing-card { border: 3px solid #121323; background: #faf7ef; color: #121323; border-radius: 12px; box-shadow: 6px 6px 0 #121323; }
+.home-hub .back-card { background: #8bc152; }
+.home-hub .small-record { border: 2px solid #121323; }
+.home-hub .streams-badge { color: #faf7ef; background: #121323; border: 2px solid #121323; border-radius: 9px; box-shadow: 3px 3px 0 #faf7ef; padding: 12px 15px; font-size: 19px; font-weight: 800; }
+.home-hub .streams-badge > span { color: #c7f77b; }
+.home-hub .art-asterisk { color: #121323; }
+.home-hub .waveform i { background: #121323; box-shadow: none; border-radius: 3px; }
+.home-hub .wave-orbit { border-color: #12132340; }
+.home-hub .tempo-badge { border: 3px solid #121323; background: #faf7ef; color: #121323; border-radius: 12px; box-shadow: 5px 5px 0 #121323; }
+.home-hub .tempo-badge strong { color: #121323; font-family: var(--md-font-sans, Arial, sans-serif); }
+.home-hub .tempo-badge strong span { font-size: 15px; color: #454354; }
+.home-hub .encore-vinyl, .home-hub .duel-record { border: 3px solid #121323; background: repeating-radial-gradient(circle, #121323 0 3px, #37384d 4px 5px); box-shadow: 6px 7px 0 #12132340; }
+.home-hub .encore-vinyl strong { background: #8ae4cb; color: #121323; border: 2px solid #121323; font-family: var(--md-font-sans, Arial, sans-serif); }
+.home-hub .encore-ticket { border: 3px solid #121323; background: #faf7ef; color: #121323; border-radius: 9px; box-shadow: 5px 5px 0 #121323; padding-inline: 14px; }
+.home-hub .encore-ticket strong { font-size: 24px; }
+.home-hub .duel-record > span { color: #121323; font-size: 13px; font-weight: 700; letter-spacing: 0; }
+.home-hub .duel-record-one > span { background: #ff9b8e; }
+.home-hub .duel-record-two > span { background: #c7f77b; }
+.home-hub .double-drop-stamp { border: 3px solid #121323; background: #faf7ef; color: #121323; border-radius: 13px; box-shadow: 5px 5px 0 #121323; }
+.home-hub .double-drop-stamp strong { font: 900 58px/1 var(--md-font-sans, Arial, sans-serif); letter-spacing: -5px; }
+.home-hub .duel-spark { color: #121323; }
+.home-hub .game-info { padding: 20px 18px 17px; }
+.home-hub .tag { border: 1px solid #12132340; border-radius: 5px; padding: 5px 7px; background: color-mix(in srgb, var(--sleeve) 50%, #faf7ef); color: #282738; font: 700 12px/1.3 var(--md-font-sans, Arial, sans-serif); letter-spacing: .15px; }
+.home-hub .game-info h3 { font: 850 22px/1.15 var(--md-font-sans, Arial, sans-serif); color: #121323; letter-spacing: -.8px; margin: 16px 0 11px; }
+.home-hub .launch-icon { display: none; }
+.home-hub .game-info > p { color: #535060; font-size: 14px; line-height: 1.55; margin-bottom: 20px; }
+.home-hub .card-bottom { border: 0; padding: 0; }
+.home-hub .card-bottom > strong { min-height: 43px; width: 100%; padding: 10px 12px; border: 2px solid #121323; border-radius: 9px; background: var(--sleeve); color: #121323; font: 750 13px/1.3 var(--md-font-sans, Arial, sans-serif); box-shadow: 3px 3px 0 #121323; gap: 8px; }
+.home-hub .card-bottom > strong svg { color: #121323; width: 18px; height: 18px; border: 0; padding: 0; flex: none; }
+.home-hub .music-fact { border: 1px solid #c9b3ff65; background: #27253e; border-radius: 17px; padding: 16px 19px; box-shadow: 4px 4px 0 #090a18; }
+.home-hub .music-fact::before { display: none; }
+.home-hub .music-fact-top > span { color: #ddceff; font: 700 13px/1.4 var(--md-font-sans, Arial, sans-serif); letter-spacing: .3px; }
+.home-hub .music-fact-top b { color: #ffcc64; }
+.home-hub .music-fact-story h2 { font: 750 19px/1.3 var(--md-font-sans, Arial, sans-serif); color: #faf7ef; letter-spacing: -.5px; }
+.home-hub .hero-compact .music-fact-story p { font-size: 14px; line-height: 1.6; color: #e4ddef; }
+.home-hub .music-fact .music-fact-hide { color: #e3d9f7; font-size: 13px; }
+.home-hub .music-fact-bottom { border-color: #c9b3ff40; }
+.home-hub .music-fact-bottom > a { font-size: 13px; color: #d0f599; }
+.home-hub .music-fact-source { color: #e3d9f7; font-size: 12px; }
+.home-hub .music-fact-bottom button { color: #faf7ef; background: #ffffff0b; border-color: #c9b3ff66; border-radius: 7px; font-size: 12px; }
+.home-hub .music-fact-hidden { color: #ddd6eb; font-size: 13px; }
+.home-hub .music-fact-hidden button { color: #faf7ef; font-size: 13px; background: #27253e; border-color: #c9b3ff65; border-radius: 10px; }
+.home-hub .studio-promo { margin-top: 29px; background: #c9b3ff; color: #121323; border: 2px solid #090a18; border-radius: 22px; box-shadow: 5px 6px 0 #060713; padding: 28px 30px; }
+.home-hub .studio-promo::before { background-image: radial-gradient(#12132340 1px, transparent 1px); background-size: 14px 14px; }
+.home-hub .studio-promo::after { background: #12132340; box-shadow: -9px 0 #12132340, -18px 0 #12132340; }
+.home-hub .studio-promo h2 { font: 850 32px/1.05 var(--md-font-sans, Arial, sans-serif); letter-spacing: -1px; color: #121323; }
+.home-hub .studio-promo h2 > span { font: 700 22px/1.2 var(--md-font-sans, Arial, sans-serif); color: #413658; }
+.home-hub .studio-promo p { font-size: 15px; line-height: 1.6; color: #3a324d; }
+.home-hub .studio-promo-machine { background: #ff9b8e; border: 3px solid #121323; border-radius: 13px; box-shadow: 7px 7px 0 #121323; }
+.home-hub .studio-promo-pads > i { border: 2px solid #121323; background: #8ae4cb; color: #121323; border-radius: 5px; box-shadow: 2px 2px 0 #121323; }
+.home-hub .studio-promo-pads > i > span { font: 750 12px/1 var(--md-font-sans, Arial, sans-serif); }
+.home-hub .studio-promo-dial { border-color: #121323; background: #121323; color: #faf7ef; }
+.home-hub .studio-promo-dial small { color: #faf7ef; }
+.home-hub .studio-promo-dial > span, .home-hub .studio-promo-dial > small { font-size: 12px; }
+.home-hub .studio-promo-launch { background: #121323; color: #faf7ef; border: 2px solid #121323; border-radius: 11px; box-shadow: 4px 4px 0 #faf7ef; padding: 15px 18px; }
+.home-hub .studio-promo-launch > span { font-size: 14px; }
+.home-hub .studio-promo-launch small { color: #d6c9eb; font: 500 12px/1.4 var(--md-font-sans, Arial, sans-serif); letter-spacing: 0; }
+.home-hub .daily-note { background: #202135; border: 1px solid #ffffff25; border-radius: 18px; padding: 23px; }
+.home-hub .daily-note::after { display: none; }
+.home-hub .daily-note h2 { font: 750 17px/1.3 var(--md-font-sans, Arial, sans-serif); color: #faf7ef; }
+.home-hub .daily-note p { font-size: 14px; line-height: 1.6; color: #d0ccdf; }
+.home-hub .daily-note .headphone-icon { color: #121323; background: #ffcc64; border: 2px solid #121323; border-radius: 13px; width: 46px; height: 46px; box-shadow: 3px 3px 0 #090a18; }
+.home-hub .daily-note button { font-size: 14px; color: #c7f77b; }
+.hub-atmosphere { opacity: .25; }
+.home-hub ~ dialog { background: #202135; color: #faf7ef; border: 2px solid #c9b3ff90; border-radius: 21px; }
+.home-hub ~ dialog :is(p, .help-game p) { color: #ded9eb; font-size: 15px; line-height: 1.65; }
+.home-hub ~ dialog .help-fine { font-size: 13px; }
+.home-hub ~ dialog .help-game a { font-size: 14px; }
+.hub-header .question-icon { font-size: 12px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .arcade-mascot.is-playing .mascot-buddy { animation: arcade-buddy-bop 1.3s ease-in-out infinite; }
+  .arcade-mascot.is-playing .mascot-shadow { animation: arcade-buddy-shadow 1.3s ease-in-out infinite; transform-origin: 90px 145px; }
+  .arcade-mascot.is-playing .mascot-note { animation: arcade-note-hop 2.6s steps(6, end) infinite; }
+  .arcade-mascot.is-playing .note-right { animation-delay: -1.3s; }
+  .arcade-mascot.is-playing .mascot-twinkle { animation: arcade-spark-turn 5.2s steps(4, end) infinite; }
+  .home-hub .game-card:focus-visible .game-scene { transform: translate(-50%, -52%) scale(.76); }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .home-hub .game-card:hover { border-color: #090a18; transform: translate(-2px, -5px); box-shadow: 8px 11px 0 #060713; }
+  .home-hub .game-card:hover .card-bottom > strong { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #121323; }
+  .home-hub .game-card:hover .card-bottom > strong svg { transform: translateX(2px); background: transparent; }
+  .home-hub .game-card:hover .art-asterisk, .home-hub .game-card:hover .duel-spark { animation: arcade-spark-turn 2s steps(4, end) infinite; }
+  .home-hub .game-card:hover .encore-ticket { transform: rotate(4deg) translateY(-5px); }
+}
+@keyframes arcade-buddy-bop { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
+@keyframes arcade-buddy-shadow { 0%, 100% { transform: scaleX(1); opacity: .4; } 50% { transform: scaleX(.8); opacity: .2; } }
+@keyframes arcade-note-hop { 0%, 100% { transform: translateY(3px) rotate(-8deg); } 50% { transform: translateY(-7px) rotate(8deg); } }
+@keyframes arcade-spark-turn { to { transform: rotate(360deg); } }
+
+@media (min-width: 641px) and (max-width: 1099px) {
+  .home-hub .hero-compact { gap: 25px; grid-template-columns: minmax(0, 1fr) minmax(290px, .85fr); }
+  .home-hub .hero-title-row h1 { font-size: 35px; letter-spacing: -1.7px; }
+  .home-hub .hero-title-row .arcade-mascot { width: 80px; }
+  .home-hub .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .home-hub .game-card { display: grid; grid-template-columns: 122px minmax(0, 1fr); }
+  .home-hub .game-art { min-height: 100%; height: auto; border-bottom: 0; border-right: 2px solid #121323; }
+  .home-hub .game-scene { transform: translate(-50%, -50%) scale(.48); }
+  .home-hub .game-info { padding: 17px 15px; }
+  .home-hub .game-info h3 { font-size: 21px; }
+  .home-hub .game-info > p { font-size: 13px; }
+  .home-hub .card-bottom > strong { font-size: 12px; padding-inline: 8px; }
+}
+@media (max-width: 640px) {
+  .home-hub { padding-inline: 16px; display: flex; flex-direction: column; }
+  .home-hub .hero-compact { display: contents; }
+  .home-hub .hero-copy { order: 1; padding-block: 20px 22px; }
+  .home-hub .games-section { order: 2; }
+  .home-hub :is(.music-fact, .music-fact-hidden) { order: 3; margin-top: 23px; }
+  .home-hub .studio-promo { order: 4; }
+  .home-hub .daily-note { order: 5; }
+  .home-hub .hero-title-row { gap: 6px; margin-bottom: 0; }
+  .home-hub .hero-title-row h1 { font-size: clamp(27px, 7vw, 36px); line-height: 1.06; letter-spacing: -1.5px; margin: 0; }
+  .home-hub .hero-title-row h1 > span { display: block; }
+  .home-hub .hero-title-row .arcade-mascot { width: 78px; }
+  .home-hub .hero-compact .hero-copy > .hero-studio-invite, .home-hub .edition { display: none; }
+  .home-hub .music-fact { padding: 12px 14px; border-radius: 13px; box-shadow: 3px 3px 0 #090a18; }
+  .home-hub .music-fact-story h2 { display: none; }
+  .home-hub .hero-compact .music-fact-story p { font-size: 13px; line-height: 1.5; }
+  .home-hub .music-fact-bottom { flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; padding-top: 8px; }
+  .home-hub .music-fact-bottom > div { margin-left: auto; }
+  .home-hub .section-top { margin-bottom: 13px; padding: 0; }
+  .home-hub .section-top h2 { font-size: 24px; }
+  .home-hub .section-top h2::after { display: none; }
+  .home-hub .game-count { padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+  .home-hub .game-filters { width: 100%; gap: 4px; padding: 4px; margin-bottom: 16px; }
+  .home-hub .game-filters button { font-size: 12px; padding: 8px 3px; gap: 4px; min-height: 40px; }
+  .home-hub .game-filter-count { min-width: 14px; height: 15px; font-size: 12px; }
+  .home-hub .games-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 12px; }
+  .home-hub .game-card { display: flex; border-radius: 15px; box-shadow: 3px 4px 0 #060713; }
+  .home-hub .game-art, .home-hub .games-grid[data-filter]:not([data-filter=all]) .game-art { display: block; height: 88px; min-height: 0; }
+  .home-hub .game-scene, .home-hub .games-grid[data-filter]:not([data-filter=all]) .game-scene { transform: translate(-50%, -50%) scale(.43); }
+  .home-hub .game-art::after { width: 5px; height: 5px; top: 10px; right: 10px; box-shadow: -8px 0 #12132325, 0 8px #12132325; }
+  .home-hub .game-info { padding: 12px 10px 13px; }
+  .home-hub .tag { font-size: 12px; padding: 4px 5px; letter-spacing: -.2px; white-space: normal; }
+  .home-hub .game-info h3 { font-size: 18px; line-height: 1.2; letter-spacing: -.65px; margin: 11px 0 7px; }
+  .home-hub .game-info > .mobile-description { min-height: 38px; margin-bottom: 13px; font-size: 13px; line-height: 1.45; color: #535060; }
+  .home-hub .card-bottom { padding: 0; }
+  .home-hub .card-bottom > strong { min-height: 41px; padding: 8px; font-size: 12px; line-height: 1.35; white-space: normal; gap: 5px; border-radius: 7px; box-shadow: 2px 3px 0 #121323; }
+  .home-hub .card-bottom > strong svg { width: 15px; height: 15px; padding: 0; }
+  .home-hub .studio-promo { margin-top: 23px; padding: 24px 20px; border-radius: 18px; }
+  .home-hub .studio-promo h2 { font-size: 30px; }
+  .home-hub .studio-promo h2 > span { font-size: 21px; }
+  .home-hub .studio-promo p { font-size: 14px; }
+  .home-hub .studio-promo-launch { width: 100%; height: auto; padding: 14px 17px; grid-column: 1 / -1; justify-content: space-between; gap: 15px; }
+  .home-hub .studio-promo-launch > span { position: static; width: auto; height: auto; margin: 0; clip: auto; overflow: visible; white-space: normal; }
+  .home-hub .daily-note { display: grid; grid-template-columns: 38px minmax(0, 1fr); padding: 20px 16px; gap: 12px; border-radius: 16px; }
+  .home-hub .daily-note > div { min-width: 0; }
+  .home-hub .daily-note h2 { font-size: 16px; }
+  .home-hub .daily-note p { font-size: 14px; }
+  .home-hub .daily-note .headphone-icon { width: 38px; height: 38px; }
+  .home-hub .daily-note > button { grid-column: 2; justify-self: start; margin: 0; }
+}
+@media (max-width: 360px) {
+  .home-hub { padding-inline: 12px; }
+  .home-hub .hero-title-row h1 { font-size: 27px; }
+  .home-hub .hero-title-row .arcade-mascot { width: 65px; }
+  .home-hub .game-info { padding-inline: 8px; }
+  .home-hub .game-info h3 { font-size: 17px; }
+  .home-hub .game-info > .mobile-description { font-size: 12px; min-height: 35px; }
+  .home-hub .card-bottom > strong { padding-inline: 6px; }
+  .home-hub .game-filters button { gap: 2px; }
+  .home-hub .game-count { border: 0; padding-inline: 0; background: transparent; }
+}
+html[data-contrast=high] .home-hub :is(.game-card, .music-fact, .studio-promo, .daily-note) { background: #090a10; color: #fff; border-color: #fff; box-shadow: none; }
+html[data-contrast=high] .home-hub :is(.game-info h3, .game-info > p, .game-info > .mobile-description, .studio-promo h2, .studio-promo h2 > span, .studio-promo p, .music-fact-story h2, .music-fact-story p) { color: #fff; }
+html[data-contrast=high] .home-hub .tag { background: #090a10; color: var(--sleeve); border-color: var(--sleeve); }
+html[data-contrast=high] .home-hub .card-bottom > strong { background: var(--sleeve); color: #121323; border-color: #fff; box-shadow: none; }
+html[data-contrast=high] .home-hub .game-filters button[aria-pressed=true] { background: #fff; color: #090a10; }
+html[data-contrast=high] .home-hub .studio-promo-launch { border-color: #fff; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) { .arcade-mascot *, .home-hub * { animation: none !important; transition: none !important; } }
+@media (forced-colors: active) {
+  .arcade-mascot, .home-hub .game-art { display: none; }
+  .home-hub :is(.game-card, .music-fact, .studio-promo, .daily-note, .card-bottom > strong) { border: 2px solid CanvasText; box-shadow: none; }
+}

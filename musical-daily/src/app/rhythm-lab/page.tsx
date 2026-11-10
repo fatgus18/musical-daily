@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import RhythmStudio from "@/components/studio/rhythm-studio";
 import "./studio.css";
+import "./arcade-studio.css";
 
 export const metadata: Metadata = {
   title: "Rhythm Lab — Make something yours. | Musical Daily",

@@ -9,6 +9,8 @@ import "./visual-upgrade.css";
 import "./hand-remix.css";
 import "./pixel-system.css";
 import "./pixel-polish.css";
+import "./arcade-system.css";
+import "./arcade-polish.css";
 import "./display.css";
 import { contrastBootstrap } from "@/components/display-preferences";
 import { SoundProvider } from "@/components/sound-client";
@@ -22,7 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: contrastBootstrap }} /></head>
-      <body><SoundProvider><AccountProvider>{children}</AccountProvider></SoundProvider></body>
+      <body className="md-game-page md-game-blackjack"><SoundProvider><AccountProvider>{children}</AccountProvider></SoundProvider></body>
     </html>
   );
 }

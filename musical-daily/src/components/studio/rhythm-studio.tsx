@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { HubHeader } from "../hub-header";
+import { ArcadeMascot } from "../arcade-mascot";
 import { DRUMS, INSTRUMENTS, STEPS, type DrumId } from "@/lib/studio/types";
 import { PATTERNS } from "@/lib/studio/patterns";
 import { useStudio, NOTE_KEYS, midiLabel } from "./use-studio";
@@ -71,7 +72,7 @@ export default function RhythmStudio() {
     <div className="studio-atmosphere" aria-hidden="true"><div className="studio-orbit"/><b>✳</b></div>
     {recording && <div className="studio-recording-dock"><div><span><i/> REC</span><output aria-label="Recording duration">{clock(lab.elapsed)}</output><button type="button" onClick={() => void lab.stopRecording()} aria-label="Stop current recording"><Icon name="stop" size={14}/><span>Stop</span></button></div></div>}
     <main className="studio-page" aria-busy={!lab.ready}>
-      <header className="studio-intro"><div><h1>Rhythm Lab<span>Make something yours.</span></h1><p className="studio-subtitle">A few keys. A little rhythm. Whatever’s in your head.</p></div><button className="studio-guide-button" type="button" onClick={() => help.current?.showModal()}><Icon name="keys"/><span>How to play</span><b>?</b></button></header>
+      <header className="studio-intro"><div><h1>Rhythm Lab<span>Make something yours.</span></h1><p className="studio-subtitle">A few keys. A little rhythm. Whatever’s in your head.</p></div><ArcadeMascot className="studio-buddy" playing={lab.transport || lab.activeNotes.length > 0 || lab.activeDrums.length > 0}/><button className="studio-guide-button" type="button" onClick={() => help.current?.showModal()}><Icon name="keys"/><span>How to play</span><b>?</b></button></header>
 
       {lab.error && <div className="studio-error" role="alert"><span>{lab.error}</span><button type="button" onClick={lab.dismissError} aria-label="Dismiss studio error">×</button></div>}
       <div className="studio-notice" role="status" aria-live="polite">{lab.notice}</div>

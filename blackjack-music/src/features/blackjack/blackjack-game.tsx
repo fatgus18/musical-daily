@@ -686,11 +686,11 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   const isBust = currentSum > targetStreams;
 
   return (
-    <div className="bj-experience min-h-screen pb-16 text-white selection:bg-[#a78bfa] selection:text-black">
+    <div className="bj-experience min-h-screen pb-16 text-white selection:bg-[#c4f58a] selection:text-black">
       <a href="#game" className="skip-link">Skip to game</a>
       <BlackjackStage />
       {/* MUSICAL DAILY NAVIGATION */}
-      <header className="bj-header sticky top-0 z-30 border-b border-white/10 bg-[#0c0b12]/85 backdrop-blur-xl">
+      <header className="bj-header md-arcade-header sticky top-0 z-30 border-b border-white/10 bg-[#0c0b12]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3.5">
           <MusicalDailyBrand href={hubUrl} showBack />
 
@@ -700,20 +700,20 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
             {/* Streak Pill */}
             <button
               onClick={() => setShowStatsModal(true)}
-              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-sm font-bold transition hover:border-[#a78bfa]/50 hover:bg-[#252137]"
+              className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-sm font-bold transition hover:border-[#c4f58a]/50 hover:bg-[#252137]"
               title="View Streak & Career Stats"
             >
-              <span className="text-sm">🔥</span>
+              <span className="text-sm" aria-hidden="true">ϟ</span>
               <span>{stats.currentStreak}</span>
-              <span className="hidden text-neutral-400 sm:inline">STREAK</span>
+              <span className="hidden text-neutral-400 sm:inline">day streak</span>
             </button>
 
             {/* Dedicated game stats */}
             <a
               href={withBasePath("/stats")}
-              className="rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-sm font-semibold text-neutral-200 transition hover:border-white/25 hover:bg-[#252137]"
+              className="md-game-stats-link"
             >
-              📊 Stats
+              My stats ↗
             </a>
 
             {/* Daily vs Unlimited Practice Toggle */}
@@ -721,7 +721,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               <button
                 onClick={() => switchMode(null)}
                 disabled={loading || !!busyTrackId || finishing}
-                className="rounded-full bg-[#a78bfa] px-3 py-1.5 text-sm font-bold text-black transition hover:bg-[#c4b5fd]"
+                className="rounded-full bg-[#c4f58a] px-3 py-1.5 text-sm font-bold text-black transition hover:bg-[#dcffb7]"
               >
                 Back to Daily
               </button>
@@ -729,9 +729,9 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               <button
                 onClick={() => switchMode(String(Date.now()))}
                 disabled={loading || !!busyTrackId || finishing}
-                className="rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-sm font-semibold text-neutral-300 transition hover:border-[#a78bfa]/50 hover:text-white"
+                className="rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-sm font-semibold text-neutral-300 transition hover:border-[#c4f58a]/50 hover:text-white"
               >
-                ♾️ Free Play
+                ∞ Free Play
               </button>
             )}
 
@@ -750,7 +750,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
       <main id="game" className="bj-main mx-auto max-w-5xl px-4 pt-6">
         <div className="game-heading"><div><h1>Stream <em>Blackjack</em><span>.</span></h1><p>Trust your music instinct. Know when to stand.</p></div><div className="bj-edition"><BlackjackEmblem /><span className="edition-badge">{practiceSeed ? "FREE PLAY" : board ? `DAILY MIX #${String(board.puzzleNumber).padStart(3, "0")}` : "DEALING YOUR MIX"}</span></div></div>
         {error && <div role="alert" className="game-error"><span>{error}</span>{(!board || accountId) && <button onClick={() => void loadBoard(playDate(), practiceSeed)}>Reload saved hand ↻</button>}</div>}
-        <aside className="bj-challenge mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[#a78bfa]/20 bg-[#a78bfa]/[0.06] px-4 py-3 text-sm text-neutral-300 sm:text-sm">
+        <aside className="bj-challenge mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[#c4f58a]/20 bg-[#c4f58a]/[0.06] px-4 py-3 text-sm text-neutral-300 sm:text-sm">
           <span>Hit tracks to build your total, then stand before you bust.</span>
           <span className="hidden text-neutral-500 sm:inline">Your shield saves one risky pick.</span>
           <span className="font-bold text-white">{board?.rulesVersion === "v2" ? "Can you land within 2% of the cap?" : "An exact 100% hand is always on the board."}</span>
@@ -764,7 +764,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
             isBust
               ? "border-red-500/50 bg-gradient-to-b from-red-950/40 to-[#14121d]"
               : currentSum >= targetStreams * 0.98
-              ? "border-[#a78bfa] bg-gradient-to-b from-[#a78bfa]/20 to-[#14121d] shadow-[0_0_35px_rgba(167,139,250,0.2)]"
+              ? "border-[#c4f58a] bg-gradient-to-b from-[#c4f58a]/20 to-[#14121d] shadow-[0_0_35px_rgba(167,139,250,0.2)]"
               : "border-white/10 bg-[#14121d]/90"
           }`}
         >
@@ -775,7 +775,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-neutral-400">
                 <span>Current Hand Total</span>
                 <span className="text-neutral-600">•</span>
-                <span className="text-[#c4b5fd]">
+                <span className="text-[#dcffb7]">
                   {pickedIds.length} {pickedIds.length === 1 ? "Track" : "Tracks"} Picked
                 </span>
               </div>
@@ -801,7 +801,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               <div
                 className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-bold transition ${
                   shieldAvailable
-                    ? "border-[#a78bfa]/40 bg-[#a78bfa]/10 text-[#c4b5fd]"
+                    ? "border-[#c4f58a]/40 bg-[#c4f58a]/10 text-[#dcffb7]"
                     : "border-amber-500/30 bg-amber-500/10 text-amber-300"
                 }`}
               >
@@ -816,7 +816,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 <button
                   onClick={handleStand}
                   disabled={loading || pickedIds.length === 0 || !!busyTrackId || finishing}
-                  className="bj-stand rounded-full bg-[#a78bfa] px-6 py-2.5 text-sm font-extrabold tracking-wide text-black shadow-[0_4px_20px_rgba(167,139,250,0.4)] transition hover:scale-[1.03] hover:bg-[#c4b5fd] active:scale-95 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 disabled:shadow-none"
+                  className="bj-stand md-arcade-button rounded-full bg-[#c4f58a] px-6 py-2.5 text-sm font-extrabold tracking-wide text-black shadow-[0_4px_20px_rgba(167,139,250,0.4)] transition hover:scale-[1.03] hover:bg-[#dcffb7] active:scale-95 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500 disabled:shadow-none"
                 >
                   {finishing ? "LOCKING IN…" : "STAND & LOCK IN"}
                 </button>
@@ -825,7 +825,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               {practiceSeed && gameOver && (
                 <button
                   onClick={() => switchMode(String(Date.now()))}
-                  className="rounded-full bg-[#a78bfa] px-5 py-2.5 text-sm font-extrabold text-black transition hover:bg-[#c4b5fd]"
+                  className="md-arcade-button rounded-full bg-[#c4f58a] px-5 py-2.5 text-sm font-extrabold text-black transition hover:bg-[#dcffb7]"
                 >
                   🔄 Deal New Hand
                 </button>
@@ -844,7 +844,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               />
               {/* 98% Blackjack Zone Highlight */}
               <div
-                className="absolute top-0 bottom-0 z-10 bg-[#a78bfa]/25 border-l border-[#a78bfa]"
+                className="absolute top-0 bottom-0 z-10 bg-[#c4f58a]/25 border-l border-[#c4f58a]"
                 style={{ left: "98%", width: "2%" }}
                 title="98%-100% Blackjack Zone"
               />
@@ -855,10 +855,10 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                   isBust
                     ? "bg-gradient-to-r from-red-600 to-red-400"
                     : currentSum >= targetStreams * 0.98
-                    ? "bg-gradient-to-r from-[#a78bfa] to-[#c4b5fd] shadow-[0_0_15px_#a78bfa]"
+                    ? "bg-gradient-to-r from-[#c4f58a] to-[#dcffb7] shadow-[0_0_15px_#c4f58a]"
                     : currentSum >= targetStreams * 0.9
-                    ? "bg-gradient-to-r from-[#a78bfa] to-amber-400"
-                    : "bg-[#a78bfa]"
+                    ? "bg-gradient-to-r from-[#c4f58a] to-amber-400"
+                    : "bg-[#c4f58a]"
                 }`}
                 style={{ width: `${fillPercent}%` }}
               />
@@ -871,7 +871,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 <span className="hidden sm:inline text-amber-400/90">
                   💿 90% Gold ({formatStreams(targetStreams * 0.9)})
                 </span>
-                <span className="hidden sm:inline text-[#c4b5fd]">
+                <span className="hidden sm:inline text-[#dcffb7]">
                   🃏 98% Blackjack ({formatStreams(targetStreams * 0.98)})
                 </span>
                 <span className="font-mono font-semibold text-white">
@@ -899,10 +899,10 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
         {/* POST-GAME RESULTS & OPTIMAL HAND BANNER */}
         {gameOver && finishData && board && (
-          <section className="bj-results mb-6 rounded-2xl border border-[#a78bfa]/40 bg-gradient-to-br from-[#191724] via-[#14121d] to-[#241a3b] p-5 shadow-2xl">
+          <section className="bj-results mb-6 rounded-2xl border border-[#c4f58a]/40 bg-gradient-to-br from-[#191724] via-[#14121d] to-[#241a3b] p-5 shadow-2xl">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-[#a78bfa]/20 px-3 py-1 text-sm font-extrabold uppercase tracking-wider text-[#c4b5fd]">
+                <div className="inline-flex items-center gap-2 rounded-full bg-[#c4f58a]/20 px-3 py-1 text-sm font-extrabold uppercase tracking-wider text-[#dcffb7]">
                   <span>
                     {finishData.rank === "BLACKJACK"
                       ? "🃏 BLACKJACK!"
@@ -929,7 +929,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 </h2>
                 <p className="mt-1 text-sm text-neutral-300">
                   Today&apos;s Optimal Hand reached{" "}
-                  <span className="font-bold text-[#c4b5fd]">
+                  <span className="font-bold text-[#dcffb7]">
                     {formatStreams(finishData.optimalSum)} (
                     {(
                       (finishData.optimalSum / board.targetStreams) *
@@ -951,7 +951,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                     <div className="text-xs font-bold uppercase tracking-wider text-neutral-400">
                       Next Daily Drop
                     </div>
-                    <div className="font-mono text-lg font-extrabold text-[#c4b5fd]">
+                    <div className="font-mono text-lg font-extrabold text-[#dcffb7]">
                       {countdown}
                     </div>
                   </div>
@@ -959,7 +959,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
                 <button
                   onClick={handleShare}
-                  className="flex items-center gap-2 rounded-full bg-[#a78bfa] px-5 py-3 text-sm font-extrabold text-black shadow-[0_4px_20px_rgba(167,139,250,0.4)] transition hover:scale-105 hover:bg-[#c4b5fd]"
+                  className="md-arcade-button flex items-center gap-2 rounded-full bg-[#c4f58a] px-5 py-3 text-sm font-extrabold text-black shadow-[0_4px_20px_rgba(167,139,250,0.4)] transition hover:scale-105 hover:bg-[#dcffb7]"
                 >
                   <span>{copiedShare ? "✅ Copied Grid!" : "📤 Share Score"}</span>
                 </button>
@@ -1010,14 +1010,14 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                   }}
                   className={`bj-track-card group relative flex flex-col justify-between overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200 ${
                     isPicked
-                      ? "border-[#a78bfa] bg-gradient-to-br from-[#a78bfa]/20 via-[#191724] to-[#100e18] shadow-[0_0_25px_rgba(167,139,250,0.18)]"
+                      ? "border-[#c4f58a] bg-gradient-to-br from-[#c4f58a]/20 via-[#191724] to-[#100e18] shadow-[0_0_25px_rgba(167,139,250,0.18)]"
                       : isBurned
                       ? "border-amber-500/40 bg-amber-950/20 opacity-80"
                       : gameOver
                       ? isOptimal
                         ? "border-amber-400/60 bg-[#1c1a12]"
                         : "border-white/10 bg-[#171420] opacity-85"
-                      : "cursor-pointer border-white/10 bg-[#191724] hover:-translate-y-1 hover:border-[#a78bfa]/60 hover:bg-[#252137] hover:shadow-xl"
+                      : "cursor-pointer border-white/10 bg-[#191724] hover:-translate-y-1 hover:border-[#c4f58a]/60 hover:bg-[#252137] hover:shadow-xl"
                   }`}
                 >
 
@@ -1039,8 +1039,8 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                           }
                           className={`absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full shadow-md transition ${
                             isPlaying
-                              ? "bg-[#a78bfa] text-black scale-105"
-                              : "bg-black/75 text-white opacity-90 hover:bg-[#a78bfa] hover:text-black"
+                              ? "bg-[#c4f58a] text-black scale-105"
+                              : "bg-black/75 text-white opacity-90 hover:bg-[#c4f58a] hover:text-black"
                           }`}
                         >
                           {isPlaying ? "⏸" : isLoadingPreview ? <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : "▶"}
@@ -1054,7 +1054,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                           {track.releaseYear}
                         </span>
                         {isPicked && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-[#a78bfa] px-2 py-0.5 text-xs font-extrabold uppercase text-black">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-[#c4f58a] px-2 py-0.5 text-xs font-extrabold uppercase text-black">
                             <span>Picked</span>
                           </span>
                         )}
@@ -1070,7 +1070,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                         )}
                       </div>
 
-                      <h3 className="mt-1.5 line-clamp-1 text-base font-bold text-white group-hover:text-[#c4b5fd]">
+                      <h3 className="mt-1.5 line-clamp-1 text-base font-bold text-white group-hover:text-[#dcffb7]">
                         {track.title}
                       </h3>
                       <p className="line-clamp-1 text-sm font-medium text-neutral-400">
@@ -1079,7 +1079,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                       <p role="status" className="mt-1 text-xs leading-snug text-neutral-400">
                         {isLoadingPreview ? "Finding a preview…" : isPlaying ? "Playing · 30s preview" : previewMessages[track.id] || (track.previewStatus === "unavailable" ? "Preview unavailable · tap to check again" : "Tap ▶ for a 30s preview")}
                       </p>
-                      {track.previewSourceUrl && <a href={track.previewSourceUrl} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()} className="mt-1 inline-block text-xs text-[#c4b5fd] underline underline-offset-2">Listen on Apple Music ↗</a>}
+                      {track.previewSourceUrl && <a href={track.previewSourceUrl} target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()} className="mt-1 inline-block text-xs text-[#dcffb7] underline underline-offset-2">Listen on Apple Music ↗</a>}
                     </div>
                   </div>
 
@@ -1090,15 +1090,15 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                         <div className="flex items-center gap-2">
                           {isPicked && (
                             <div className="flex items-end gap-0.5 h-4">
-                              <span className="w-1 bg-[#a78bfa] rounded-full eq-bar-1" />
-                              <span className="w-1 bg-[#a78bfa] rounded-full eq-bar-2" />
-                              <span className="w-1 bg-[#a78bfa] rounded-full eq-bar-3" />
+                              <span className="w-1 bg-[#c4f58a] rounded-full eq-bar-1" />
+                              <span className="w-1 bg-[#c4f58a] rounded-full eq-bar-2" />
+                              <span className="w-1 bg-[#c4f58a] rounded-full eq-bar-3" />
                             </div>
                           )}
                           <span
                             className={`font-mono text-lg font-black ${
                               isPicked
-                                ? "text-[#c4b5fd]"
+                                ? "text-[#dcffb7]"
                                 : isBurned
                                 ? "line-through text-amber-400"
                                 : "text-white"
@@ -1122,7 +1122,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                             ? "Revealing streams..."
                             : "Pick this track"}
                         </span>
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm font-bold text-[#c4b5fd] transition group-hover:border-[#a78bfa] group-hover:bg-[#a78bfa] group-hover:text-black">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm font-bold text-[#dcffb7] transition group-hover:border-[#c4f58a] group-hover:bg-[#c4f58a] group-hover:text-black">
                           +
                         </span>
                       </>
@@ -1143,7 +1143,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
           onClick={() => setShowStatsModal(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
+            className="bj-dialog w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -1166,7 +1166,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 <div className="text-xs text-neutral-400">Played</div>
               </div>
               <div className="rounded-xl bg-[#100e18] p-3">
-                <div className="font-mono text-2xl font-black text-[#c4b5fd]">
+                <div className="font-mono text-2xl font-black text-[#dcffb7]">
                   {stats.currentStreak} 🔥
                 </div>
                 <div className="text-xs text-neutral-400">Streak</div>
@@ -1210,7 +1210,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                     </span>
                     <div className="flex-1 overflow-hidden rounded-full bg-[#100e18]">
                       <div
-                        className="rounded-full bg-[#a78bfa] px-2 py-1 text-right font-mono font-bold text-black"
+                        className="rounded-full bg-[#c4f58a] px-2 py-1 text-right font-mono font-bold text-black"
                         style={{ width: `${pct}%` }}
                       >
                         {count}
@@ -1221,7 +1221,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               })}
             </div></>}
             <p className="mt-5 text-sm text-neutral-400">{accountId ? "Daily results sync with your Musical Daily account." : "Guest daily results stay in this browser."}</p>
-            {accountId && <a className="mt-3 inline-block text-sm text-[#c4b5fd] underline" href={`${hubUrl.replace(/\/$/, "")}/stats`}>See all your games ↗</a>}
+            {accountId && <a className="mt-3 inline-block text-sm text-[#dcffb7] underline" href={`${hubUrl.replace(/\/$/, "")}/stats`}>See all your games ↗</a>}
           </div>
         </div>
       )}
@@ -1233,7 +1233,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
           onClick={() => setShowHelpModal(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
+            className="bj-dialog w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -1260,7 +1260,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 🃏 <strong>Scoring Tiers:</strong>
                 <ul className="mt-1.5 ml-4 space-y-1 text-sm text-neutral-400">
                   <li>
-                    <strong className="text-[#c4b5fd]">98% – 100%:</strong>{" "}
+                    <strong className="text-[#dcffb7]">98% – 100%:</strong>{" "}
                     BLACKJACK. {board?.rulesVersion === "v2" ? "Auto-locks at 98%." : "Stand here, or chase a perfect 100%."}
                   </li>
                   <li>

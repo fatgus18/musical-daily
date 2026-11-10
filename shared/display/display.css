@@ -1,6 +1,6 @@
 /* Common display controls and readable high-contrast shared surfaces. */
-.md-sound .md-sound-bar {background:linear-gradient(145deg,#23242af5,#17181df5);border-color:#ffffff26;box-shadow:0 4px 24px #0005,inset 0 1px 0 #ffffff08}
-.md-sound .md-contrast-toggle {display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 12px!important;background:transparent!important;border-radius:8px 0 0 8px!important;border-right:1px solid #ffffff1c!important;font-size:12px!important;white-space:nowrap}
+.md-sound .md-sound-bar {background:#252942f5;border-color:#737795;box-shadow:0 4px 0 #08091880,inset 0 1px 0 #ffffff08}
+.md-sound .md-contrast-toggle {display:flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 12px!important;background:transparent!important;border-radius:12px 0 0 12px!important;border-right:1px solid #ffffff1c!important;font-size:12px!important;white-space:nowrap}
 .md-contrast-toggle b {font-weight:400;opacity:.75}
 .md-sound .md-sound-toggle {border-radius:0!important}
 .md-sound .md-contrast-toggle[aria-pressed="true"] {color:#efffb3;background:#e5fca412!important}
@@ -27,11 +27,26 @@ html[data-contrast="high"] :is(.md-stats-play,.md-stats-total,.md-stats-result-s
 html[data-contrast="high"] .md-stats-sticker {background:#08090b;border-color:currentColor}
 html[data-contrast="high"] .md-stats-record-friend {display:none}
 @media(max-width:600px){.md-sound .md-contrast-toggle{font-size:12px!important;padding:10px!important;gap:5px}.md-sound .md-contrast-toggle svg{width:14px}}
-/* Compact, labelled-for-assistive-tech buttons leave mobile answers unobscured. */
+/* Controls occupy real space: a utility row on small screens, a reserved rail on wide screens. */
+@media(max-width:1099px){
+ body{padding-bottom:0!important}
+ .md-sound{position:relative;inset:auto;display:flex;justify-content:flex-end;width:100%;max-width:1320px;margin:0 auto;padding:8px 18px;min-height:60px}
+ .md-sound .md-sound-popover{top:62px;bottom:auto;right:18px;max-height:calc(100dvh - 84px);overflow-y:auto}
+}
 @media(max-width:600px){
  .md-sound .md-sound-bar{min-height:44px}
  .md-sound :is(.md-contrast-toggle,.md-sound-toggle,.md-sound-settings){width:44px;min-height:44px;padding:10px!important;justify-content:center}
  .md-sound :is(.md-contrast-toggle,.md-sound-toggle)>span{display:none}
  .md-sound :is(.md-contrast-toggle,.md-sound-toggle,.md-sound-settings)>svg{width:18px;height:18px}
+}
+@media(min-width:1100px){
+ body{padding-right:64px;padding-bottom:20px!important}
+ .md-sound{right:10px;top:50%;bottom:auto;transform:translateY(-50%)}
+ .md-sound .md-sound-bar{flex-direction:column;width:44px}
+ .md-sound :is(.md-contrast-toggle,.md-sound-toggle,.md-sound-settings){width:40px;min-height:44px;padding:10px!important;justify-content:center}
+ .md-sound :is(.md-contrast-toggle,.md-sound-toggle)>span{display:none}
+ .md-sound .md-contrast-toggle{border-right:0!important;border-bottom:1px solid #ffffff26!important;border-radius:12px 12px 0 0!important}
+ .md-sound .md-sound-settings{border-left:0!important;border-top:1px solid #ffffff26!important;border-radius:0 0 12px 12px!important}
+ .md-sound .md-sound-popover{right:56px;bottom:0;max-height:80vh;overflow-y:auto}
 }
 @media(forced-colors:active){.md-sound .md-sound-bar,.md-sound .md-sound-popover{background:Canvas;border:1px solid ButtonText}.md-sound button{forced-color-adjust:auto}.md-sound .md-contrast-toggle[aria-pressed="true"]{outline:2px solid Highlight;outline-offset:-3px}}

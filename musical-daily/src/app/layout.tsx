@@ -12,6 +12,8 @@ import "./music-fact.css";
 import "./studio-promo.css";
 import "./pixel-system.css";
 import "./pixel-polish.css";
+import "./arcade-system.css";
+import "./arcade-polish.css";
 import "./display.css";
 import { contrastBootstrap } from "@/components/display-preferences";
 import { SoundProvider } from "@/components/sound-client";

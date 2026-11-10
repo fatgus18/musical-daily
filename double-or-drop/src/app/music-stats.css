@@ -174,3 +174,72 @@ html[data-contrast="high"] .md-stats-shell .md-stats-card-foot { border-color: #
   .md-stats-shell :is(.md-stats-game-card, .md-stats-history, .md-stats-sign-in, .md-stats-combined) { border: 1px solid CanvasText; }
   .md-stats-shell .md-stats-play { border: 1px solid LinkText; }
 }
+
+/* The same colorful arcade cabinet as the games, with real saved numbers. */
+.md-stats-shell { background: #121323; color: #faf7ef; font-family: var(--md-font-sans, Arial, sans-serif); }
+.md-stats-shell .md-stats-header { background: #121323; border-color: #515572; border-bottom-width: 2px; }
+.md-stats-shell .md-stats-header nav > a { color: #d1d4e6; font-size: 14px; }
+.md-stats-shell .md-stats-hero { padding-bottom: 34px; }
+.md-stats-shell .md-stats-hero h1 { font-weight: 800; }
+.md-stats-shell .md-stats-hero p { color: #c3c5d7; font-size: 15px; }
+.md-stats-shell .md-stats-record-friend { filter: drop-shadow(8px 10px 0 #07081970); }
+.md-stats-shell .md-stats-game-card {
+  border: 2px solid color-mix(in srgb, var(--stat-accent) 65%, #20233b);
+  border-radius: 22px;
+  background: linear-gradient(125deg, color-mix(in srgb, var(--stat-accent) 16%, #20233b), #20233b 70%);
+  box-shadow: 7px 8px 0 #07081980;
+  --stat-muted: #d1d3e3;
+}
+.md-stats-shell .md-stats-game-card::after { width: 7px; height: 7px; top: 18px; right: 20px; box-shadow: -11px 0 currentColor, -22px 0 currentColor; opacity: .8; }
+.md-stats-shell .md-stats-game-title h2 { color: #faf7ef; font-weight: 800; }
+.md-stats-shell .md-stats-game-title p { color: #d1d3e3; font-size: 14px; }
+.md-stats-shell .md-stats-sticker {
+  background: var(--stat-accent);
+  border: 2px solid #14152b;
+  border-radius: 18px;
+  color: #1a2430;
+  box-shadow: 4px 4px 0 #111326;
+}
+.md-stats-shell .md-stats-play {
+  font: 700 14px/1.4 var(--md-font-sans, Arial, sans-serif);
+  background: var(--stat-accent);
+  color: #17231e;
+  border: 2px solid #17231e;
+  border-radius: 12px;
+  padding: 11px 15px;
+  min-height: 44px;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--stat-accent) 45%, #111525);
+}
+.md-stats-shell .md-stats-play:hover { filter: brightness(1.06); }
+.md-stats-shell .md-stats-metrics { background: none; gap: 12px; padding-block: 20px; border-top-color: #ffffff40; }
+.md-stats-shell .md-stats-metric { background: #11132988; padding: 15px; border: 1px solid #ffffff24; border-radius: 12px; }
+.md-stats-shell .md-stats-metric:first-child, .md-stats-shell .md-stats-metric:last-child { padding: 15px; border: 1px solid #ffffff24; }
+.md-stats-shell .md-stats-metric dt { color: #d1d4e6; font-size: 13px; }
+.md-stats-shell .md-stats-metric dd { color: var(--stat-accent); font-size: clamp(25px, 3vw, 34px); }
+.md-stats-shell .md-stats-sign-in, .md-stats-shell .md-stats-combined, .md-stats-shell .md-stats-history {
+  background: #22263c;
+  border: 2px solid #747997;
+  border-radius: 20px;
+  box-shadow: 5px 6px 0 #07081970;
+}
+.md-stats-shell .md-stats-sign-in p { color: #d1d4e6; font-size: 14px; }
+.md-stats-shell .md-stats-save-icon { background: #c4f58a; color: #18231c; border: 2px solid #18231c; border-radius: 12px; }
+.md-stats-shell .md-stats-card-foot { border-color: #ffffff40; }
+.md-stats-shell .md-stats-footer { border-color: #515572; color: #c3c5d7; }
+@media (max-width: 700px) {
+  .md-stats-shell .md-stats-game-card { padding: 22px 18px 0; border-radius: 18px; }
+  .md-stats-shell .md-stats-metrics { gap: 10px; }
+  .md-stats-shell .md-stats-metric:nth-child(n) { padding: 12px; border: 1px solid #ffffff24; }
+  .md-stats-shell .md-stats-metric dd { font-size: 26px; }
+  .md-stats-shell .md-stats-play { margin-left: 0; }
+  .md-stats-shell .md-stats-sticker { width: 60px; height: 60px; border-radius: 14px; }
+  .md-stats-shell .md-stats-game-title h2 { font-size: 24px; }
+}
+html[data-contrast="high"] .md-stats-shell { background: #08090b; }
+html[data-contrast="high"] .md-stats-shell :is(.md-stats-game-card, .md-stats-sign-in, .md-stats-history, .md-stats-combined, .md-stats-header) { background: #101216; border-color: #d9e0ec; box-shadow: none; }
+html[data-contrast="high"] .md-stats-shell .md-stats-metric:nth-child(n) { background: #08090b; border-color: #b8bec8; }
+html[data-contrast="high"] .md-stats-shell :is(.md-stats-hero p, .md-stats-game-title p, .md-stats-metric dt, .md-stats-sign-in p) { color: #fff; }
+html[data-contrast="high"] .md-stats-shell .md-stats-play { color: #111; background: var(--stat-accent); border-color: #fff; box-shadow: none; }
+@media (forced-colors: active) {
+  .md-stats-shell :is(.md-stats-game-card, .md-stats-metric, .md-stats-sign-in, .md-stats-history, .md-stats-combined) { background: Canvas; color: CanvasText; border: 2px solid CanvasText; box-shadow: none; }
+}
