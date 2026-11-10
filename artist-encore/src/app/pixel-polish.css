@@ -9,6 +9,11 @@
   --line: #ffffff20;
   --mint: #b9e8cf;
 }
+.reveal .answer-verdict { font-size: 13px; line-height: 1.6; letter-spacing: .04em; }
+.lifeline-ticket > span:last-child { font-size: 13px; letter-spacing: 0; white-space: nowrap; }
+@media (max-width: 600px) {
+  .answer-choices { scroll-margin-bottom: 80px; }
+}
 body { background: radial-gradient(ellipse at 80% 0, #b9e8cf06, transparent 55%), #111215; }
 .encore-atmosphere::before { background-image: radial-gradient(#d8e6d216 1px, transparent 1px); background-size: 36px 36px; }
 .encore-orbit { opacity: .35; }
