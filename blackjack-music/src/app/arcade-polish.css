@@ -63,6 +63,9 @@ body.md-game-blackjack .bj-results { border: 2px solid #c4f58a; border-radius: 2
 body.md-game-blackjack .bj-results h2 { font: 800 30px/1.15 var(--md-font-sans); }
 body.md-game-blackjack .bj-results p { color: #e0e8da; font-size: 15px; line-height: 1.7; }
 body.md-game-blackjack .bj-dialog { background: #20233b; border: 2px solid #737795; border-radius: 22px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+body.md-game-blackjack dialog.bj-dialog { margin: auto; width: min(448px, calc(100% - 32px)); color: #faf7ef; overscroll-behavior: contain; }
+body.md-game-blackjack .bj-dialog::backdrop { background: #080b1cdd; backdrop-filter: blur(5px); }
+body.md-game-blackjack .bj-dialog-close { display: grid; place-items: center; min-width: 44px; min-height: 44px; flex-shrink: 0; border-radius: 10px; border: 1px solid #737795; background: #282b45; }
 body.md-game-blackjack .bj-dialog :is(h3, h4) { font-family: var(--md-font-sans); }
 body.md-game-blackjack .bj-dialog :is(p, li) { font: 14px/1.75 var(--md-font-sans); color: #d5d7e6; }
 body.md-game-blackjack .bj-dialog .grid > div { background: #14172b; border: 1px solid #5b5e7c; border-radius: 12px; }
@@ -70,6 +73,18 @@ body.md-game-blackjack .bj-dialog .grid > div > div:last-child { font: 12px/1.5 
 body.md-game-blackjack .hand-remix { border: 2px solid #5b5e7c; border-radius: 18px; background: #20233b; }
 body.md-game-blackjack :is(.remix-console, .remix-records button) { background: #16192d; border-radius: 10px; }
 body.md-game-blackjack .remix-icon { color: #c4f58a; background: #c4f58a15; border-color: #c4f58a60; }
+/* Keep the icon and disclosure independent of wrapping copy on small screens. */
+body.md-game-blackjack .hand-remix > summary { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 14px; }
+body.md-game-blackjack .remix-icon { width: 44px; height: 44px; flex-shrink: 0; }
+body.md-game-blackjack .remix-icon svg { display: block; width: 25px; height: 25px; }
+body.md-game-blackjack .remix-summary-copy { min-width: 0; }
+body.md-game-blackjack .remix-summary-copy small { white-space: normal; overflow-wrap: anywhere; }
+body.md-game-blackjack .remix-intro > span { white-space: normal; overflow-wrap: anywhere; }
+body.md-game-blackjack .remix-open { min-width: 24px; gap: 8px; }
+body.md-game-blackjack .bj-preview-button { width: 44px; height: 44px; min-width: 44px; min-height: 44px; touch-action: manipulation; }
+body.md-game-blackjack .bj-results[data-result="bust"] { border-color: #ffaf98; background: #362533; box-shadow: 6px 7px 0 #090b1a80; }
+body.md-game-blackjack .bj-results[data-result="bust"] .bj-result-badge { background: #ffaf9826; color: #ffd1c2; }
+body.md-game-blackjack .bj-result-badge { flex-wrap: wrap; }
 body.md-game-blackjack .game-footer { border-top: 1px solid #5b5e7c; font: 13px/1.6 var(--md-font-sans); color: #c3c5d7; }
 body.md-game-blackjack .bj-side { color: #c4f58a; opacity: .8; }
 body.md-game-blackjack .bj-side-left { right: calc(50% + 598px); }
@@ -109,6 +124,20 @@ body.md-game-blackjack .buddy-spark { transform-origin: center; animation: bj-bu
   body.md-game-blackjack .bj-track-card { min-height: 190px; padding: 20px 16px 16px; }
   body.md-game-blackjack .bj-artwork { width: 86px; height: 86px; }
   body.md-game-blackjack .bj-results { padding: 21px; }
+  body.md-game-blackjack .hand-remix > summary { grid-template-columns: 40px minmax(0, 1fr) 24px; padding: 17px 14px; gap: 11px; align-items: start; }
+  body.md-game-blackjack .remix-icon { width: 40px; height: 40px; }
+  body.md-game-blackjack .remix-open { min-height: 40px; justify-content: center; }
+  body.md-game-blackjack .remix-open > span { display: none; }
+  body.md-game-blackjack .remix-records { grid-template-columns: 1fr; }
+  body.md-game-blackjack .remix-records button { flex-wrap: nowrap; min-height: 68px; padding: 12px; }
+  body.md-game-blackjack .remix-records button > b { width: auto; padding: 0; font-size: 13px; }
+  body.md-game-blackjack .remix-number { width: 25px; height: 25px; font-size: 12px; }
+  body.md-game-blackjack .remix-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.md-game-blackjack .remix-actions button { min-height: 48px; padding: 10px; }
+  body.md-game-blackjack .bj-header > div > div > button { min-height: 44px; }
+  body.md-game-blackjack .bj-results h2 { font-size: 25px; overflow-wrap: anywhere; }
+  body.md-game-blackjack .bj-career-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.md-game-blackjack .game-footer a { display: flex; align-items: center; min-height: 44px; }
 }
 @media (max-width: 360px) {
   body.md-game-blackjack .bj-artwork { width: 70px; height: 70px; }

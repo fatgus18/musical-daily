@@ -8,6 +8,7 @@ body.md-game-encore .title-row { padding: 29px 0 24px; gap: 20px; }
 body.md-game-encore .title-row h1 { font: 800 clamp(62px, 7.8vw, 90px)/1 var(--md-font-sans); letter-spacing: -.075em; }
 body.md-game-encore .encore-home { font-family: var(--md-font-sans); }
 body.md-game-encore .title-row h1 b { font-size: 39px; color: #ffaf98; display: inline-block; }
+body.md-game-encore .encore-spark { display: block; width: 1em; height: 1em; }
 body.md-game-encore .title-note { border: 1px solid #737795; border-radius: 14px; background: #20233b; padding: 16px 19px; color: #c3c5d7; font-size: 15px; line-height: 1.65; }
 body.md-game-encore .title-note strong { color: #faf7ef; }
 body.md-game-encore .discovery { grid-template-columns: minmax(0, 1.25fr) minmax(290px, .8fr); gap: 42px; margin-top: 0; align-items: start; }
@@ -133,6 +134,33 @@ body.md-game-encore .buddy-note { animation: encore-note-arrive 1s ease-out both
   body.md-game-encore .complete-actions .md-arcade-button { width: 100%; }
 }
 @media (max-width: 360px) { body.md-game-encore .artist-sidebar { padding: 13px; gap: 10px; } body.md-game-encore .artist-sidebar h2 { font-size: 20px; } body.md-game-encore .round-content { padding-inline: 15px; } }
+/* The countdown travels with the answers, including on short landscape screens. */
+body.md-game-encore .answer-choices legend { width: 100%; padding: 0; margin-bottom: 12px; }
+body.md-game-encore .answer-choices legend > span { display: block; margin-bottom: 9px; }
+body.md-game-encore .answer-choices .guess-clock { width: fit-content; margin-bottom: 2px; }
+body.md-game-encore .answer-choices { min-width: 0; scroll-margin-block: 12px; }
+body.md-game-encore .pin-artist-label { white-space: normal; height: auto; min-height: 44px; text-align: left; }
+body.md-game-encore .pin-artist-label > span { min-width: 0; overflow-wrap: anywhere; }
+body.md-game-encore .pin-artist svg { flex-shrink: 0; }
+body.md-game-encore .artist-option > span:not(.artist-placeholder) { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 680px) {
+  body.md-game-encore :is(.help-button, .suggestions button, .pin-artist, .text-button, .replay, .discard-mix) { min-height: 44px; }
+  body.md-game-encore .pin-artist:not(.pin-artist-label) { min-width: 44px; }
+  body.md-game-encore .artist-sidebar .pin-artist-label { font-size: 12px; line-height: 1.4; padding: 7px; }
+  body.md-game-encore .artist-sidebar h2 { overflow-wrap: anywhere; }
+  body.md-game-encore .guess-form { margin-top: 12px; }
+  body.md-game-encore .answer-choices legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  body.md-game-encore .answer-choices legend > span { margin: 0; font-size: 12px; }
+  body.md-game-encore .answer-choices .guess-clock { margin: 0; padding: 7px 9px; }
+  body.md-game-encore .guess-clock strong { font-size: 22px; }
+  body.md-game-encore .guess-clock small { font-size: 10px; }
+  body.md-game-encore .round-content .choice-footer { flex-wrap: wrap; }
+}
+@media (max-width: 680px), (max-height: 500px) {
+  body.md-game-encore dialog { max-height: calc(100dvh - 24px); padding: 24px 20px; overflow-y: auto; overscroll-behavior: contain; }
+  body.md-game-encore dialog h2 { padding-right: 30px; }
+  body.md-game-encore dialog .close { min-width: 44px; min-height: 44px; }
+}
 html[data-contrast="high"] body.md-game-encore :is(.site > header, .title-note, .search-box, .artist-option, .mixtape-card, .artist-sidebar, .player-card, .audio-console, .song-choice, .favorite-card, .catalog-offer, .saved-mix, dialog) { background: #101216; border-color: #d9e0ec; box-shadow: none; }
 html[data-contrast="high"] body.md-game-encore :is(.player-top, .ticket-top) { background: #80e5ca; color: #101216; }
 html[data-contrast="high"] body.md-game-encore :is(.search-panel > p, .artist-option small, .round-content > p, .lifeline-tools > p, .small-note, .choice-footer p, .ticket-bottom, .recipe small) { color: #f0f2f6; }

@@ -27,9 +27,12 @@ export function ArtistCollectionSearch({ disabled, onSelect, selected, onLoading
   const expanded = opened && query.trim().length >= 2 && !disabled && !loadingArtist;
   function position() {
     const rect = root.current?.querySelector(".search-input")?.getBoundingClientRect(); if (!rect) return;
-    const below = innerHeight - rect.bottom - 20, above = rect.top - 20;
+    const viewport = window.visualViewport;
+    const top = viewport?.offsetTop || 0;
+    const bottom = top + (viewport?.height || innerHeight);
+    const below = bottom - rect.bottom - 12, above = rect.top - top - 12;
     const side = below < 340 && above > below ? "above" : "below";
-    setPlacement(side); setMaxHeight(Math.max(130, Math.min(360, side === "above" ? above : below)));
+    setPlacement(side); setMaxHeight(Math.max(64, Math.min(360, (side === "above" ? above : below) - 10)));
   }
   function keys(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") { if (expanded) { event.preventDefault(); event.stopPropagation(); } setOpened(false); if (document.activeElement !== input.current) { suppressFocusOpen.current = true; input.current?.focus(); } return; }
@@ -49,7 +52,8 @@ export function ArtistCollectionSearch({ disabled, onSelect, selected, onLoading
     if (!expanded) return;
     const outside = (event: PointerEvent) => { if (event.target instanceof Node && !root.current?.contains(event.target)) setOpened(false); };
     document.addEventListener("pointerdown", outside); window.addEventListener("resize", position);
-    return () => { document.removeEventListener("pointerdown", outside); window.removeEventListener("resize", position); };
+    window.visualViewport?.addEventListener("resize", position);
+    return () => { document.removeEventListener("pointerdown", outside); window.removeEventListener("resize", position); window.visualViewport?.removeEventListener("resize", position); };
   }, [expanded]);
   useEffect(() => () => { loadAbort.current?.abort(); loadAbort.current = null; onLoadingChange(false); }, [onLoadingChange]);
   useEffect(() => {
@@ -90,9 +94,9 @@ export function ArtistCollectionSearch({ disabled, onSelect, selected, onLoading
     <div className={`search-input collection-control ${expanded ? "is-open" : ""} ${disabled || loadingArtist ? "is-disabled" : ""}`}><span className="field-icon tone-lilac"><CollectionIcon kind="artist"/></span><div className="artist-input-copy"><input ref={input} id="artist-search" autoComplete="off" placeholder={selected ? "Find another artist…" : "Find any artist…"} value={query} disabled={disabled || Boolean(loadingArtist)} onFocus={() => { position(); if (suppressFocusOpen.current) { suppressFocusOpen.current = false; return; } if (query.trim().length >= 2) setOpened(true); }} onChange={event => { position(); setOpened(true); setQuery(event.target.value); setLocal([]); setArtists([]); setError(""); setSearching(event.target.value.trim().length >= 2); }} /><small>{selected ? `${selected} is your current collection.` : "Your favourites, on repeat."}</small></div>{query ? <button className="artist-search-clear" aria-label="Clear artist search" disabled={Boolean(loadingArtist)} onClick={() => { setQuery(""); setSearching(false); setOpened(false); input.current?.focus(); }}>×</button> : <svg className="artist-search-glass" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>}</div>
     {expanded && <div className={`artist-results picker-menu placement-${placement}`} role="region" aria-label="Artist search results" style={{ maxHeight }}>{searching && <p className="picker-status" role="status"><span className="search-pulse" aria-hidden="true"/>Finding your favourites…</p>}
       {artists.length > 0 && <span className="search-section-label">EXPLORE AN ARTIST</span>}
-      {artists.map(artist => <button className="picker-option artist-result" disabled={disabled || Boolean(loadingArtist)} key={artist.id} onClick={() => void load(artist)}><ArtistAvatar name={artist.name} image={artist.image}/><span className="picker-option-copy"><strong>{artist.name}</strong><small>{artist.genre || "Their songs. Your instincts."}</small></span><span className="artist-result-tag">Explore <span aria-hidden="true">↗</span></span></button>)}
+      {artists.map(artist => <button className="picker-option artist-result" disabled={disabled || Boolean(loadingArtist)} key={artist.id} onMouseDown={event => event.preventDefault()} onClick={() => { input.current?.blur(); void load(artist); }}><ArtistAvatar name={artist.name} image={artist.image}/><span className="picker-option-copy"><strong>{artist.name}</strong><small>{artist.genre || "Their songs. Your instincts."}</small></span><span className="artist-result-tag">Explore <span aria-hidden="true">↗</span></span></button>)}
       {local.length > 0 && <span className="search-section-label">QUICK PICKS</span>}
-      {local.map(item => <button className="picker-option artist-result" disabled={disabled || Boolean(loadingArtist)} key={item.id} onClick={() => { onSelect(item); setPack(null); setQuery(""); setOpened(false); input.current?.focus(); }}><ArtistAvatar name={item.label}/><span className="picker-option-copy"><strong>{item.label}</strong><small>{item.trackCount.toLocaleString("en-US")} songs to play with</small></span><span className="artist-result-tag ready">Ready <span aria-hidden="true">↗</span></span></button>)}
+      {local.map(item => <button className="picker-option artist-result" disabled={disabled || Boolean(loadingArtist)} key={item.id} onMouseDown={event => event.preventDefault()} onClick={event => { onSelect(item); setPack(null); setQuery(""); setOpened(false); if (event.detail > 0 && window.matchMedia("(pointer: coarse)").matches) input.current?.blur(); else input.current?.focus(); }}><ArtistAvatar name={item.label}/><span className="picker-option-copy"><strong>{item.label}</strong><small>{item.trackCount.toLocaleString("en-US")} songs to play with</small></span><span className="artist-result-tag ready">Ready <span aria-hidden="true">↗</span></span></button>)}
       {!searching && !artists.length && !local.length && !error && <p>No matches yet. Try another spelling or a genre.</p>}
     </div>}
     {loadingArtist && <p className="artist-load-status" role="status">Finding {loadingArtist.name}’s songs… Larger discographies can take a moment.</p>}

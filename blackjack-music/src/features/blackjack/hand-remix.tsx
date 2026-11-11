@@ -29,7 +29,7 @@ export function HandRemix({ tracks, streams, target, original }: { tracks: Publi
     setHint(id ? `${remove ? "Try removing" : "Try adding"} “${tracks.find(track => track.id === id)?.title}”. You’re one step closer.` : "You’re already holding a best hand. Nicely done.");
   };
   return <details className="hand-remix">
-    <summary><span className="remix-icon" aria-hidden="true">↻</span><span><strong>The remix room</strong><small>Your score is saved. Can you build a better hand?</small></span><span className="remix-open">Explore <b aria-hidden="true">+</b></span></summary>
+    <summary><span className="remix-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 6.3A8 8 0 0 1 20 12M4 12a8 8 0 0 0 13.9 5.7"/></svg></span><span className="remix-summary-copy"><strong>The remix room</strong><small>Your score is saved. Can you build a better hand?</small></span><span className="remix-open"><span>Explore</span><b aria-hidden="true">+</b></span></summary>
     <div className="remix-body">
       <div className="remix-intro"><p>All the counts are out. Mix these nine tracks, ask for a nudge, and chase the best combination.</p><span>UNSCORED / PLAY AS MUCH AS YOU LIKE</span></div>
       <div className={`remix-console ${over ? "is-over" : atBest ? "is-perfect" : ""}`}>

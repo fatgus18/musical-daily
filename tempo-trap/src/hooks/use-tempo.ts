@@ -192,7 +192,9 @@ export function useTempo(accountId: string | null = null) {
     setError(null); setElapsed(0); commit(current.puzzle, { ...current.progress, phase: "loading" });
     try {
       // Resume directly inside the click gesture for Safari/iOS autoplay rules.
-      context.current ||= new AudioContext();
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) throw new Error("Audio playback isn't supported in this browser. Open Tempo Trap in a current version of Safari, Chrome or Firefox.");
+      context.current ||= new AudioContextClass();
       await context.current.resume();
       const ctx = context.current;
       gain.current ||= ctx.createGain(); gain.current.gain.value = volumeRef.current / 100;

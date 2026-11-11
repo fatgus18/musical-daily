@@ -85,6 +85,18 @@ function getYesterdayDateStr(dateStr: string): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
+function BlackjackDialog({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { dialog.current?.showModal(); }, []);
+  return <dialog ref={dialog} aria-label={label} onClose={onClose}
+    className="bj-dialog w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
+    onClick={event => {
+      if (event.target !== event.currentTarget) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) event.currentTarget.close();
+    }}>{children}</dialog>;
+}
+
 export default function StreamBlackjackPage({ hubUrl }: { hubUrl: string }) {
   const account = useAccount();
   if (account.loading || account.error) return <><header className="mx-auto flex max-w-5xl items-center justify-between p-4"><MusicalDailyBrand href={hubUrl} showBack /><AccountButton statsHref="/stats" /></header><p className="p-8 text-center" role="status">{account.error || "Finding your listening profile…"}</p>{account.error && <button className="mx-auto block" onClick={() => void account.refresh()}>Retry account connection</button>}</>;
@@ -675,6 +687,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
             {/* Streak Pill */}
             <button
               onClick={() => setShowStatsModal(true)}
+              aria-label="View streak and career stats"
               className="flex items-center gap-1.5 rounded-full border border-white/10 bg-[#191724] px-3 py-1.5 text-sm font-bold transition hover:border-[#c4f58a]/50 hover:bg-[#252137]"
               title="View Streak & Career Stats"
             >
@@ -874,10 +887,10 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
         {/* POST-GAME RESULTS & OPTIMAL HAND BANNER */}
         {gameOver && finishData && board && (
-          <section className="bj-results mb-6 rounded-2xl border border-[#c4f58a]/40 bg-gradient-to-br from-[#191724] via-[#14121d] to-[#241a3b] p-5 shadow-2xl">
+          <section data-result={finishData.rank === "BUST" ? "bust" : "safe"} className="bj-results mb-6 rounded-2xl border border-[#c4f58a]/40 bg-gradient-to-br from-[#191724] via-[#14121d] to-[#241a3b] p-5 shadow-2xl">
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-[#c4f58a]/20 px-3 py-1 text-sm font-extrabold uppercase tracking-wider text-[#dcffb7]">
+                <div className="bj-result-badge inline-flex items-center gap-2 rounded-full bg-[#c4f58a]/20 px-3 py-1 text-sm font-extrabold uppercase tracking-wider text-[#dcffb7]">
                   <span>
                     {finishData.rank === "BLACKJACK"
                       ? "🃏 BLACKJACK!"
@@ -891,10 +904,10 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                   </span>
                   <span>•</span>
                   <span>
-                    {((finishData.finalSum / board.targetStreams) * 100).toFixed(
+                    {((finishData.finalSum / board.targetStreams - (finishData.rank === "BUST" ? 1 : 0)) * 100).toFixed(
                       1
                     )}
-                    % Accuracy
+                    % {finishData.rank === "BUST" ? "over cap" : "of cap"}
                   </span>
                 </div>
 
@@ -1013,7 +1026,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                           title={
                             isPlaying ? "Pause 30s preview" : isLoadingPreview ? "Cancel preview lookup" : "Play 30s preview"
                           }
-                          className={`absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full shadow-md transition ${
+                          className={`bj-preview-button absolute bottom-1.5 right-1.5 flex h-7 w-7 items-center justify-center rounded-full shadow-md transition ${
                             isPlaying
                               ? "bg-[#c4f58a] text-black scale-105"
                               : "bg-black/75 text-white opacity-90 hover:bg-[#c4f58a] hover:text-black"
@@ -1114,27 +1127,21 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
       {/* STATS & STREAK MODAL */}
       {showStatsModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-          onClick={() => setShowStatsModal(false)}
-        >
-          <div
-            className="bj-dialog w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <BlackjackDialog label="Your career stats" onClose={() => setShowStatsModal(false)}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black tracking-tight">
                 YOUR CAREER STATS
               </h3>
               <button
                 onClick={() => setShowStatsModal(false)}
-                className="text-neutral-400 hover:text-white"
+                aria-label="Close career stats"
+                className="bj-dialog-close text-neutral-400 hover:text-white"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-4 gap-2 text-center">
+            <div className="bj-career-metrics mt-4 grid grid-cols-4 gap-2 text-center">
               <div className="rounded-xl bg-[#100e18] p-3">
                 <div className="font-mono text-2xl font-black text-white">
                   {stats.played}
@@ -1198,25 +1205,18 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
             </div></>}
             <p className="mt-5 text-sm text-neutral-400">{accountId ? "Daily results sync with your Musical Daily account." : "Guest daily results stay in this browser."}</p>
             {accountId && <a className="mt-3 inline-block text-sm text-[#dcffb7] underline" href={`${hubUrl.replace(/\/$/, "")}/stats`}>See all your games ↗</a>}
-          </div>
-        </div>
+        </BlackjackDialog>
       )}
 
       {/* HOW TO PLAY MODAL */}
       {showHelpModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
-          onClick={() => setShowHelpModal(false)}
-        >
-          <div
-            className="bj-dialog w-full max-w-md rounded-2xl border border-white/15 bg-[#191724] p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <BlackjackDialog label="How to play Stream Blackjack" onClose={() => setShowHelpModal(false)}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-black">HOW TO PLAY</h3>
               <button
                 onClick={() => setShowHelpModal(false)}
-                className="text-neutral-400 hover:text-white"
+                aria-label="Close instructions"
+                className="bj-dialog-close text-neutral-400 hover:text-white"
               >
                 ✕
               </button>
@@ -1258,8 +1258,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 at midnight UTC. Shared scores keep your song choices private.
               </li>
             </ul>
-          </div>
-        </div>
+        </BlackjackDialog>
       )}
     </div>
   );

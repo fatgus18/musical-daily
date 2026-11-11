@@ -36,7 +36,44 @@ function TempoSession({ hubUrl, accountId }: { hubUrl: string; accountId: string
   const seconds = Math.max(0, Math.ceil((nextDailyReset(new Date(clockNow)) - clockNow) / 1000));
   const countdown = [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(n => String(n).padStart(2, "0")).join(":");
 
-  useEffect(() => { if (phase === "guessing") input.current?.focus({ preventScroll: true }); }, [phase]);
+  useEffect(() => {
+    if (phase !== "guessing") return;
+    input.current?.focus({ preventScroll: true });
+    // On a phone the keyboard changes the visible viewport without changing
+    // the layout viewport. Keep the timer, input and submit button together.
+    const revealGuess = () => {
+      if (!window.matchMedia("(max-width: 700px), (max-height: 500px)").matches) return;
+      const panel = input.current?.closest(".guess-content");
+      if (!panel) return;
+      const box = panel.getBoundingClientRect();
+      const top = window.visualViewport?.offsetTop || 0;
+      const bottom = top + (window.visualViewport?.height || innerHeight);
+      if (box.top < top + 12 || box.bottom > bottom - 12) {
+        const offset = box.top < top + 12 ? box.top - top - 12 : Math.min(box.top - top - 12, box.bottom - bottom + 12);
+        window.scrollBy({ top: offset, behavior: "instant" });
+      }
+    };
+    // Browser focus/keyboard scrolling runs after resize. Wait for that layout
+    // before correcting the viewport, rather than having its scroll undo ours.
+    let frame = 0;
+    const scheduleReveal = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { frame = requestAnimationFrame(revealGuess); });
+    };
+    const field = input.current;
+    scheduleReveal();
+    window.addEventListener("resize", scheduleReveal);
+    window.visualViewport?.addEventListener("resize", scheduleReveal);
+    field?.addEventListener("focus", scheduleReveal);
+    field?.addEventListener("pointerup", scheduleReveal);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", scheduleReveal);
+      window.visualViewport?.removeEventListener("resize", scheduleReveal);
+      field?.removeEventListener("focus", scheduleReveal);
+      field?.removeEventListener("pointerup", scheduleReveal);
+    };
+  }, [phase]);
 
   const share = async () => {
     const text = `Tempo Trap ${puzzle?.mode === "daily" ? `#${puzzle.number}` : "Practice"} · ${puzzle?.date}\n${progress?.results.map(r => r.score >= 900 ? "🟩" : r.score >= 600 ? "🟨" : r.score > 0 ? "🟧" : "⬜").join("")}\n${total.toLocaleString()} / 5,000 · ${rank(total)}\nTrust your ears.\n${location.origin}${withBasePath("/")}`;

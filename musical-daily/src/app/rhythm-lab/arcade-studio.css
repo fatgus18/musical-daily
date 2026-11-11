@@ -212,3 +212,35 @@ html[data-contrast=high] .studio-shell input[type=range]::-moz-range-thumb { bac
   .studio-shell :is(.studio-panel, .studio-transport, .studio-step, .studio-drum-pad, .studio-preview-button, .studio-download, .studio-transport-actions > button) { border: 2px solid CanvasText; box-shadow: none; }
   .studio-shell .studio-panel::before { display: none; }
 }
+
+.studio-scroll-hint { display: none; }
+.studio-shell .studio-take-jump { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-left: 12px; color: inherit; font-weight: 750; text-underline-offset: 3px; }
+.studio-shell .studio-recorder, .studio-shell .studio-transport { scroll-margin-top: 20px; }
+@media (max-width: 600px) {
+  .studio-shell .studio-master-control { display: grid; grid-template-columns: 44px minmax(0, 1fr) 12px; gap: 10px; padding-left: 0; }
+  .studio-shell .studio-master-control label { display: block; width: 100%; max-width: none; }
+  .studio-shell .studio-master-control label > span { min-width: 0; }
+  .studio-shell .studio-output-meter { width: 7px; }
+  .studio-shell .studio-output-meter > span { display: none; }
+  .studio-shell .studio-take-jump { display: flex; width: fit-content; margin: 5px 0 0; }
+  .studio-shell .studio-piano-key.is-black .studio-note-octave { display: none; }
+}
+@media (pointer: coarse) {
+  .studio-shell input[type=range] { height: 44px; }
+  .studio-shell .studio-master-control > button, .studio-shell .studio-octave button, .studio-shell .studio-transport-actions > .studio-panic { min-width: 44px; min-height: 44px; width: 44px; height: 44px; }
+  .studio-shell .studio-guide-button, .studio-shell .studio-presets button, .studio-shell .studio-new-take, .studio-shell .studio-preview-button, .studio-shell .studio-download, .studio-shell .studio-help-close { min-height: 44px; }
+  .studio-shell .studio-help-close { min-width: 44px; }
+  .studio-shell .studio-piano-key kbd { display: none; }
+  .studio-shell .studio-piano-key .studio-note-name { font-size: 13px; }
+  .studio-shell .studio-piano-key.is-black .studio-note-name { font-size: 11px; }
+  .studio-shell .studio-step-grid { min-width: 888px; }
+  .studio-shell .studio-step-scale, .studio-shell .studio-step-row { grid-template-columns: 88px repeat(16, 44px); gap: 6px; }
+  .studio-shell .studio-step { height: 44px; }
+  .studio-shell .studio-step-label { padding-right: 12px; }
+  .studio-shell .studio-step-label input[type=range] { width: 64px; height: 32px; }
+  .studio-shell .studio-step-label > span { font-size: 13px; }
+  .studio-shell .studio-scroll-hint { display: block; margin-top: 7px; font-weight: 750; }
+  .studio-shell .studio-recording-dock { display: block; max-width: calc(100vw - 26px); }
+  .studio-shell .studio-recording-dock button { min-height: 44px; padding-inline: 12px; }
+  .studio-shell .studio-page { padding-bottom: 90px; }
+}

@@ -219,3 +219,26 @@ html[data-contrast=high] .home-hub .studio-promo-launch { border-color: #fff; bo
   .arcade-mascot, .home-hub .game-art { display: none; }
   .home-hub :is(.game-card, .music-fact, .studio-promo, .daily-note, .card-bottom > strong) { border: 2px solid CanvasText; box-shadow: none; }
 }
+
+/* Keep navigation labelled and finger-sized, including the instructions on phones. */
+@media (max-width: 600px) {
+  .hub-header.hub-header-with-studio { display: grid; grid-template-columns: minmax(0, 1fr) auto; height: auto; min-height: 0; padding: 10px 14px 0; gap: 7px 10px; }
+  .hub-header.hub-header-with-studio > .musical-daily-navigation { grid-column: 1; grid-row: 1; min-width: 0; width: auto; }
+  .hub-header.hub-header-with-studio .musical-daily-home { min-height: 44px; display: inline-flex; align-items: center; }
+  .hub-header.hub-header-with-studio .musical-daily-logo { width: 160px; max-width: 100%; height: auto; }
+  .hub-header.hub-header-with-studio > .md-account { grid-column: 2; grid-row: 1; margin: 0; justify-self: end; }
+  .hub-header.hub-header-with-studio nav { grid-column: 1 / -1; grid-row: 2; display: flex; width: 100%; height: auto; min-width: 0; margin: 0; gap: 4px; justify-content: space-between; }
+  .hub-header.hub-header-with-studio nav > a, .hub-header.hub-header-with-studio .hub-help { display: flex; flex: 1 1 0; justify-content: center; align-items: center; gap: 6px; width: auto; min-width: 44px; height: 46px; padding: 4px; font-size: 12px; line-height: 1.2; }
+  .hub-header.hub-header-with-studio nav > a > .hub-nav-text { display: inline; font-size: 12px; }
+  .hub-header.hub-header-with-studio.hub-header-games nav > a[aria-current=page] { display: none; }
+  .hub-header.hub-header-with-studio .hub-help .question-icon { flex: 0 0 18px; }
+  .home-hub .music-fact :is(button, a), .home-hub .music-fact-hidden button { min-height: 44px; }
+}
+@media (max-width: 360px) {
+  .hub-header.hub-header-with-studio .musical-daily-logo { width: 150px; }
+}
+@media (pointer: coarse) {
+  .home-hub .music-fact :is(button, a), .home-hub .music-fact-hidden button { min-height: 44px; }
+  .home-hub .hero-studio-invite > a { min-height: 44px; display: inline-flex; align-items: center; }
+  .game-picker-dialog :is(.picker-close, .picker-actions > button, .picker-actions > a), .home-hub ~ dialog .close-button { min-width: 44px; min-height: 44px; }
+}

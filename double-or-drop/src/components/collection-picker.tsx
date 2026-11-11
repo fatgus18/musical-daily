@@ -45,9 +45,13 @@ export function CollectionPicker({ themes, selected, disabled, onSelect }: { the
 
   function position() {
     const rect = trigger.current?.getBoundingClientRect(); if (!rect) return;
-    const below = window.innerHeight - rect.bottom - 20, above = rect.top - 20;
+    const viewport = window.visualViewport;
+    const top = viewport?.offsetTop || 0;
+    const bottom = top + (viewport?.height || window.innerHeight);
+    const below = bottom - rect.bottom - 12, above = rect.top - top - 12;
     const side = below < 340 && above > below ? "above" : "below";
-    setPlacement(side); setMaxHeight(Math.max(130, Math.min(320, (side === "above" ? above : below) - 79)));
+    const chromeHeight = window.matchMedia("(pointer: coarse)").matches ? 90 : 125;
+    setPlacement(side); setMaxHeight(Math.max(64, Math.min(320, (side === "above" ? above : below) - chromeHeight)));
   }
   function show(index = options.findIndex(theme => theme.id === current?.id)) {
     if (disabled) return;
@@ -79,7 +83,8 @@ export function CollectionPicker({ themes, selected, disabled, onSelect }: { the
     if (!expanded) return;
     const outside = (event: PointerEvent) => { if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false); };
     document.addEventListener("pointerdown", outside); window.addEventListener("resize", position);
-    return () => { document.removeEventListener("pointerdown", outside); window.removeEventListener("resize", position); };
+    window.visualViewport?.addEventListener("resize", position);
+    return () => { document.removeEventListener("pointerdown", outside); window.removeEventListener("resize", position); window.visualViewport?.removeEventListener("resize", position); };
   }, [expanded]);
   useEffect(() => {
     if (expanded) root.current?.querySelector<HTMLElement>(`[data-option-index="${highlighted}"]`)?.scrollIntoView({ block: "nearest" });
@@ -95,7 +100,7 @@ export function CollectionPicker({ themes, selected, disabled, onSelect }: { the
     {expanded && <div className={`collection-menu picker-menu placement-${placement}`}>
       <div className="picker-menu-heading"><span>FIND YOUR MOOD</span><small>A good run starts with good music.</small></div>
       <div id={listId} role="listbox" aria-label="Music collections" className="collection-options" style={{ maxHeight }}>
-        {options.map((theme, index) => { const info = details(theme), chosen = current?.id === theme.id; return <button key={theme.id} id={`${listId}-option-${index}`} data-option-index={index} type="button" role="option" aria-selected={chosen} tabIndex={-1} className={`picker-option collection-option ${highlighted === index ? "is-highlighted" : ""} ${chosen ? "is-selected" : ""}`} onMouseDown={event => event.preventDefault()} onPointerMove={() => setHighlighted(index)} onClick={() => choose(index)}>
+        {options.map((theme, index) => { const info = details(theme), chosen = current?.id === theme.id; return <button key={theme.id} id={`${listId}-option-${index}`} data-option-index={index} type="button" role="option" aria-selected={chosen} tabIndex={-1} className={`picker-option collection-option ${highlighted === index ? "is-highlighted" : ""} ${chosen ? "is-selected" : ""}`} onMouseDown={event => event.preventDefault()} onPointerMove={event => { if (event.pointerType === "mouse") setHighlighted(index); }} onClick={() => choose(index)}>
           <span className={`option-icon tone-${info.tone}`}><CollectionIcon kind={theme.id}/></span><span className="picker-option-copy"><strong>{theme.label}</strong><small>{info.description}</small></span><span className="option-check" aria-hidden="true">{chosen ? "✓" : ""}</span>
         </button>; })}
       </div>

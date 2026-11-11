@@ -129,6 +129,30 @@ body.md-game-tempo .buddy-note { animation: tempo-note-arrive 1s ease-out both; 
   body.md-game-tempo .album-wrapper { width: 82px; }
   body.md-game-tempo .challenge-panel { padding-inline: 17px; }
 }
+/* A complete listening strip and a keyboard-friendly guessing surface. */
+@media (max-width: 700px) {
+  body.md-game-tempo .playback-progress { grid-column: 1 / -1; grid-row: 3; margin-top: 16px; }
+  body.md-game-tempo .player-controls { grid-row: 4; margin-top: 10px; }
+  body.md-game-tempo .volume-control { min-height: 44px; }
+  body.md-game-tempo .volume-control input { min-height: 44px; }
+  body.md-game-tempo :is(.icon-button, .streak-button, .mode-toggle button) { min-width: 44px; min-height: 44px; }
+  body.md-game-tempo .game-bottom-note > button, body.md-game-tempo .listen-link { min-height: 44px; align-items: center; }
+  body.md-game-tempo .result-tracks .icon-button { width: 44px; height: 44px; }
+}
+@media (max-width: 700px), (max-height: 500px) {
+  body.md-game-tempo .game-panel[data-phase="guessing"] .phase-steps,
+  body.md-game-tempo .game-panel[data-phase="submitting"] .phase-steps { display: none; }
+  body.md-game-tempo .guess-content { flex: none; justify-content: flex-start; min-height: 0; padding-top: 0; scroll-margin-block: 12px; }
+  body.md-game-tempo .guess-content > p { display: none; }
+  body.md-game-tempo .guess-content h2 { font-size: 27px; margin: 10px 0 0; }
+  body.md-game-tempo .guess-content form { margin-top: 14px; }
+  body.md-game-tempo .guess-content .bpm-label { margin-bottom: 7px; }
+  body.md-game-tempo .guess-content .bpm-input-wrap input { font-size: 46px; }
+  body.md-game-tempo .guess-content .input-hint { margin: 8px 0 12px; }
+  body.md-game-tempo .guess-timer-track { margin-top: 12px; }
+  body.md-game-tempo dialog { max-height: calc(100dvh - 24px); padding: 24px 20px; overflow-y: auto; overscroll-behavior: contain; }
+  body.md-game-tempo dialog > h2 { padding-right: 28px; }
+}
 html[data-contrast="high"] body.md-game-tempo :is(.site-header, .round-toolbar, .game-panel, .record-panel, .challenge-panel, .phase-steps, .audio-wave, .comparison, .game-bottom-note, .mode-toggle, .results-panel, dialog) { background: #101216; border-color: #d9e0ec; box-shadow: none; }
 html[data-contrast="high"] body.md-game-tempo :is(.game-heading p, .phase-content > p, .artist-name, .track-year, .audio-source, .playback-progress, .input-hint, .reveal-content > .feedback) { color: #f0f2f6; }
 @media (prefers-reduced-motion: reduce) {

@@ -122,6 +122,10 @@ body.md-game-drop .result-metrics strong { font-family: var(--md-font-sans); fon
 body.md-game-drop .result-sticker { background: #c4f58a; color: #1c2b23; border-radius: 16px; box-shadow: 5px 5px 0 #657f4a; transform: rotate(-8deg); }
 body.md-game-drop .help-dialog { background: #20233b; border: 2px solid #737795; border-radius: 22px; }
 body.md-game-drop .help-dialog :is(p, li) { color: #d5d7e6; }
+body.md-game-drop .touch-pick-hint { display: none; }
+body.md-game-drop .help-dialog { max-height: calc(100dvh - 32px); overscroll-behavior: contain; }
+body.md-game-drop :is(.help-button, .dialog-close, .game-wordmark) { min-width: 44px; min-height: 44px; }
+body.md-game-drop .question-heading { scroll-margin-top: 12px; }
 body.md-game-drop .drop-buddy-one { transform-origin: 145px 230px; animation: drop-buddy-hello 1.4s ease-out both; }
 body.md-game-drop .drop-buddy-two { transform-origin: 286px 240px; animation: drop-buddy-hello 1.4s .15s ease-out both; }
 @keyframes drop-buddy-hello { 0% { transform: translateY(14px) rotate(-7deg); } 40% { transform: translateY(-8px) rotate(5deg); } 70% { transform: rotate(-2deg); } 100% { transform: none; } }
@@ -155,6 +159,42 @@ body.md-game-drop .drop-buddy-two { transform-origin: 286px 240px; animation: dr
   body.md-game-drop .daily-progress { padding: 15px; }
   body.md-game-drop .daily-progress li { border-radius: 6px; }
   body.md-game-drop .rule-strip > div { padding: 19px; }
+  body.md-game-drop .artist-search .search-input input { font-size: 16px; min-height: 32px; }
+  body.md-game-drop .artist-search-clear { min-width: 44px; min-height: 44px; }
+  body.md-game-drop .artist-search .search-input { padding-inline: 12px; gap: 10px; }
+  body.md-game-drop .artist-input-copy { min-width: 0; }
+  body.md-game-drop .collection-note > summary, body.md-game-drop .run-history > summary { min-height: 44px; display: flex; align-items: center; }
+  body.md-game-drop .text-button, body.md-game-drop .result-stats-link { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  body.md-game-drop .question-heading { margin-top: 16px; margin-bottom: 14px; }
+  body.md-game-drop .question-heading h1 { font-size: clamp(24px, 6.7vw, 29px); line-height: 1.15; }
+  body.md-game-drop .question-heading p { font-size: 14px; line-height: 1.5; margin-bottom: 0; }
+  body.md-game-drop .song-card .song-info { padding: 13px; min-height: 0; }
+  body.md-game-drop .song-card .song-info > h2 { font-size: 18px; line-height: 1.25; margin-bottom: 10px; overflow-wrap: anywhere; }
+  body.md-game-drop .song-card .song-info > p { font-size: 13px; margin-bottom: 9px; }
+  body.md-game-drop .song-card .song-pick { grid-template-columns: 88px minmax(0, 1fr); }
+  body.md-game-drop .song-card .artwork { height: 116px; }
+  body.md-game-drop .song-card .pick-prompt { font-size: 13px; }
+}
+@media (pointer: coarse) {
+  body.md-game-drop .touch-pick-hint { display: inline; }
+  body.md-game-drop .keyboard-pick-hint, body.md-game-drop .picker-menu-foot, body.md-game-drop .decision-actions kbd { display: none; }
+  body.md-game-drop .is-guessing .song-card:has(button:not(:disabled)):hover,
+  body.md-game-drop .is-guessing .song-card:has(button:not(:disabled)):hover .artwork img { transform: none; }
+}
+@media (max-height: 500px) and (min-width: 681px) and (max-width: 1000px) {
+  body.md-game-drop .question-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 18px; margin: 12px 0; text-align: left; }
+  body.md-game-drop .question-meta { grid-row: span 2; margin: 0; }
+  body.md-game-drop .question-heading h1 { font-size: 25px; margin: 0; }
+  body.md-game-drop .question-heading p { font-size: 13px; line-height: 1.4; margin: 0; }
+  body.md-game-drop .comparison { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 25px; }
+  body.md-game-drop .song-card .song-pick { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; }
+  body.md-game-drop .song-card .artwork { height: 120px; }
+  body.md-game-drop .song-card .artwork img, body.md-game-drop .artwork-fallback { inset: 0; width: 100%; height: 100%; object-fit: cover; transform: none; }
+  body.md-game-drop .sleeve-record { display: none; }
+  body.md-game-drop .song-card .song-info { min-height: 0; padding: 12px; }
+  body.md-game-drop .song-info > h2 { font-size: 17px; margin-bottom: 10px; }
+  body.md-game-drop .song-info > p, body.md-game-drop .pick-prompt { font-size: 13px; }
+  body.md-game-drop .comparison .versus { position: absolute; top: 50%; left: 50%; margin: 0; transform: translate(-50%, -50%); }
 }
 @media (max-width: 360px) { body.md-game-drop .score-cell { padding-inline: 9px; } body.md-game-drop .score-cell > strong { font-size: 28px; } body.md-game-drop .game-wordmark { font-size: 25px; } }
 html[data-contrast="high"] body.md-game-drop :is(.site-header, .setup-panel, .play-mode, .collection-control, .artist-search .search-input.collection-control, .picker-menu, .scoreboard, .score-cell, .daily-progress, .song-card, .song-card:nth-of-type(2), .artwork, .song-card:nth-of-type(2) .artwork, .decision-panel, .result-panel, .rule-strip > div, .ladder, .help-dialog) { background: #101216; border-color: #d9e0ec; box-shadow: none; }

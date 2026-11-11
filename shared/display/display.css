@@ -50,3 +50,14 @@ html[data-contrast="high"] .md-stats-record-friend {display:none}
  .md-sound .md-sound-popover{right:56px;bottom:0;max-height:80vh;overflow-y:auto}
 }
 @media(forced-colors:active){.md-sound .md-sound-bar,.md-sound .md-sound-popover{background:Canvas;border:1px solid ButtonText}.md-sound button{forced-color-adjust:auto}.md-sound .md-contrast-toggle[aria-pressed="true"]{outline:2px solid Highlight;outline-offset:-3px}}
+/* A narrow visual track must not also be a six-pixel touch target. Native
+   range controls keep their familiar thumb inside this larger hit area. */
+@media (pointer: coarse), (max-width: 600px) {
+ .md-sound .md-sound-popover { width:min(300px,calc(100vw - 36px)); padding:18px; }
+ .md-sound .md-sound-popover > p,
+ .md-sound .md-sound-popover label,
+ .md-sound .md-sound-popover label > span { font-size:14px; }
+ .md-sound .md-sound-popover input[type="range"] { min-height:44px; height:44px; margin:0; }
+ .md-sound .md-sound-close { min-height:44px; font-size:14px!important; }
+ .md-sound button, .md-account button, .md-account a { touch-action:manipulation; }
+}
