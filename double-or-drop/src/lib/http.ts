@@ -1,11 +1,17 @@
 import {createHash,randomBytes} from "node:crypto";
 import {NextRequest,NextResponse} from "next/server";
 import {getAccount} from "@musical-daily/accounts/server";
+import {claimGuestIdentity} from "./guest-claim.ts";
+import {store} from "./store.ts";
 
 const COOKIE="double_drop_player";
 export function anonymousIdentity(req:NextRequest){let token=req.cookies.get(COOKIE)?.value;if(!token||!/^[a-f0-9]{64}$/.test(token))token=randomBytes(32).toString("hex");return {token,player:createHash("sha256").update(token).digest("hex")};}
 export async function identity(req:NextRequest,token=anonymousIdentity(req).token){
   let user;try{user=await getAccount(req,"double-drop");}catch{throw Object.assign(new Error("Your account connection is unavailable. Please retry to keep your progress safe."),{status:503});}
+  const guestToken=req.cookies.get(COOKIE)?.value;
+  if(user&&process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES==="1"&&guestToken){
+    token=await claimGuestIdentity(await store(),guestToken,user.id)??token;
+  }
   return {token,user,player:user?`account:${user.id}`:createHash("sha256").update(token).digest("hex")};
 }
 export function reply(body:unknown,token:string,status=200){const response=NextResponse.json(body,{status,headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});response.cookies.set(COOKIE,token,{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax",path:"/",maxAge:31536000});return response;}

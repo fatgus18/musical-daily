@@ -23,6 +23,7 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
   const hubSession = (request: Request) => store.session(readCookie(request, cookieName), "hub");
   async function finish(session: Session, target: AuthFlow["target"], returnTo: string) {
     if (!target) return redirect(new URL(safeReturnPath(returnTo), config.hub).toString());
+    if (config.paths) return redirect(new URL(`${config.paths[target.app] || ""}/`, config.hub).toString());
     const url = new URL(`${config.paths?.[target.app] || ""}/api/account/callback`, config.origins[target.app]);
     url.search = new URLSearchParams({ code: await store.handoff(session, target.app, target.state, target.challenge), state: target.state }).toString();
     return redirect(url.toString());
@@ -68,7 +69,9 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
     async logout(request: Request) {
       if (request.headers.get("origin") !== config.hub) return noStoreJson({ error: "Invalid request origin" }, 403);
       const session = await hubSession(request); if (session) await store.revoke(session.family);
-      const response = noStoreJson({ ok: true }); setCookie(response, cookieName, "", config.hub, 0); return response;
+      const response = noStoreJson({ ok: true }); setCookie(response, cookieName, "", config.hub, 0);
+      if (config.paths) for (const name of [flowCookie, ...games.flatMap(app => [`md_${app}_session`, `md_${app}_login`])]) setCookie(response, name, "", config.hub, 0);
+      return response;
     },
     async service(request: Request) {
       // Only authenticated app servers may publish results or exchange login codes.
@@ -78,15 +81,16 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
       const { app, action } = body;
       if (!games.includes(app)) return noStoreJson({ error: "Unknown application" }, 400);
       if (action === "exchange") {
+        if (config.paths) return noStoreJson({ error: "This application uses the central Musical Daily session" }, 400);
         if (!opaque(body.code) || !opaque(body.state) || !opaque(body.verifier)) return noStoreJson({ error: "Invalid sign-in exchange" }, 400);
         const exchanged = await store.exchange(app, body.code, body.state, body.verifier);
         return exchanged ? noStoreJson(exchanged) : noStoreJson({ error: "This sign-in link has expired or was already used" }, 401);
       }
-      const session = await store.session(typeof body.token === "string" ? body.token : "", app);
+      const session = await store.session(typeof body.token === "string" ? body.token : "", config.paths ? "hub" : app);
       if (action === "session") return noStoreJson({ user: session?.user || null, configured: config.configured });
       if (action === "stats") return noStoreJson(await store.stats(session?.user || null));
+      if (action === "logout") { if (session) await store.revoke(session.family); return noStoreJson({ ok: true }); }
       if (!session) return noStoreJson({ error: "Please sign in again" }, 401);
-      if (action === "logout") { await store.revoke(session.family); return noStoreJson({ ok: true }); }
       try {
         if (action === "result") return noStoreJson(await store.result(session.user.id, app, body.event as ResultEvent));
         if (action === "results") return noStoreJson(await store.results(session.user.id, app, body.events as ResultEvent[]));

@@ -95,6 +95,7 @@ export interface MusicStatsProps {
 const gameOrder: GameId[] = ["blackjack", "tempo", "encore", "double-drop"];
 
 function gameHref(url: string, signedIn: boolean) {
+  if (process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES === "1") return url;
   return signedIn ? `${url.replace(/\/$/, "")}/api/account/login?returnTo=%2F` : url;
 }
 

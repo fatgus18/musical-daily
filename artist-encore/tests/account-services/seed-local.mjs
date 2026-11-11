@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, relative, isAbsolute } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { AccountStore } from "../../../musical-daily/src/lib/account-store.ts";
 import { openStore, recordMix } from "../../src/lib/store.ts";
 import { createGame, act } from "../../src/lib/engine.ts";
@@ -23,12 +23,18 @@ try {
     console.log(JSON.stringify({ user, session: await accounts.createSession(user.id, "hub") }));
   } else if (process.argv[2] === "session") {
     console.log(JSON.stringify(await accounts.createSession(process.argv[3], "hub")));
-  } else if (process.argv[2] === "encore") {
+  } else if (process.argv[2] === "legacy-sessions") {
+    const sessions = {};
+    for (const app of ["blackjack", "tempo", "encore", "double-drop"]) sessions[app] = await accounts.createSession(process.argv[3], app);
+    console.log(JSON.stringify(sessions));
+  } else if (process.argv[2] === "encore" || process.argv[2] === "guest-encore") {
+    if (process.argv[2] === "guest-encore" && !/^[a-f0-9]{64}$/.test(process.argv[3])) throw new Error("Expected a local anonymous player token.");
+    const player = process.argv[2] === "guest-encore" ? createHash("sha256").update(process.argv[3]).digest("hex") : `account:${process.argv[3]}`;
     const db = await openStore(fixture.encore);
     try {
       const marker = randomUUID();
       const pool = { artist: { id: marker, name: "QA Fixture Artist", image: "", url: "https://music.apple.com/" }, tracks: Array.from({ length: 30 }, (_, index) => ({ id: `qa-${index}`, title: `Fixture ${index}`, artistId: marker, artist: "QA Fixture Artist", aliases: [], preview: `https://audio-ssl.itunes.apple.com/${index}.m4a`, artwork: "https://is1-ssl.mzstatic.com/fixture.jpg", url: "https://music.apple.com/", duration: 200, rank: 100 - index })), ranking: { kind: "streams", label: "Private QA fixture", sourceUrl: "https://example.invalid", asOf: new Date().toISOString().slice(0, 10) }, fetchedAt: Date.now() };
-      const game = createGame(`account:${process.argv[3]}`, pool, [], marker, Date.now() - 200000);
+      const game = createGame(player, pool, [], marker, Date.now() - 200000);
       for (let round = 0; round < 10; round++) {
         const now = game.createdAt + round * 19000;
         act(game, "listen", round, "", now);

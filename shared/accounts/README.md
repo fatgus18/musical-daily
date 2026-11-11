@@ -64,9 +64,10 @@ The services build wrapper defaults to guest mode and enables accounts only for 
 ## Sessions and consistency
 
 - Google's library verifies ID tokens. The account key is Google's immutable subject, never an email supplied by a browser.
-- OAuth uses browser-bound state, PKCE and nonce. Game handoffs are app-bound, hashed, short-lived and single-use.
-- Opaque HttpOnly cookies have distinct app audiences. Separate domains work without parent-domain cookies or cross-origin browser API writes.
-- Signing in through a game signs into the hub too. Links from a signed-in hub automatically establish the game session. Another game's direct URL may need one Sign in click; an existing hub session avoids another Google prompt.
+- OAuth uses browser-bound state, PKCE and nonce.
+- Vercel services use one opaque, HttpOnly `md_hub_session` cookie for the entire application. The homepage, direct game URLs and all stats pages resolve the same central identity immediately; no per-game sign-in or handoff is needed. Legacy game cookies are ignored in this deployment mode.
+- Every services sign-in action returns through the hub login route. Public game origins are derived from `MUSICAL_DAILY_AUTH_ORIGIN`, so a stale standalone `MUSICAL_DAILY_APP_ORIGIN` cannot redirect players to another host.
+- Separate-domain standalone deployments retain their app-bound, hashed, short-lived, single-use handoffs and distinct session audiences.
 - Sign-out revokes the browser session family across all apps. Other tabs reconcile on focus and periodic refresh. A separately signed-in device retains its own session.
 - An account-service outage does not silently turn a signed-in game into guest progress.
 
@@ -84,7 +85,7 @@ Encore and Double or Drop events use `status: "completed" | "incomplete"`; missi
 
 Stats count all finalized events under `played`, with separate `completed` and `incomplete` counts. Completion score totals, averages, best scores, wins, and streaks exclude incomplete runs. Encore and Double or Drop accuracy includes every answered question across both statuses, so discarding cannot erase misses; unanswered questions never count as wrong. Protected Double or Drop banks remain in `totalBanked` and `bestBanked`. Recent results include the status, reason, and actual answer totals. Merely navigating home leaves a resumable run active and does not immediately record it as incomplete; finalizing, replacing, or expiring it records the result once.
 
-Verified Encore login claims server-held games and repeat history from that browser's anonymous cookie once. Browser-only Blackjack/Tempo aggregates are not trusted or silently imported: their guest history stays local, while new signed-in games belong to the account. Logout/account switching clears the previous user's displayed data and uses separate browser-storage namespaces.
+The first verified Encore or Double or Drop game request claims server-held guest history from an existing browser cookie once, including when entering a game directly after homepage sign-in. A transactional claim ledger prevents later accounts from claiming leftovers; consumed guest cookies are rotated. Standalone login callbacks retain this behavior. Browser-only Blackjack/Tempo aggregates are not trusted or silently imported: their guest history stays local, while new signed-in games belong to the account. Logout/account switching clears the previous user's displayed data and uses separate browser-storage namespaces.
 
 ## Production
 
@@ -103,7 +104,7 @@ MUSICAL_DAILY_APP_ORIGIN=https://musical-daily.vercel.app
 NEXT_PUBLIC_GUEST_ONLY=0
 ```
 
-Keep both origins as the bare public HTTPS origin, without a game path. The four game services and hub must share the same strong `MUSICAL_DAILY_SERVICE_SECRET`. Vercel supplies each game's internal hub binding separately; never set `MUSICAL_DAILY_ACCOUNT_SERVICE_URL` manually. Keep all credentials server-only and out of version control.
+Keep the canonical `MUSICAL_DAILY_AUTH_ORIGIN` as the bare public HTTPS origin, without a game path. Vercel services derive every game's public origin from it; `MUSICAL_DAILY_APP_ORIGIN` is used only by separate-domain standalone deployments. The four game services and hub must share the same strong `MUSICAL_DAILY_SERVICE_SECRET`. Vercel supplies each game's internal hub binding separately; never set `MUSICAL_DAILY_ACCOUNT_SERVICE_URL` manually. Keep all credentials server-only and out of version control.
 
 Production activation order:
 

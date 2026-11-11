@@ -109,7 +109,8 @@ export function AccountSignIn() {
   if (loading) return <span className="md-account-loading" role="status">Checking your account…</span>;
   if (error) return <div className="md-account-message"><p role="alert">{error}</p><button type="button" onClick={() => void refresh()}>Try again</button></div>;
   if (!configured) return <div className="md-account-message"><p>Google sign-in is being set up. You can keep playing as a guest.</p><button type="button" onClick={() => void refresh()}>Check again</button></div>;
-  return <a className="md-google-sign-in" href={withBasePath(`/api/account/login?returnTo=${encodeURIComponent(returnTo)}`)}><GoogleMark /> Continue with Google</a>;
+  const login = `/api/account/login?returnTo=${encodeURIComponent(returnTo)}`;
+  return <a className="md-google-sign-in" href={process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES === "1" ? login : withBasePath(login)}><GoogleMark /> Continue with Google</a>;
 }
 
 export function AccountButton({ statsHref = "/stats" }: { statsHref?: string }) {

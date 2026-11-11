@@ -7,6 +7,9 @@ const digest = (value) => createHash("sha256").update(value).digest("base64url")
 const safePath = (value) => typeof value === "string" && value.startsWith("/") && !value.startsWith("//") && !/[\\\x00-\x1f\x7f]/.test(value) ? value : "/";
 const cookieName = (app) => `md_${app}_session`;
 const guestOnly = () => process.env.NEXT_PUBLIC_GUEST_ONLY === "1";
+const centralized = () => process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES === "1";
+const sessionCookie = (app) => centralized() ? "md_hub_session" : cookieName(app);
+const sessionToken = (request, app) => cookie(request, sessionCookie(app));
 function publicPath(value) {
   const base = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/+$/, "");
   if (base && (!/^\/[a-zA-Z0-9_/-]+$/.test(base) || base.startsWith("//"))) throw new Error("Invalid game base path");
@@ -23,8 +26,11 @@ function origin(value, fallback) { const url = new URL(value || fallback); if (!
 function config(app) {
   if (!(app in ports)) throw new Error("Unknown game");
   const production = process.env.NODE_ENV === "production";
-  if (production && (!process.env.MUSICAL_DAILY_AUTH_ORIGIN || !process.env.MUSICAL_DAILY_APP_ORIGIN)) throw new Error("Account service origins must be configured in production");
-  return { hub: origin(process.env.MUSICAL_DAILY_AUTH_ORIGIN, "http://localhost:3001"), appOrigin: origin(process.env.MUSICAL_DAILY_APP_ORIGIN, `http://localhost:${ports[app]}`), secret: process.env.MUSICAL_DAILY_SERVICE_SECRET || "" };
+  if (production && (!process.env.MUSICAL_DAILY_AUTH_ORIGIN || (!centralized() && !process.env.MUSICAL_DAILY_APP_ORIGIN))) throw new Error("Account service origins must be configured in production");
+  const hub = origin(process.env.MUSICAL_DAILY_AUTH_ORIGIN, "http://localhost:3001");
+  // One public deployment has one trusted origin and one browser session.
+  // A stale standalone APP_ORIGIN must never send signed-in visitors elsewhere.
+  return { hub, appOrigin: centralized() ? hub : origin(process.env.MUSICAL_DAILY_APP_ORIGIN, `http://localhost:${ports[app]}`), secret: process.env.MUSICAL_DAILY_SERVICE_SECRET || "" };
 }
 function json(body, status = 200) { return Response.json(body, { status, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } }); }
 function cookieValue(name, value, appOrigin, maxAge) { return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${appOrigin.startsWith("https:") ? "; Secure" : ""}`; }
@@ -41,26 +47,31 @@ function serviceEndpoint(publicHub) {
 async function central(request, app, action, data = {}) {
   const settings = config(app);
   if (settings.secret.length < 32) throw new Error("Account service is not configured");
-  const response = await fetch(serviceEndpoint(settings.hub), { method: "POST", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json", "X-Musical-Daily-Service": settings.secret }, body: JSON.stringify({ app, action, token: cookie(request, cookieName(app)), ...data }) });
+  const response = await fetch(serviceEndpoint(settings.hub), { method: "POST", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json", "X-Musical-Daily-Service": settings.secret }, body: JSON.stringify({ app, action, token: sessionToken(request, app), ...data }) });
   if (response.status >= 500) throw new Error("Account service is temporarily unavailable");
   const payload = await response.json();
   if (!response.ok) { const error = new Error(payload.error || "Account request failed"); error.status = response.status; throw error; }
   return payload;
 }
-export async function getAccount(request, app) { if (guestOnly() || !cookie(request, cookieName(app))) return null; return (await central(request, app, "session")).user; }
-export async function publishResult(request, app, event) { if (guestOnly() || !cookie(request, cookieName(app))) return { saved: false }; return central(request, app, "result", { event }); }
-export async function publishResults(request, app, events) { if (guestOnly()) return { saved: false }; if (!Array.isArray(events) || !events.length || events.length > 50) throw new Error("Expected between one and fifty results"); if (!cookie(request, cookieName(app))) return { saved: false }; return central(request, app, "results", { events }); }
+export async function getAccount(request, app) { if (guestOnly() || !sessionToken(request, app)) return null; return (await central(request, app, "session")).user; }
+export async function publishResult(request, app, event) { if (guestOnly() || !sessionToken(request, app)) return { saved: false }; return central(request, app, "result", { event }); }
+export async function publishResults(request, app, events) { if (guestOnly()) return { saved: false }; if (!Array.isArray(events) || !events.length || events.length > 50) throw new Error("Expected between one and fifty results"); if (!sessionToken(request, app)) return { saved: false }; return central(request, app, "results", { events }); }
 export async function getStats(request, app) { return guestOnly() ? emptyStats() : central(request, app, "stats"); }
-export async function loadProgress(request, app, key) { if (guestOnly() || !cookie(request, cookieName(app))) return null; return (await central(request, app, "load-progress", { key })).progress; }
-export async function saveProgress(request, app, key, value, revision = 0, event) { if (guestOnly() || !cookie(request, cookieName(app))) return { saved: false, revision: 0 }; return central(request, app, "save-progress", { key, value, revision, ...(event ? { event } : {}) }); }
+export async function loadProgress(request, app, key) { if (guestOnly() || !sessionToken(request, app)) return null; return (await central(request, app, "load-progress", { key })).progress; }
+export async function saveProgress(request, app, key, value, revision = 0, event) { if (guestOnly() || !sessionToken(request, app)) return { saved: false, revision: 0 }; return central(request, app, "save-progress", { key, value, revision, ...(event ? { event } : {}) }); }
 
 export function makeAccountRoutes(app, hooks = {}) {
   return {
-    async session(request) { if (guestOnly()) return json({ user: null, configured: false }); try { const settings = config(app); if (settings.secret.length < 32) { if (cookie(request, cookieName(app))) throw new Error("Account service is not configured"); return json({ user: null, configured: false }); } return json(await central(request, app, "session")); } catch { return cookie(request, cookieName(app)) ? json({ error: "Account service is temporarily unavailable" }, 503) : json({ user: null, configured: false }); } },
+    async session(request) { if (guestOnly()) return json({ user: null, configured: false }); try { const settings = config(app); if (settings.secret.length < 32) { if (sessionToken(request, app)) throw new Error("Account service is not configured"); return json({ user: null, configured: false }); } return json(await central(request, app, "session")); } catch { return sessionToken(request, app) ? json({ error: "Account service is temporarily unavailable" }, 503) : json({ user: null, configured: false }); } },
     async login(request) {
       if (guestOnly()) return json({ error: "Google sign-in is disabled for this guest preview" }, 503);
       try {
         const settings = config(app);
+        if (centralized()) {
+          const target = new URL("/api/account/login", settings.hub);
+          target.searchParams.set("returnTo", publicPath(new URL(request.url).searchParams.get("returnTo")));
+          return redirect(target.toString());
+        }
         const status = await central(request, app, "session");
         if (!status.configured) return redirect(`${settings.appOrigin}${publicPath("/?accountError=not-configured")}`);
         const state = random(); const verifier = random();
@@ -76,6 +87,13 @@ export function makeAccountRoutes(app, hooks = {}) {
     async callback(request) {
       if (guestOnly()) return json({ error: "Google sign-in is disabled for this guest preview" }, 503);
       const settings = config(app);
+      // Old tabs may still have a standalone callback URL. Complete navigation
+      // through the central session instead of installing another game cookie.
+      if (centralized()) {
+        const target = new URL("/api/account/login", settings.hub);
+        target.searchParams.set("returnTo", publicPath("/"));
+        return redirect(target.toString());
+      }
       const fail = () => { const response = redirect(`${settings.appOrigin}${publicPath("/?accountError=sign-in-failed")}`); response.headers.append("Set-Cookie", cookieValue(`md_${app}_login`, "", settings.appOrigin, 0)); return response; };
       try {
         const [value, signature] = cookie(request, `md_${app}_login`).split(".");
@@ -104,7 +122,15 @@ export function makeAccountRoutes(app, hooks = {}) {
           return response;
         } catch { return json({ error: "Could not sign out. Please retry." }, 503); }
       }
-      try { const settings = config(app); if (!sameOrigin(request, settings.appOrigin)) return json({ error: "Invalid request origin" }, 403); if (cookie(request, cookieName(app))) await central(request, app, "logout"); const response = json({ ok: true }); response.headers.append("Set-Cookie", cookieValue(cookieName(app), "", settings.appOrigin, 0)); return response; } catch { return json({ error: "Could not sign out. Please retry." }, 503); }
+      try {
+        const settings = config(app);
+        if (!sameOrigin(request, settings.appOrigin)) return json({ error: "Invalid request origin" }, 403);
+        if (sessionToken(request, app)) await central(request, app, "logout");
+        const response = json({ ok: true });
+        const names = centralized() ? ["md_hub_session", "md_google_flow", ...Object.keys(ports).flatMap(id => [cookieName(id), `md_${id}_login`])] : [cookieName(app)];
+        for (const name of names) response.headers.append("Set-Cookie", cookieValue(name, "", settings.appOrigin, 0));
+        return response;
+      } catch { return json({ error: "Could not sign out. Please retry." }, 503); }
     },
     async stats(request) { try { return json(await getStats(request, app)); } catch { return json({ error: "Account statistics are temporarily unavailable" }, 503); } },
   };

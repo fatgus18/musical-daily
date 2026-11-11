@@ -13,6 +13,7 @@ export async function openStore(path?:string):Promise<Database>{
     CREATE TABLE IF NOT EXISTS exposures(player TEXT NOT NULL,artist TEXT NOT NULL,track TEXT NOT NULL,plays INTEGER NOT NULL,last_played INTEGER NOT NULL,PRIMARY KEY(player,artist,track));
     CREATE TABLE IF NOT EXISTS limits(player TEXT NOT NULL,kind TEXT NOT NULL,window INTEGER NOT NULL,count INTEGER NOT NULL,PRIMARY KEY(player,kind));
     CREATE TABLE IF NOT EXISTS maintenance(key TEXT PRIMARY KEY,last_run INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS guest_account_claims(guest_player TEXT PRIMARY KEY,user_id TEXT NOT NULL,claimed_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS account_result_outbox(game_id TEXT PRIMARY KEY,player TEXT NOT NULL,event TEXT NOT NULL,created_at INTEGER NOT NULL,last_attempt INTEGER NOT NULL,synced_at INTEGER);
     CREATE INDEX IF NOT EXISTS account_result_player ON account_result_outbox(player,synced_at);`);
   return db;

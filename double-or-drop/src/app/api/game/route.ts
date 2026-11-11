@@ -15,9 +15,9 @@ import {validBankTarget,type BankTarget} from "@/lib/run-goals";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 async function availableCatalog(version?:string){try{return await loadSavedCatalog(version);}catch{throw Object.assign(new Error("The saved collection is temporarily unavailable. Please retry."),{status:503});}}
 export async function GET(req:NextRequest){
-  const {token}=anonymousIdentity(req);
+  let {token}=anonymousIdentity(req);
   try{
-    const {player}=await identity(req,token);const db=await store();await rateLimit(db,player,"read",180);
+    const authenticated=await identity(req,token);token=authenticated.token;const {player}=authenticated;const db=await store();await rateLimit(db,player,"read",180);
     const mode=req.nextUrl.searchParams.get("mode")||"unlimited";
     if(mode!=="daily"&&mode!=="unlimited")throw Object.assign(new Error("Choose daily or unlimited."),{status:400});
     const date=utcDate();
@@ -30,9 +30,9 @@ export async function GET(req:NextRequest){
   }catch(error){return errorReply(Object.assign(new Error("Unable to load this run."),{status:error&&typeof error==="object"&&"status" in error?error.status:503}),token);}
 }
 export async function POST(req:NextRequest){
-  const {token}=anonymousIdentity(req);
+  let {token}=anonymousIdentity(req);
   try{
-    const {player}=await identity(req,token);const body=await readBody(req);const db=await store();await rateLimit(db,player,"moves",120);
+    const authenticated=await identity(req,token);token=authenticated.token;const {player}=authenticated;const body=await readBody(req);const db=await store();await rateLimit(db,player,"moves",120);
     if(body.action==="create"){
       if(body.mode!==undefined&&body.mode!=="daily"&&body.mode!=="unlimited")throw new Error("Choose daily or unlimited.");
       if(!validBankTarget(body.bankTarget))throw new Error("Choose one of the available bank targets.");

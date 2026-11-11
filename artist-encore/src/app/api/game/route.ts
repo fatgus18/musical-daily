@@ -11,9 +11,9 @@ import {findGame,historyFor,rateLimit,startMix,saveGame,store,transaction} from 
 export const runtime="nodejs";export const dynamic="force-dynamic";
 
 export async function GET(req:NextRequest){
-  const {token}=anonymousIdentity(req);
+  let {token}=anonymousIdentity(req);
   try{
-    const {player}=await identity(req,token);const db=await store();
+    const authenticated=await identity(req,token);token=authenticated.token;const {player}=authenticated;const db=await store();
     const state=await transaction(db,async tx=>{
       const game=await findGame(tx,player);if(!game||!audioEnabled())return null;
       ensureChoices(game);expireGuess(game);await saveGame(tx,game);return publicGame(game);
@@ -24,9 +24,9 @@ export async function GET(req:NextRequest){
 }
 
 export async function POST(req:NextRequest){
-  const {token}=anonymousIdentity(req);
+  let {token}=anonymousIdentity(req);
   try{
-    const {player}=await identity(req,token);const body=await readBody(req);
+    const authenticated=await identity(req,token);token=authenticated.token;const {player}=authenticated;const body=await readBody(req);
     if(!audioEnabled()&&!["discard","sync"].includes(body.action))return reply({error:"Audio games are not enabled on this deployment yet."},token,503);
     const db=await store();await rateLimit(db,player,"moves",120);
     if(body.action==="create"){

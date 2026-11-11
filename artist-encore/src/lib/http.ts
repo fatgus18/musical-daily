@@ -1,8 +1,17 @@
 import {createHash,randomBytes} from "node:crypto";
 import {NextRequest,NextResponse} from "next/server";
 import {getAccount} from "@musical-daily/accounts/server";
+import {claimGuestIdentity} from "./guest-claim.ts";
+import {store} from "./store.ts";
 export function anonymousIdentity(req:NextRequest){let token=req.cookies.get("encore_player")?.value;if(!token||!/^\w{64}$/.test(token))token=randomBytes(32).toString("hex");return {token,player:createHash("sha256").update(token).digest("hex")};}
-export async function identity(req:NextRequest,token=anonymousIdentity(req).token){let user;try{user=await getAccount(req,"encore");}catch{throw Object.assign(new Error("Your account connection is unavailable. Please retry to keep your progress safe."),{status:503});}return {token,user,player:user?`account:${user.id}`:createHash("sha256").update(token).digest("hex")};}
+export async function identity(req:NextRequest,token=anonymousIdentity(req).token){
+  let user;try{user=await getAccount(req,"encore");}catch{throw Object.assign(new Error("Your account connection is unavailable. Please retry to keep your progress safe."),{status:503});}
+  const guestToken=req.cookies.get("encore_player")?.value;
+  if(user&&process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES==="1"&&guestToken){
+    token=await claimGuestIdentity(await store(),guestToken,user.id)??token;
+  }
+  return {token,user,player:user?`account:${user.id}`:createHash("sha256").update(token).digest("hex")};
+}
 export function reply(body:unknown,token:string,status=200){const res=NextResponse.json(body,{status,headers:{"Cache-Control":"no-store"}});res.cookies.set("encore_player",token,{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax",path:"/",maxAge:31536000});return res;}
 export function audioEnabled(){return process.env.ENCORE_AUDIO_ENABLED==="true"||(process.env.NODE_ENV!=="production"&&process.env.ENCORE_AUDIO_ENABLED!=="false");}
 export function errorReply(error:unknown,token:string,fallback=400){const declared=error&&typeof error==="object"&&"status" in error?Number(error.status):fallback;const status=Number.isInteger(declared)&&declared>=400&&declared<=599?declared:fallback;const response=reply({error:error instanceof Error?error.message:"This request couldn't finish. Please retry."},token,status);if(status===429)response.headers.set("Retry-After","60");return response;}

@@ -388,7 +388,7 @@ test("guest preview handles stale cookies without opening SQLite, configuring Go
   }
 });
 
-test("services OAuth handoffs return every game to its public callback path on the hub domain", async () => {
+test("services share the hub identity for every game without additional login or app cookies", async () => {
   const environment = ["NEXT_PUBLIC_MUSICAL_DAILY_SERVICES", "MUSICAL_DAILY_AUTH_ORIGIN", "MUSICAL_DAILY_SERVICE_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"] as const;
   const previous = environment.map(key => process.env[key]);
   process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES = "1";
@@ -401,32 +401,74 @@ test("services OAuth handoffs return every game to its public callback path on t
   const mounts = { blackjack: "/blackjack", tempo: "/tempo-trap", encore: "/encore", "double-drop": "/double-or-drop" } as const;
   try {
     for (const app of Object.keys(mounts) as (keyof typeof mounts)[]) {
-      const state = randomToken(); const verifier = randomToken();
-      const login = await handlers.authorize(request(`/api/auth/authorize?app=${app}&state=${state}&challenge=${hash(verifier)}`));
+      const returnTo = `${mounts[app]}/stats`;
+      const login = await handlers.login(request(`/api/account/login?returnTo=${encodeURIComponent(returnTo)}`));
       assert.equal(login.status, 303);
       const oauthState = new URL(login.headers.get("Location")!).searchParams.get("state");
       const complete = await handlers.callback(request(`/api/auth/google/callback?state=${oauthState}&code=valid-google-code`, cookies(login)));
       const callback = new URL(complete.headers.get("Location")!);
       assert.equal(callback.origin, config.hub, app);
-      assert.equal(callback.pathname, `${mounts[app]}/api/account/callback`, app);
-      assert.equal(callback.searchParams.get("state"), state);
-      const code = callback.searchParams.get("code")!;
-      const exchanged = await store.exchange(app, code, state, verifier);
-      assert.equal(exchanged?.user.email, identity.email, app);
-      assert.equal(await store.exchange(app, code, state, verifier), null, `${app} handoff remains single-use`);
-
-      // An existing hub session must use the same callback prefix without
-      // starting a second Google sign-in flow.
-      const directState = randomToken(); const directVerifier = randomToken();
-      const direct = await handlers.authorize(request(`/api/auth/authorize?app=${app}&state=${directState}&challenge=${hash(directVerifier)}`, cookies(complete)));
-      const directCallback = new URL(direct.headers.get("Location")!);
-      assert.equal(directCallback.origin + directCallback.pathname, `${config.hub}${mounts[app]}/api/account/callback`);
-      assert.equal((await store.exchange(app, directCallback.searchParams.get("code")!, directState, directVerifier))?.user.email, identity.email);
+      assert.equal(callback.pathname, returnTo, app);
+      assert.equal(callback.search, "", "no per-game handoff code");
+      assert.ok(complete.headers.getSetCookie().some(value => /^md_hub_session=.*Path=\/; HttpOnly; SameSite=Lax/.test(value)));
+      const token = cookies(complete).match(/md_hub_session=([^;]+)/)![1];
+      const hub = await (await handlers.session(request("/api/account/session", cookies(complete)))).json();
+      for (const game of Object.keys(mounts)) {
+        const session = await (await handlers.service(service({ app: game, action: "session", token }))).json();
+        assert.equal(session.user.id, hub.user.id);
+        assert.equal(session.user.email, identity.email);
+      }
+      const direct = await handlers.login(request(`/api/account/login?returnTo=${encodeURIComponent(returnTo)}`, cookies(complete)));
+      assert.equal(direct.headers.get("Location"), `${config.hub}${returnTo}`, "existing central session skips Google");
     }
   } finally {
     store.close();
     environment.forEach((key, index) => { if (previous[index] === undefined) delete process.env[key]; else process.env[key] = previous[index]; });
   }
+});
+
+test("services accept only hub tokens while preserving per-game writes, device isolation and centralized logout", async () => {
+  const mounts = { blackjack: "/blackjack", tempo: "/tempo-trap", encore: "/encore", "double-drop": "/double-or-drop" } as const;
+  const settings: AccountConfig = { ...config, origins: { blackjack: config.hub, tempo: config.hub, encore: config.hub, "double-drop": config.hub }, paths: mounts };
+  const { store, handlers } = fixture(settings);
+  try {
+    const user = await store.user(identity);
+    const other = await store.user({ ...identity, sub: "other-central-account", email: "other@example.test" });
+    const hub = await store.createSession(user.id, "hub");
+    const otherDevice = await store.createSession(user.id, "hub");
+    const switched = await store.createSession(other.id, "hub");
+    const events: Record<keyof typeof mounts, ResultEvent> = {
+      blackjack: { eventId: "central-blackjack", mode: "daily", date: "2026-11-02", score: 90, maxScore: 100, won: true },
+      tempo: { eventId: "central-tempo", mode: "daily", date: "2026-11-02", score: 4000, maxScore: 5000, correct: 3, rounds: 5 },
+      encore: { eventId: "central-encore", mode: "artist", score: 7, maxScore: 10, correct: 7, rounds: 10, artist: { id: "123", name: "Hozier" } },
+      "double-drop": { eventId: "central-drop", mode: "practice", score: 3, maxScore: 4, correct: 3, rounds: 4, bankedPoints: 400, won: true },
+    };
+    for (const app of Object.keys(mounts) as (keyof typeof mounts)[]) {
+      const legacy = await store.createSession(other.id, app);
+      const invalid = await (await handlers.service(service({ app, action: "session", token: legacy.token }))).json();
+      assert.equal(invalid.user, null, "old app credentials cannot override centralized identity");
+      assert.equal((await handlers.service(service({ app, action: "result", token: legacy.token, event: events[app] }))).status, 401);
+      assert.equal((await handlers.service(service({ app, action: "save-progress", token: legacy.token, key: "active", value: {}, revision: 0 }))).status, 401);
+      const saved = await handlers.service(service({ app, action: "save-progress", token: hub.token, key: "active", value: { score: events[app].score }, revision: 0 }));
+      assert.equal(saved.status, 200);
+      const progress = await (await handlers.service(service({ app, action: "load-progress", token: otherDevice.token, key: "active" }))).json();
+      assert.equal(progress.progress.value.score, events[app].score);
+      assert.equal((await (await handlers.service(service({ app, action: "load-progress", token: switched.token, key: "active" }))).json()).progress, null);
+      for (let retry = 0; retry < 2; retry++) assert.equal((await handlers.service(service({ app, action: "result", token: hub.token, event: events[app] }))).status, 200);
+    }
+    for (const app of Object.keys(mounts)) {
+      const stats = await (await handlers.service(service({ app, action: "stats", token: otherDevice.token }))).json();
+      assert.equal(stats.user.id, user.id);
+      assert.ok(Object.values(stats.games).every((game: unknown) => (game as { completed: number }).completed === 1));
+      const switchedStats = await (await handlers.service(service({ app, action: "stats", token: switched.token }))).json();
+      assert.equal(switchedStats.user.id, other.id);
+      assert.ok(Object.values(switchedStats.games).every((game: unknown) => (game as { played: number }).played === 0));
+    }
+    assert.equal((await handlers.service(service({ app: "encore", action: "logout", token: hub.token }))).status, 200);
+    for (const app of Object.keys(mounts)) assert.equal((await (await handlers.service(service({ app, action: "session", token: hub.token }))).json()).user, null);
+    assert.equal((await store.session(otherDevice.token, "hub"))?.user.id, user.id);
+    assert.equal((await store.session(switched.token, "hub"))?.user.id, other.id);
+  } finally { store.close(); }
 });
 
 // Independent handles exercise database locking and cross-instance visibility.

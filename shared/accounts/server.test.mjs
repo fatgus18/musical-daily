@@ -5,7 +5,7 @@ import { getAccount, getStats, loadProgress, makeAccountRoutes, publishResult, p
 const secret = "test-service-secret-with-at-least-thirty-two-characters";
 const publicOrigin = "https://music.example";
 const user = { id: "one", name: "Listener", email: "listener@example.test", picture: null };
-const keys = ["NODE_ENV", "NEXT_PUBLIC_BASE_PATH", "NEXT_PUBLIC_GUEST_ONLY", "MUSICAL_DAILY_AUTH_ORIGIN", "MUSICAL_DAILY_APP_ORIGIN", "MUSICAL_DAILY_SERVICE_SECRET", "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"];
+const keys = ["NODE_ENV", "NEXT_PUBLIC_BASE_PATH", "NEXT_PUBLIC_GUEST_ONLY", "NEXT_PUBLIC_MUSICAL_DAILY_SERVICES", "MUSICAL_DAILY_AUTH_ORIGIN", "MUSICAL_DAILY_APP_ORIGIN", "MUSICAL_DAILY_SERVICE_SECRET", "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"];
 async function environment(run) {
   const before = Object.fromEntries(keys.map(key => [key, process.env[key]]));
   const originalFetch = globalThis.fetch;
@@ -15,6 +15,7 @@ async function environment(run) {
   process.env.MUSICAL_DAILY_APP_ORIGIN = publicOrigin;
   process.env.MUSICAL_DAILY_SERVICE_SECRET = secret;
   process.env.NEXT_PUBLIC_BASE_PATH = "/encore";
+  process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES = "1";
   try { await run(); }
   finally {
     globalThis.fetch = originalFetch;
@@ -22,7 +23,7 @@ async function environment(run) {
   }
 }
 function request(path = "/api/account/session", options = {}) {
-  return new Request(`${publicOrigin}/encore${path}`, { ...options, headers: { cookie: "md_encore_session=old-session", ...options.headers } });
+  return new Request(`${publicOrigin}/encore${path}`, { ...options, headers: { cookie: "md_hub_session=central-session; md_encore_session=old-session", ...options.headers } });
 }
 const cookies = response => response.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
 
@@ -32,7 +33,7 @@ test("bindings resolve at request time and preserve internal path prefixes witho
     seen.push(String(input));
     assert.equal(init.headers["X-Musical-Daily-Service"], secret);
     assert.equal(init.redirect, "error");
-    assert.deepEqual(JSON.parse(init.body), { app: "encore", action: "session", token: "old-session" });
+    assert.deepEqual(JSON.parse(init.body), { app: "encore", action: "session", token: "central-session" });
     return Response.json({ user, configured: true });
   };
   for (const base of ["http://hub.internal:4100", "http://hub.internal:4100/", "http://hub.internal:4100/services/musical-daily", "http://hub.internal:4100/services/musical-daily/"]) {
@@ -49,9 +50,9 @@ test("bindings cannot weaken trusted public origins or send credentials to inval
   let calls = 0;
   globalThis.fetch = async () => { calls++; return Response.json({ user }); };
   process.env.MUSICAL_DAILY_ACCOUNT_SERVICE_URL = "http://hub.internal";
-  process.env.MUSICAL_DAILY_APP_ORIGIN = `${publicOrigin}/encore`;
+  process.env.MUSICAL_DAILY_AUTH_ORIGIN = `${publicOrigin}/encore`;
   await assert.rejects(getAccount(request(), "encore"), /Invalid account service origin/);
-  process.env.MUSICAL_DAILY_APP_ORIGIN = publicOrigin;
+  process.env.MUSICAL_DAILY_AUTH_ORIGIN = publicOrigin;
   for (const invalid of ["ftp://hub.internal", "https://user:password@hub.internal", "https://hub.internal?token=secret", "https://hub.internal#fragment"]) {
     process.env.MUSICAL_DAILY_ACCOUNT_SERVICE_URL = invalid;
     await assert.rejects(getAccount(request(), "encore"), /Invalid internal account service URL/);
@@ -62,7 +63,75 @@ test("bindings cannot weaken trusted public origins or send credentials to inval
   assert.equal(calls, 0);
 }));
 
-test("login and callback keep browser redirects public, prefix return paths once, and preserve session cookies", async () => environment(async () => {
+test("all services use only the central cookie for sessions, statistics, progress and results", async () => environment(async () => {
+  const seen = [];
+  globalThis.fetch = async (_input, init) => {
+    const body = JSON.parse(init.body);
+    seen.push(body);
+    assert.equal(body.token, "central-session");
+    return Response.json({ user, configured: true, progress: { revision: 1, value: { round: 1 } }, saved: true, revision: 2 });
+  };
+  const event = { eventId: "one", mode: "daily", score: 100, maxScore: 100 };
+  for (const app of ["blackjack", "tempo", "encore", "double-drop"]) {
+    const signed = request("/api/account/session", { headers: { cookie: `md_${app}_session=wrong-account; md_hub_session=central-session` } });
+    assert.deepEqual(await getAccount(signed, app), user);
+    await getStats(signed, app);
+    await loadProgress(signed, app, "active");
+    await saveProgress(signed, app, "active", { round: 2 }, 1);
+    await publishResult(signed, app, event);
+    await publishResults(signed, app, [event]);
+    assert.deepEqual(seen.slice(-6).map(body => body.action), ["session", "stats", "load-progress", "save-progress", "result", "results"]);
+    assert.ok(seen.slice(-6).every(body => body.app === app));
+    const legacyOnly = request("/api/account/session", { headers: { cookie: `md_${app}_session=wrong-account` } });
+    const count = seen.length;
+    assert.equal(await getAccount(legacyOnly, app), null);
+    assert.equal(await loadProgress(legacyOnly, app, "active"), null);
+    assert.deepEqual(await saveProgress(legacyOnly, app, "active", {}, 0), { saved: false, revision: 0 });
+    assert.deepEqual(await publishResult(legacyOnly, app, event), { saved: false });
+    assert.deepEqual(await publishResults(legacyOnly, app, [event]), { saved: false });
+    assert.equal(seen.length, count, "a previous game login must not resurrect another account");
+  }
+}));
+
+test("services game login returns through central login without a separate game handoff", async () => environment(async () => {
+  globalThis.fetch = async () => Response.json({ user: null, configured: true });
+  // An old independent-game hostname must never affect single-domain routing.
+  process.env.MUSICAL_DAILY_APP_ORIGIN = "https://music.examplec";
+  const mounts = { blackjack: "/blackjack", tempo: "/tempo-trap", encore: "/encore", "double-drop": "/double-or-drop" };
+  for (const [app, base] of Object.entries(mounts)) {
+    process.env.NEXT_PUBLIC_BASE_PATH = base;
+    const routes = makeAccountRoutes(app);
+    for (const [returnTo, expected] of [["/stats?sort=recent", `${base}/stats?sort=recent`], [`${base}/stats`, `${base}/stats`], ["/", `${base}/`], ["//evil.example", `${base}/`], ["/%2e%2e//evil.example", `${base}/`], [`${base}/../stats`, `${base}/stats`]]) {
+      const login = await routes.login(request(`/api/account/login?returnTo=${encodeURIComponent(returnTo)}`));
+      assert.equal(login.status, 303);
+      const target = new URL(login.headers.get("location"));
+      assert.equal(target.origin, publicOrigin);
+      assert.equal(target.pathname, "/api/account/login");
+      assert.equal(target.searchParams.get("returnTo"), expected);
+      assert.ok(login.headers.getSetCookie().every(value => /Max-Age=0/.test(value)), "no new per-game login or session cookie");
+    }
+  }
+}));
+
+test("services logout revokes and clears the central session, never the conflicting legacy account", async () => environment(async () => {
+  process.env.MUSICAL_DAILY_APP_ORIGIN = "https://music.examplec";
+  let calls = 0;
+  globalThis.fetch = async (_input, init) => {
+    calls++;
+    assert.deepEqual(JSON.parse(init.body), { app: "encore", action: "logout", token: "central-session" });
+    return Response.json({ ok: true });
+  };
+  const routes = makeAccountRoutes("encore");
+  const response = await routes.logout(request("/api/account/logout", { method: "POST", headers: { origin: publicOrigin } }));
+  assert.equal(response.status, 200);
+  assert.equal(calls, 1);
+  assert.ok(response.headers.getSetCookie().some(value => /^md_hub_session=; Path=\/; HttpOnly; SameSite=Lax; Max-Age=0; Secure$/.test(value)));
+  assert.equal((await routes.logout(request("/api/account/logout", { method: "POST", headers: { origin: "https://evil.example" } }))).status, 403);
+  assert.equal(calls, 1);
+}));
+
+test("legacy standalone login and callback keep browser redirects public and preserve session cookies", async () => environment(async () => {
+  delete process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES;
   process.env.MUSICAL_DAILY_ACCOUNT_SERVICE_URL = "http://hub.internal/service-prefix";
   let claims = 0;
   const routes = makeAccountRoutes("encore", { onLogin: async account => { assert.deepEqual(account, user); claims++; } });
@@ -102,6 +171,7 @@ test("login and callback keep browser redirects public, prefix return paths once
 }));
 
 test("standalone login still returns to an unprefixed game path and same-origin checks reject path values", async () => environment(async () => {
+  delete process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES;
   delete process.env.NEXT_PUBLIC_BASE_PATH;
   process.env.MUSICAL_DAILY_APP_ORIGIN = "https://encore.example";
   globalThis.fetch = async (_input, init) => {
