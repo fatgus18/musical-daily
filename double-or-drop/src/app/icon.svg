@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Double or Drop</title>
+  <rect width="64" height="64" rx="16" fill="#c9b3ff"/>
+  <g fill="none" stroke="#17182b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 25c0-11 19-12 19 0 0 6-7 9-17 19h18"/>
+    <path d="m40 27 11 13m0-13L40 40"/>
+  </g>
+</svg>

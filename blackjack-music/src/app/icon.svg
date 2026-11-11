@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Stream Blackjack</title>
+  <rect width="64" height="64" rx="16" fill="#c7f77b"/>
+  <path d="M32 11C26 19 13 26 13 35c0 8 10 12 16 5 0 5-2 9-5 13h16c-3-4-5-8-5-13 6 7 16 3 16-5 0-9-13-16-19-24Z" fill="#17182b"/>
+</svg>

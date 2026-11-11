@@ -1,1 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#15191d"/><circle cx="32" cy="32" r="23" fill="none" stroke="#9cdaca" stroke-width="2"/><path d="M24 20h19v6H30v4h11v5H30v4h13v6H24z" fill="#9cdaca"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>Encore</title>
+  <rect width="64" height="64" rx="16" fill="#8ae4cb"/>
+  <circle cx="32" cy="32" r="21" fill="#17182b"/>
+  <circle cx="32" cy="32" r="14" fill="none" stroke="#8ae4cb" stroke-width="2"/>
+  <circle cx="32" cy="32" r="6" fill="#8ae4cb"/>
+  <circle cx="32" cy="32" r="2" fill="#17182b"/>
+</svg>
