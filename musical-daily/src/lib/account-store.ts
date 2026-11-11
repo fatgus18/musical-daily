@@ -1,6 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { openLocalDatabase, type Database, type SqlExecutor } from "@musical-daily/database";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { AccountUser, AccountStats, GameStats, ResultEvent, GameId, ProgressResult } from "@musical-daily/accounts";
 
@@ -11,16 +9,16 @@ export class AccountValidationError extends Error { constructor(message: string)
 export interface Identity { sub: string; email: string; name: string; picture: string | null }
 export interface Session { user: AccountUser; family: string; expires: number; app: string }
 export interface AuthFlow { browserHash: string; verifier: string; nonce: string; target: { app: GameId; state: string; challenge: string } | null; returnTo: string }
-type Row = Record<string, string | number | null>;
-
 export class AccountStore {
-  db: DatabaseSync;
+  db: Database;
+  ready: Promise<void>;
   now: () => number;
-  constructor(path: string, now: () => number = Date.now) {
+  constructor(path: string | Database, now: () => number = Date.now) {
     this.now = now;
-    if (path !== ":memory:") mkdirSync(dirname(resolve(path)), { recursive: true });
-    this.db = new DatabaseSync(path);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;
+    this.db = typeof path === "string" ? openLocalDatabase(path) : path;
+    // Shared managed storage is initialized once per instance. Every operation
+    // awaits this promise before touching tables, including concurrent requests.
+    this.ready = this.db.executeMultiple(`PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,google_sub TEXT UNIQUE NOT NULL,email TEXT NOT NULL,name TEXT NOT NULL,picture TEXT,created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),family TEXT NOT NULL,app TEXT NOT NULL,expires INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS session_family ON sessions(family);
@@ -29,67 +27,155 @@ export class AccountStore {
       CREATE TABLE IF NOT EXISTS results(user_id TEXT NOT NULL REFERENCES users(id),game TEXT NOT NULL,event_key TEXT NOT NULL,value TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(user_id,game,event_key));
       CREATE TABLE IF NOT EXISTS progress(user_id TEXT NOT NULL REFERENCES users(id),game TEXT NOT NULL,key TEXT NOT NULL,value TEXT NOT NULL,revision INTEGER NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(user_id,game,key));
       CREATE TABLE IF NOT EXISTS rate_limits(key TEXT PRIMARY KEY,count INTEGER NOT NULL,expires INTEGER NOT NULL);`);
+    // Keep the original rejected promise observable by callers while preventing
+    // an idle, newly-created instance from causing an unhandled rejection.
+    void this.ready.catch(() => {});
   }
-  close() { this.db.close(); }
-  prune() { const now = this.now(); this.db.prepare("DELETE FROM sessions WHERE expires<=?").run(now); this.db.prepare("DELETE FROM auth_flows WHERE expires<=?").run(now); this.db.prepare("DELETE FROM handoffs WHERE expires<=?").run(now); this.db.prepare("DELETE FROM rate_limits WHERE expires<=?").run(now); this.db.prepare("DELETE FROM progress WHERE updated_at<?").run(now - 90 * 86400000); }
-  transaction<T>(fn: () => T): T { this.db.exec("BEGIN IMMEDIATE"); try { const value = fn(); this.db.exec("COMMIT"); return value; } catch (error) { this.db.exec("ROLLBACK"); throw error; } }
-  allow(key: string, limit: number, milliseconds = 600000) { const now = this.now(); const row = this.db.prepare("SELECT count,expires FROM rate_limits WHERE key=?").get(key) as Row | undefined; if (row && Number(row.expires) > now && Number(row.count) >= limit) return false; this.db.prepare("INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires<=? THEN 1 ELSE count+1 END,expires=CASE WHEN expires<=? THEN excluded.expires ELSE expires END").run(key, now + milliseconds, now, now); return true; }
-  user(identity: Identity): AccountUser {
-    const row = this.db.prepare("INSERT INTO users(id,google_sub,email,name,picture,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(google_sub) DO UPDATE SET email=excluded.email,name=excluded.name,picture=excluded.picture RETURNING id").get(randomUUID(), identity.sub, identity.email, identity.name, identity.picture, this.now()) as Row;
+  close() { void this.ready.then(() => this.db.close(), () => this.db.close()); }
+  async prune() {
+    await this.ready;
+    const now = this.now();
+    await this.db.batch([
+      { sql: "DELETE FROM sessions WHERE expires<=?", args: [now] },
+      { sql: "DELETE FROM auth_flows WHERE expires<=?", args: [now] },
+      { sql: "DELETE FROM handoffs WHERE expires<=?", args: [now] },
+      { sql: "DELETE FROM rate_limits WHERE expires<=?", args: [now] },
+      { sql: "DELETE FROM progress WHERE updated_at<?", args: [now - 90 * 86400000] },
+    ]);
+  }
+  private async transaction<T>(fn: (tx: SqlExecutor) => Promise<T>): Promise<T> {
+    await this.ready;
+    return this.db.transaction(fn);
+  }
+  async allow(key: string, limit: number, milliseconds = 600000) {
+    await this.ready;
+    const now = this.now();
+    // The conditional upsert is a single atomic write across serverless instances.
+    const result = await this.db.execute(`INSERT INTO rate_limits VALUES(?,1,?)
+      ON CONFLICT(key) DO UPDATE SET count=CASE WHEN expires<=? THEN 1 ELSE count+1 END,
+      expires=CASE WHEN expires<=? THEN excluded.expires ELSE expires END
+      WHERE expires<=? OR count<? RETURNING count`, [key, now + milliseconds, now, now, now, limit]);
+    return result.rows.length > 0;
+  }
+  async user(identity: Identity): Promise<AccountUser> {
+    await this.ready;
+    const row = (await this.db.execute("INSERT INTO users(id,google_sub,email,name,picture,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(google_sub) DO UPDATE SET email=excluded.email,name=excluded.name,picture=excluded.picture RETURNING id", [randomUUID(), identity.sub, identity.email, identity.name, identity.picture, this.now()])).rows[0];
     const id = String(row.id);
     return { id, email: identity.email, name: identity.name, picture: identity.picture };
   }
-  createSession(userId: string, app: string, family: string = randomUUID()) { const token = randomToken(); const existing = this.db.prepare("SELECT MIN(expires) AS expires FROM sessions WHERE family=? AND expires>?").get(family, this.now()) as Row; const expires = Number(existing.expires) || this.now() + SESSION_AGE * 1000; this.db.prepare("INSERT INTO sessions VALUES(?,?,?,?,?)").run(hash(token), userId, family, app, expires); return { token, family, maxAge: Math.max(0, Math.floor((expires - this.now()) / 1000)) }; }
-  session(token: string, app?: string): Session | null {
+  async createSession(userId: string, app: string, family: string = randomUUID()) {
+    return this.transaction(tx => this.createSessionWith(tx, userId, app, family));
+  }
+  private async createSessionWith(tx: SqlExecutor, userId: string, app: string, family: string) {
+    const token = randomToken();
+    const now = this.now();
+    const existing = (await tx.execute("SELECT MIN(expires) AS expires FROM sessions WHERE family=? AND user_id=? AND expires>?", [family, userId, now])).rows[0];
+    const expires = Number(existing.expires) || now + SESSION_AGE * 1000;
+    await tx.execute("INSERT INTO sessions VALUES(?,?,?,?,?)", [hash(token), userId, family, app, expires]);
+    return { token, family, maxAge: Math.max(0, Math.floor((expires - now) / 1000)) };
+  }
+  async session(token: string, app?: string): Promise<Session | null> {
+    await this.ready;
+    return this.sessionWith(this.db, token, app);
+  }
+  private async sessionWith(tx: SqlExecutor, token: string, app?: string): Promise<Session | null> {
     if (!token || token.length > 200) return null;
-    const row = this.db.prepare("SELECT users.id,email,name,picture,family,expires,app FROM sessions JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires>?").get(hash(token), this.now()) as Row | undefined;
+    const row = (await tx.execute("SELECT users.id,email,name,picture,family,expires,app FROM sessions JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires>?", [hash(token), this.now()])).rows[0];
     if (!row || (app && row.app !== app)) return null;
     return { user: { id: String(row.id), email: String(row.email), name: String(row.name), picture: row.picture as string | null }, family: String(row.family), expires: Number(row.expires), app: String(row.app) };
   }
-  revoke(family: string) { this.db.prepare("DELETE FROM sessions WHERE family=?").run(family); this.db.prepare("DELETE FROM handoffs WHERE family=?").run(family); }
-  putFlow(state: string, flow: AuthFlow) { this.db.prepare("INSERT INTO auth_flows VALUES(?,?,?)").run(hash(state), JSON.stringify(flow), this.now() + 600000); }
-  takeFlow(state: string, browserToken: string): AuthFlow | null {
-    return this.transaction(() => { const row = this.db.prepare("SELECT value FROM auth_flows WHERE state_hash=? AND expires>?").get(hash(state), this.now()) as Row | undefined; if (!row) return null; const flow = JSON.parse(String(row.value)) as AuthFlow; if (hash(browserToken) !== flow.browserHash) return null; this.db.prepare("DELETE FROM auth_flows WHERE state_hash=?").run(hash(state)); return flow; });
+  async revoke(family: string) {
+    await this.ready;
+    await this.db.batch([
+      { sql: "DELETE FROM sessions WHERE family=?", args: [family] },
+      { sql: "DELETE FROM handoffs WHERE family=?", args: [family] },
+    ]);
   }
-  handoff(session: Session, app: GameId, state: string, challenge: string) { const code = randomToken(); this.db.prepare("INSERT INTO handoffs VALUES(?,?,?,?,?,?,?)").run(hash(code), session.user.id, session.family, app, state, challenge, this.now() + 60000); return code; }
-  exchange(app: GameId, code: string, state: string, verifier: string) {
-    return this.transaction(() => {
-      const row = this.db.prepare("SELECT * FROM handoffs WHERE code_hash=? AND expires>?").get(hash(code), this.now()) as Row | undefined;
-      if (!row || row.app !== app || row.state !== state || row.challenge !== hash(verifier)) return null;
-      if (!this.db.prepare("SELECT 1 FROM sessions WHERE family=? AND expires>?").get(row.family, this.now())) return null;
-      this.db.prepare("DELETE FROM handoffs WHERE code_hash=?").run(hash(code));
-      const result = this.createSession(String(row.user_id), app, String(row.family));
-      return { ...result, user: this.session(result.token, app)!.user };
+  async putFlow(state: string, flow: AuthFlow) {
+    await this.ready;
+    await this.db.execute("INSERT INTO auth_flows VALUES(?,?,?)", [hash(state), JSON.stringify(flow), this.now() + 600000]);
+  }
+  async takeFlow(state: string, browserToken: string): Promise<AuthFlow | null> {
+    return this.transaction(async tx => {
+      const row = (await tx.execute("SELECT value FROM auth_flows WHERE state_hash=? AND expires>?", [hash(state), this.now()])).rows[0];
+      if (!row) return null;
+      const flow = JSON.parse(String(row.value)) as AuthFlow;
+      if (hash(browserToken) !== flow.browserHash) return null;
+      await tx.execute("DELETE FROM auth_flows WHERE state_hash=?", [hash(state)]);
+      return flow;
     });
   }
-  result(userId: string, game: GameId, event: ResultEvent) {
+  async handoff(session: Session, app: GameId, state: string, challenge: string) {
+    return this.transaction(async tx => {
+      // A session read before a simultaneous logout must not mint a new code.
+      const active = (await tx.execute("SELECT 1 FROM sessions WHERE family=? AND user_id=? AND expires>? LIMIT 1", [session.family, session.user.id, this.now()])).rows[0];
+      if (!active || session.expires <= this.now()) throw new AccountValidationError("This session has expired");
+      const code = randomToken();
+      await tx.execute("INSERT INTO handoffs VALUES(?,?,?,?,?,?,?)", [hash(code), session.user.id, session.family, app, state, challenge, Math.min(session.expires, this.now() + 60000)]);
+      return code;
+    });
+  }
+  async exchange(app: GameId, code: string, state: string, verifier: string) {
+    return this.transaction(async tx => {
+      const row = (await tx.execute("SELECT * FROM handoffs WHERE code_hash=? AND expires>?", [hash(code), this.now()])).rows[0];
+      if (!row || row.app !== app || row.state !== state || row.challenge !== hash(verifier)) return null;
+      if (!(await tx.execute("SELECT 1 FROM sessions WHERE family=? AND user_id=? AND expires>? LIMIT 1", [row.family, row.user_id, this.now()])).rows[0]) return null;
+      await tx.execute("DELETE FROM handoffs WHERE code_hash=?", [hash(code)]);
+      const result = await this.createSessionWith(tx, String(row.user_id), app, String(row.family));
+      return { ...result, user: (await this.sessionWith(tx, result.token, app))!.user };
+    });
+  }
+  async result(userId: string, game: GameId, event: ResultEvent) {
     validateEvent(game, event);
+    return this.transaction(tx => this.resultWith(tx, userId, game, event));
+  }
+  private async resultWith(tx: SqlExecutor, userId: string, game: GameId, event: ResultEvent) {
     const key = event.mode === "daily" ? `daily:${event.date}` : `event:${event.eventId}`;
-    const inserted = this.db.prepare("INSERT OR IGNORE INTO results VALUES(?,?,?,?,?)").run(userId, game, key, JSON.stringify(event), this.now()).changes;
-    const row = this.db.prepare("SELECT value FROM results WHERE user_id=? AND game=? AND event_key=?").get(userId, game, key) as Row;
+    const inserted = (await tx.execute("INSERT OR IGNORE INTO results VALUES(?,?,?,?,?)", [userId, game, key, JSON.stringify(event), this.now()])).rowsAffected;
+    const row = (await tx.execute("SELECT value FROM results WHERE user_id=? AND game=? AND event_key=?", [userId, game, key])).rows[0];
     return { saved: true, duplicate: !inserted, event: JSON.parse(String(row.value)) as ResultEvent };
   }
-  results(userId: string, game: GameId, events: ResultEvent[]) {
+  async results(userId: string, game: GameId, events: ResultEvent[]) {
     if (!Array.isArray(events) || events.length < 1 || events.length > 50) throw new AccountValidationError("Expected between one and fifty results");
     events.forEach((event) => validateEvent(game, event));
-    return this.transaction(() => { events.forEach((event) => this.result(userId, game, event)); return { saved: true }; });
+    await this.ready;
+    // One managed batch is atomic and avoids a network roundtrip for each result.
+    await this.db.batch(events.map(event => ({
+      sql: "INSERT OR IGNORE INTO results VALUES(?,?,?,?,?)",
+      args: [userId, game, event.mode === "daily" ? `daily:${event.date}` : `event:${event.eventId}`, JSON.stringify(event), this.now()],
+    })));
+    return { saved: true };
   }
-  loadProgress(userId: string, game: GameId, key: string) { validateKey(key); const row = this.db.prepare("SELECT value,revision FROM progress WHERE user_id=? AND game=? AND key=?").get(userId, game, key) as Row | undefined; return row ? { value: JSON.parse(String(row.value)) as unknown, revision: Number(row.revision) } : null; }
-  saveProgress(userId: string, game: GameId, key: string, value: unknown, revision: number, event?: ResultEvent): ProgressResult {
+  async loadProgress(userId: string, game: GameId, key: string) {
+    validateKey(key);
+    await this.ready;
+    return this.loadProgressWith(this.db, userId, game, key);
+  }
+  private async loadProgressWith(tx: SqlExecutor, userId: string, game: GameId, key: string) {
+    const row = (await tx.execute("SELECT value,revision FROM progress WHERE user_id=? AND game=? AND key=?", [userId, game, key])).rows[0];
+    return row ? { value: JSON.parse(String(row.value)) as unknown, revision: Number(row.revision) } : null;
+  }
+  async saveProgress(userId: string, game: GameId, key: string, value: unknown, revision: number, event?: ResultEvent): Promise<ProgressResult> {
     validateKey(key); if (!Number.isInteger(revision) || revision < 0) throw new AccountValidationError("Invalid progress revision");
     const encoded = JSON.stringify(value); if (!encoded || Buffer.byteLength(encoded) > 131072) throw new AccountValidationError("Progress is too large"); if (event) validateEvent(game, event);
-    return this.transaction(() => {
-      const current = this.loadProgress(userId, game, key);
+    return this.transaction(async tx => {
+      const current = await this.loadProgressWith(tx, userId, game, key);
       if ((current?.revision || 0) !== revision) return { saved: false, conflict: true, revision: current?.revision || 0, value: current?.value ?? null };
-      if (!current) { const count = this.db.prepare("SELECT COUNT(*) AS n FROM progress WHERE user_id=? AND game=?").get(userId, game) as Row; if (Number(count.n) >= 30) this.db.prepare("DELETE FROM progress WHERE rowid IN (SELECT rowid FROM progress WHERE user_id=? AND game=? ORDER BY updated_at LIMIT 1)").run(userId, game); }
-      this.db.prepare("INSERT INTO progress VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,game,key) DO UPDATE SET value=excluded.value,revision=excluded.revision,updated_at=excluded.updated_at").run(userId, game, key, encoded, revision + 1, this.now());
-      const result = event ? this.result(userId, game, event) : null;
+      if (!current) {
+        const count = (await tx.execute("SELECT COUNT(*) AS n FROM progress WHERE user_id=? AND game=?", [userId, game])).rows[0];
+        if (Number(count.n) >= 30) await tx.execute("DELETE FROM progress WHERE rowid IN (SELECT rowid FROM progress WHERE user_id=? AND game=? ORDER BY updated_at LIMIT 1)", [userId, game]);
+      }
+      await tx.execute("INSERT INTO progress VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,game,key) DO UPDATE SET value=excluded.value,revision=excluded.revision,updated_at=excluded.updated_at", [userId, game, key, encoded, revision + 1, this.now()]);
+      const result = event ? await this.resultWith(tx, userId, game, event) : null;
       return { saved: true, revision: revision + 1, ...(result ? { event: result.event, duplicate: result.duplicate } : {}) };
     });
   }
-  stats(user: AccountUser | null): AccountStats {
+  async stats(user: AccountUser | null): Promise<AccountStats> {
+    await this.ready;
+    // One query gives the combined view a consistent snapshot across games.
+    const history = user ? (await this.db.execute("SELECT game,value,created_at FROM results WHERE user_id=? ORDER BY created_at DESC", [user.id])).rows : [];
     const games = Object.fromEntries((["blackjack", "tempo", "encore", "double-drop"] as const).map((game) => {
-      const rows = user ? this.db.prepare("SELECT value,created_at FROM results WHERE user_id=? AND game=? ORDER BY created_at DESC").all(user.id, game) as Row[] : [];
+      const rows = history.filter(row => row.game === game);
       const events = rows.map((row) => ({ event: JSON.parse(String(row.value)) as ResultEvent, date: new Date(Number(row.created_at)).toISOString() }));
       const completed = events.filter(({ event }) => event.status !== "incomplete");
       const total = completed.reduce((sum, { event }) => sum + event.score, 0);

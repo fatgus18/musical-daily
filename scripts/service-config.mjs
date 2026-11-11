@@ -13,8 +13,9 @@ export function serviceEnvironment(name, environment = process.env) {
     ...environment,
     NEXT_PUBLIC_BASE_PATH: servicePaths[name],
     NEXT_PUBLIC_MUSICAL_DAILY_SERVICES: "1",
-    // This deployment is the requested guest preview. Authentication stays off.
-    NEXT_PUBLIC_GUEST_ONLY: "1",
+    // Accounts require an explicit opt-in after OAuth and managed storage are configured.
+    // Missing or misspelled values keep previews safely in guest mode.
+    NEXT_PUBLIC_GUEST_ONLY: environment.NEXT_PUBLIC_GUEST_ONLY === "0" ? "0" : "1",
     NEXT_PUBLIC_HUB_URL: "/",
     NEXT_PUBLIC_BLACKJACK_URL: servicePaths["blackjack-music"],
     NEXT_PUBLIC_TEMPO_TRAP_URL: servicePaths["tempo-trap"],

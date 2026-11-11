@@ -10,12 +10,12 @@ import type { ArtistPool } from "../../src/lib/catalog";
 test("one account shares server-verified Encore stats across games and hub, then signs out everywhere", async ({ browser }) => {
     const accounts = new AccountStore(resolve("../musical-daily/data/accounts.sqlite"));
     const marker = `integration-${randomUUID()}`;
-    const user = accounts.user({ sub: marker, email: `${marker}@example.invalid`, name: "Integration Listener", picture: null });
-    expect(accounts.user({ sub: marker, email: user.email, name: user.name, picture: null }).id).toBe(user.id);
-    const hub = accounts.createSession(user.id, "hub");
-    const encore = accounts.createSession(user.id, "encore", hub.family);
-    const tempo = accounts.createSession(user.id, "tempo", hub.family);
-    const blackjack = accounts.createSession(user.id, "blackjack", hub.family);
+    const user = await accounts.user({ sub: marker, email: `${marker}@example.invalid`, name: "Integration Listener", picture: null });
+    expect((await accounts.user({ sub: marker, email: user.email, name: user.name, picture: null })).id).toBe(user.id);
+    const hub = await accounts.createSession(user.id, "hub");
+    const encore = await accounts.createSession(user.id, "encore", hub.family);
+    const tempo = await accounts.createSession(user.id, "tempo", hub.family);
+    const blackjack = await accounts.createSession(user.id, "blackjack", hub.family);
     const cookie = (name: string, value: string) => ({ name, value, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" as const });
     const context = await browser.newContext();
     await context.addCookies([cookie("md_hub_session", hub.token), cookie("md_encore_session", encore.token), cookie("md_tempo_session", tempo.token), cookie("md_blackjack_session", blackjack.token)]);
@@ -95,7 +95,7 @@ test("one account shares server-verified Encore stats across games and hub, then
         await expect(page.locator(".md-stats-encore")).toContainText("70");
         await expect(page.locator(".md-stats-game-card")).toHaveCount(4);
         const device = await browser.newContext();
-        await device.addCookies([cookie("md_encore_session", accounts.createSession(user.id, "encore").token), cookie("md_tempo_session", accounts.createSession(user.id, "tempo").token), cookie("md_blackjack_session", accounts.createSession(user.id, "blackjack").token)]);
+        await device.addCookies([cookie("md_encore_session", (await accounts.createSession(user.id, "encore")).token), cookie("md_tempo_session", (await accounts.createSession(user.id, "tempo")).token), cookie("md_blackjack_session", (await accounts.createSession(user.id, "blackjack")).token)]);
         const resumed = await (await device.request.get("http://localhost:3004/api/game")).json();
         expect(resumed.game.id).toBe(gameId);
         expect((await (await device.request.get("http://localhost:3002/api/daily")).json()).accountProgress.phase).toBe("complete");
@@ -119,8 +119,8 @@ test("one account shares server-verified Encore stats across games and hub, then
         (await db.execute("DELETE FROM games WHERE id=?", [gameId]));
         (await db.execute("DELETE FROM exposures WHERE player=?", [`account:${user.id}`]));
         db.close();
-        accounts.transaction(() => { for (const table of ["sessions", "handoffs", "results", "progress"])
-            accounts.db.prepare(`DELETE FROM ${table} WHERE user_id=?`).run(user.id); accounts.db.prepare("DELETE FROM users WHERE id=?").run(user.id); });
+        await accounts.db.transaction(async tx => { for (const table of ["sessions", "handoffs", "results", "progress"])
+            await tx.execute(`DELETE FROM ${table} WHERE user_id=?`, [user.id]); await tx.execute("DELETE FROM users WHERE id=?", [user.id]); });
         accounts.close();
     }
 });

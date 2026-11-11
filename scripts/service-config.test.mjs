@@ -40,12 +40,22 @@ test("services builds overwrite stale localhost links while preserving runtime b
   assert.equal(result.NEXT_PUBLIC_BASE_PATH, "/tempo-trap");
   assert.equal(result.NEXT_PUBLIC_HUB_URL, "/");
   assert.equal(result.NEXT_PUBLIC_BLACKJACK_URL, "/blackjack");
-  assert.equal(result.NEXT_PUBLIC_GUEST_ONLY, "1");
+  assert.equal(result.NEXT_PUBLIC_GUEST_ONLY, "0");
   assert.equal(result.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES, "1");
   for (const key of ["NODE_ENV", "PORT", "TEMPO_SESSION_SECRET", "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"]) assert.equal(result[key], inherited[key]);
   assert.equal(inherited.NEXT_PUBLIC_BASE_PATH, "/wrong");
   assert.equal(Object.hasOwn(serviceEnvironment("tempo-trap", {}), "MUSICAL_DAILY_ACCOUNT_SERVICE_URL"), false, "builds must not invent a runtime service binding");
   assert.throws(() => serviceEnvironment("accounts", {}), /Unknown service/);
+});
+
+test("accounts require explicit activation for every service and never default on", () => {
+  for (const name of Object.keys(servicePaths)) {
+    assert.equal(serviceEnvironment(name, {}).NEXT_PUBLIC_GUEST_ONLY, "1", name);
+    assert.equal(serviceEnvironment(name, { NEXT_PUBLIC_GUEST_ONLY: "0" }).NEXT_PUBLIC_GUEST_ONLY, "0", name);
+    for (const value of ["1", "", "false", "true", " 0", "0\n", undefined]) {
+      assert.equal(serviceEnvironment(name, { NEXT_PUBLIC_GUEST_ONLY: value }).NEXT_PUBLIC_GUEST_ONLY, "1", `${name}: ${String(value)}`);
+    }
+  }
 });
 
 test("the shared account package is not deployed as a service and callers bind to the hub", () => {

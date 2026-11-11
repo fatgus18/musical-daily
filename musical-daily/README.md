@@ -23,7 +23,7 @@ The workspace includes a [Vercel Services configuration](../vercel.json) for **o
 
 All four games declare the runtime-only `MUSICAL_DAILY_ACCOUNT_SERVICE_URL` binding to the hub, where the account API actually lives. Vercel injects this value; do not add it manually to environment variables. The shared accounts directory is a library, not another deployable service. Browser navigation uses public paths, never a bound internal URL. Service bindings do not replace application-level authorization.
 
-This configuration is a **guest-only preview**: the wrapper sets `NEXT_PUBLIC_GUEST_ONLY=1`. Sign-in controls and account polling are disabled, and hub account routes do not initialize SQLite. Existing account cookies are ignored. Normal standalone development retains its existing account behavior.
+Services builds default to **guest mode** (`NEXT_PUBLIC_GUEST_ONLY=1`), which disables sign-in controls, account polling and account-store initialization. Existing account cookies are ignored. Set the variable to exactly `0` to enable accounts after configuring Google OAuth, the shared service secret and the managed accounts database, then rebuild every service. Missing or invalid values remain in guest mode. Normal standalone development retains its existing account behavior.
 
 Set a stable server-only `TEMPO_SESSION_SECRET` of at least 32 random characters in Vercel. Encore and Double or Drop use separate Turso databases through [the shared database adapter](../shared/database/index.mjs). Connect them with prefixes `ENCORE` and `DOUBLE_DROP`; the generated variables are listed in [the root environment example](../.env.example). Their schemas initialize idempotently at runtime. Both games use Encore's bounded metadata cache and provider pacing unless a dedicated music-cache connection is configured. Generated artist collections are immutable database snapshots, while bundled broad catalogs remain read-only. No game saves depend on the function filesystem. Set `ENCORE_AUDIO_ENABLED=true` to enable the existing audio game for the preview.
 
@@ -39,9 +39,11 @@ npm run build
 npm start
 ```
 
-The hub now hosts shared Google sign-in and account statistics. Follow [the account setup guide](../shared/accounts/README.md) for the exact callback URL, server-only credentials, trusted app origins and shared service secret. Sign-in remains disabled until Google credentials are supplied; guest play remains available.
+The hub now hosts shared Google sign-in and account statistics. Follow [the account setup guide](../shared/accounts/README.md) for the exact callback URL, server-only credentials, trusted app origins and shared service secret. Sign-in remains disabled in guest mode or until Google credentials are supplied; guest play remains available.
 
-Deploy on a Node 24+ host with persistent writable storage for `ACCOUNTS_DB_PATH`. An ephemeral serverless filesystem is not suitable for the SQLite account store. Replace it with a shared database adapter before using that model. Use explicit HTTPS account origins in production and include the shared account package in the build workspace.
+The hub's account store uses the asynchronous [shared database adapter](../shared/database/index.mjs). On Vercel, configure a dedicated Turso database with `ACCOUNTS_TURSO_DATABASE_URL` and `ACCOUNTS_TURSO_AUTH_TOKEN`; a missing cloud connection fails closed instead of using an ephemeral filesystem. Tables initialize idempotently, while OAuth consumption, SSO handoffs, daily results and progress use atomic database operations. Local development continues to use `ACCOUNTS_DB_PATH` when no managed accounts URL is supplied. Use explicit HTTPS account origins in production and include the shared account and database packages in the build workspace.
+
+Before activation, follow the [production account checklist](../shared/accounts/README.md#production): verify the Google callback URL, connect the accounts database, configure secrets, set `NEXT_PUBLIC_GUEST_ONLY=0`, rebuild all services, and complete a real Google login plus cross-device score check. Existing Encore/Double or Drop game databases stay separate; Rhythm Lab recordings remain local downloads.
 
 The **My stats** tab opens `/stats`, with four stacked cards for the current account. Scores come from validated game-server results. Signing into any game uses the same account as the hub, and signed-in game links establish the corresponding game session. Double or Drop tracks total banked points, best banked run, comparison accuracy, and runs that ended with banked points.
 

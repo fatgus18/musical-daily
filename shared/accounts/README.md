@@ -59,6 +59,8 @@ In a Vercel services deployment, each game binds to the `musical-daily` service 
 
 For a guest-only preview, set `NEXT_PUBLIC_GUEST_ONLY=1` at build and runtime. This hides sign-in controls and disables account reads, writes, and login/callback routes, even if an old account cookie remains in the browser. No account database or service secret is required in this mode. A same-origin logout request can still clear the old game cookies. Guest gameplay storage remains each game's responsibility; disabling accounts does not make a local game database suitable for serverless hosting.
 
+The services build wrapper defaults to guest mode and enables accounts only for the exact value `NEXT_PUBLIC_GUEST_ONLY=0`. Configure the managed accounts connection and OAuth credentials first, then rebuild all services with that value. A missing or misspelled setting remains in guest mode. The public flag is bundled at build time; editing only runtime configuration or refreshing the browser cannot enable an older deployment.
+
 ## Sessions and consistency
 
 - Google's library verifies ID tokens. The account key is Google's immutable subject, never an email supplied by a browser.
@@ -78,7 +80,7 @@ Encore uses the central account ID in its own game database. The last answer que
 
 Double or Drop reports `mode: "daily"` for its UTC ten-pick challenge or `mode: "practice"` for unlimited runs, `score`/`correct` as correct comparisons, `maxScore`/`rounds` as answered comparisons, and `bankedPoints` separately. Discarded runs preserve only already-banked points. A completed run counts as a win when it ends with protected points, including runs that lose their remaining lives. Accuracy is weighted across all comparisons; banked points never inflate accuracy. Result IDs are idempotent, and the hub validates integer totals and bounded banked points. The SDK app ID is `double-drop`; no extra Google OAuth client or callback is needed.
 
-Encore and Double or Drop events use `status: "completed" | "incomplete"`; missing status remains completed for compatibility with historical results. Optional `incompleteReason` is `discarded`, `replaced`, `expired`, or `account-merge`, and is valid only for incomplete events. Incomplete events cannot win and must include their actual answer totals, including zero: Encore retains `maxScore: 10`, while Double or Drop uses `maxScore: 0` when nothing was answered. Daily games reject incomplete result events.
+Encore and Double or Drop events use `status: "completed" | "incomplete"`; missing status remains completed for compatibility with historical results. Optional `incompleteReason` is `discarded`, `replaced`, `expired`, or `account-merge`, and is valid only for incomplete events. Incomplete events cannot win and must include their actual answer totals, including zero: Encore retains `maxScore: 10`, while Double or Drop uses `maxScore: 0` when nothing was answered. Blackjack and Tempo reject incomplete result events; a discarded Double or Drop daily attempt remains incomplete and cannot be replayed for a win.
 
 Stats count all finalized events under `played`, with separate `completed` and `incomplete` counts. Completion score totals, averages, best scores, wins, and streaks exclude incomplete runs. Encore and Double or Drop accuracy includes every answered question across both statuses, so discarding cannot erase misses; unanswered questions never count as wrong. Protected Double or Drop banks remain in `totalBanked` and `bestBanked`. Recent results include the status, reason, and actual answer totals. Merely navigating home leaves a resumable run active and does not immediately record it as incomplete; finalizing, replacing, or expiring it records the result once.
 
@@ -88,14 +90,39 @@ Verified Encore login claims server-held games and repeat history from that brow
 
 Use explicit **HTTPS** origins and register `https://YOUR_HUB/api/auth/google/callback` with Google. Production account configuration rejects HTTP origins. Configure and publish/verify Google's consent application as required for the intended audience.
 
-The hub requires Node24+ and a persistent writable SQLite volume. Set `ACCOUNTS_DB_PATH` to an absolute private path outside `public/`; back it up consistently with its WAL. Encore and Double or Drop separately need persistent game storage. Audio-source permissions remain independent of Google authentication.
+The hub requires Node24+ and uses the asynchronous [shared database adapter](../database/index.mjs). Configure a dedicated Turso accounts database for production:
 
-Ephemeral serverless local disks cannot support this adapter. Use a persistent host or replace the central store with a shared database before scaling across hosts. Keep service secrets private, use TLS and hosting-level rate limits. No hosting, Google Cloud project, real credentials or remote database is provisioned by this code.
+```dotenv
+ACCOUNTS_TURSO_DATABASE_URL=libsql://YOUR-ACCOUNTS-DATABASE.turso.io
+ACCOUNTS_TURSO_AUTH_TOKEN=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+MUSICAL_DAILY_SERVICE_SECRET=
+MUSICAL_DAILY_AUTH_ORIGIN=https://musical-daily.vercel.app
+MUSICAL_DAILY_APP_ORIGIN=https://musical-daily.vercel.app
+NEXT_PUBLIC_GUEST_ONLY=0
+```
+
+Keep both origins as the bare public HTTPS origin, without a game path. The four game services and hub must share the same strong `MUSICAL_DAILY_SERVICE_SECRET`. Vercel supplies each game's internal hub binding separately; never set `MUSICAL_DAILY_ACCOUNT_SERVICE_URL` manually. Keep all credentials server-only and out of version control.
+
+Production activation order:
+
+1. Create a Google **Web application** OAuth client with the exact redirect URI `https://musical-daily.vercel.app/api/auth/google/callback` (replace the domain if using a custom domain).
+2. Connect a separate Turso accounts database and set the two `ACCOUNTS_TURSO_*` variables. Keep the existing Encore and Double or Drop game databases.
+3. Add the Google credentials, matching shared service secret and explicit production origins in Vercel. Leave guest mode enabled until these are ready.
+4. Set `NEXT_PUBLIC_GUEST_ONLY=0` for Production and deploy the updated code so all five services rebuild with accounts enabled. Keep Preview in guest mode unless it has its own complete OAuth/database configuration.
+5. Complete a real Google login from the hub and each game. Play a signed-in round and verify the same account's stats from a second device. Check logout, account switching, resumed progress and duplicate submissions before inviting more players.
+
+Tables and indexes initialize idempotently on first use. Session creation, one-time OAuth/SSO consumption, daily score deduplication, optimistic progress updates and progress-plus-result writes are asynchronous and transactional. Bulk game results are all-or-nothing database batches. Missing managed storage on Vercel fails closed; it never creates a temporary local accounts database. Database outages return retryable failures rather than silently turning signed-in progress into guest progress.
+
+For local development without a managed connection, `ACCOUNTS_DB_PATH` still selects a private SQLite file outside `public/`. Existing local data is not automatically uploaded to Turso. Moving an existing account database requires a deliberate database export/import; never copy browser-supplied guest scores into trusted account history. Encore and Double or Drop separately need persistent game storage. Audio-source permissions remain independent of Google authentication.
+
+Keep service secrets private, use TLS and hosting-level rate limits, and configure database backups appropriate to the selected Turso plan. No Google Cloud project, real credentials or remote database is provisioned by the application itself.
 
 Apps use `file:../shared/accounts`. Install/build from the workspace checkout with this package available; Next configuration traces/transpiles the workspace dependency. Shared account UI lives in [shared/account-ui](../account-ui), with checked-in app copies. Run `node scripts/sync-account-ui.mjs --check` from the workspace root to verify consistency.
 
 ## Validation
 
-Run `npm run test:accounts` in the hub for OAuth, redirects, isolation, logout, deduplication and atomic progress tests. Game tests verify account-bound progression, switching and outbox retry. Browser tests use private SQLite fixtures or mocked presentation data, never an exposed login bypass.
+Run `npm run test:accounts` in the hub for OAuth, redirects, isolation, logout, deduplication and atomic progress tests. Concurrent tests use independent local libsql connections to exercise one-time consumption, rate limits, optimistic updates and revocation; injected SQL failures verify transaction rollback. Game tests verify account-bound progression, switching and outbox retry. Browser tests use private SQLite fixtures or mocked presentation data, never an exposed login bypass. Local tests do not reproduce remote-network behavior; the production smoke check must separately verify the configured managed database.
 
 Actual Google sign-in still requires real configured credentials and user interaction. Local test results do not claim Google's external consent flow has been completed.

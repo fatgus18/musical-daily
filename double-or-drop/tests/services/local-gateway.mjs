@@ -9,10 +9,11 @@
  * root vercel.json. It forwards the original URL, body and public Host header.
  * It does not emulate Vercel Functions, bindings, persistent storage or billing.
  */
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { access, copyFile, mkdir, mkdtemp, readFile } from "node:fs/promises";
+import { access, copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import http from "node:http";
+import https from "node:https";
 import net from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -22,6 +23,10 @@ import { serviceEnvironment, servicePaths } from "../../../scripts/service-confi
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const gatewayPort = 3100;
+// Opt-in authentication integration fixture. Its sessions are seeded directly
+// into disposable local storage by tests; no application login bypass exists.
+const accountsFixture = process.env.ACCOUNTS_TEST_FIXTURE === "1";
+const publicOrigin = `${accountsFixture ? "https" : "http"}://localhost:${gatewayPort}`;
 const ports = Object.freeze({
   "musical-daily": 3311,
   "blackjack-music": 3310,
@@ -92,6 +97,7 @@ async function shutdown(code = 0) {
 process.once("SIGINT", () => void shutdown());
 process.once("SIGTERM", () => void shutdown());
 if (process.platform === "win32") process.once("SIGBREAK", () => void shutdown());
+if (accountsFixture) process.stdin.on("data", chunk => { if (String(chunk).trim() === "stop") void shutdown(); });
 process.once("exit", () => {
   for (const child of children.values()) {
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
@@ -129,13 +135,38 @@ async function main() {
   await copyFile(manifestPath, join(catalog, "catalog-releases.json"));
   await copyFile(join(root, "double-or-drop", "data", "catalog-releases", `${manifest.current}.json`), join(catalog, "catalog-releases", `${manifest.current}.json`));
   const tempoSecret = randomBytes(32).toString("hex");
+  const serviceSecret = randomBytes(32).toString("hex");
+  let tlsOptions;
+  if (accountsFixture) {
+    const key = join(temporary, "localhost.key");
+    const cert = join(temporary, "localhost.pem");
+    const openssl = process.env.TEST_OPENSSL_PATH || (process.platform === "win32" ? "C:/Program Files/Git/usr/bin/openssl.exe" : "openssl");
+    execFileSync(openssl, ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", "/CN=localhost", "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], { stdio: "ignore", windowsHide: true });
+    tlsOptions = { key: await readFile(key), cert: await readFile(cert) };
+  }
+
+  // Explicit empty values also block Next's dotenv loader from loading any
+  // local cloud credentials. Test servers only ever use temporary SQLite.
+  const cleanEnvironment = { ...process.env };
+  for (const key of Object.keys(cleanEnvironment)) {
+    if (/TURSO|^VERCEL|^GOOGLE_|^MUSICAL_DAILY_.*(?:SECRET|ORIGIN|SERVICE_URL)/.test(key)) cleanEnvironment[key] = "";
+  }
+  for (const prefix of ["ACCOUNTS", "ENCORE", "DOUBLE_DROP", "MUSIC_CACHE"]) {
+    cleanEnvironment[`${prefix}_TURSO_DATABASE_URL`] = "";
+    cleanEnvironment[`${prefix}_TURSO_AUTH_TOKEN`] = "";
+  }
+  Object.assign(cleanEnvironment, {
+    VERCEL: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "", MUSICAL_DAILY_SERVICE_SECRET: "",
+    MUSICAL_DAILY_ACCOUNT_SERVICE_URL: "", MUSICAL_DAILY_AUTH_ORIGIN: "", MUSICAL_DAILY_APP_ORIGIN: "",
+    MUSICAL_DAILY_BLACKJACK_ORIGIN: "", MUSICAL_DAILY_TEMPO_ORIGIN: "", MUSICAL_DAILY_ENCORE_ORIGIN: "", MUSICAL_DAILY_DOUBLE_DROP_ORIGIN: "",
+  });
 
   for (const name of names) {
     const directory = join(root, name);
     const storage = join(temporary, name);
     await mkdir(storage, { recursive: true });
     const environment = serviceEnvironment(name, {
-      ...process.env,
+      ...cleanEnvironment,
       NODE_ENV: "production",
       NEXT_TELEMETRY_DISABLED: "1",
       PORT: String(ports[name]),
@@ -146,7 +177,16 @@ async function main() {
       ENCORE_CATALOG_CACHE_PATH: join(storage, "provider-cache.sqlite"),
       DOUBLE_DROP_CATALOG_DIR: catalog,
       TEMPO_SESSION_SECRET: tempoSecret,
-      ENCORE_AUDIO_ENABLED: "false",
+      ENCORE_AUDIO_ENABLED: accountsFixture ? "true" : "false",
+      NEXT_PUBLIC_GUEST_ONLY: accountsFixture ? "0" : "1",
+      ...(accountsFixture ? {
+        GOOGLE_CLIENT_ID: "fixture-client.invalid",
+        GOOGLE_CLIENT_SECRET: "fixture-secret-not-valid-for-google",
+        MUSICAL_DAILY_SERVICE_SECRET: serviceSecret,
+        MUSICAL_DAILY_AUTH_ORIGIN: publicOrigin,
+        MUSICAL_DAILY_APP_ORIGIN: publicOrigin,
+        MUSICAL_DAILY_ACCOUNT_SERVICE_URL: "http://127.0.0.1:3311",
+      } : {}),
     });
     // Use exactly the wrapper's environment, but spawn Next directly so the
     // only process to terminate is the production server we just created.
@@ -164,7 +204,7 @@ async function main() {
   }
   for (const name of names) await waitForApp(name, ports[name]);
 
-  gateway = http.createServer((request, response) => {
+  const handleRequest = (request, response) => {
     const path = new URL(request.url, "http://fixture.local").pathname;
     const route = routes.find(candidate => candidate.matches(path));
     if (!route) { response.writeHead(404); response.end("No matching service rewrite."); return; }
@@ -175,7 +215,7 @@ async function main() {
         ...request.headers,
         host: publicHost,
         "x-forwarded-host": publicHost,
-        "x-forwarded-proto": "http",
+        "x-forwarded-proto": accountsFixture ? "https" : "http",
         "x-forwarded-port": String(gatewayPort),
       },
     }, incoming => {
@@ -189,10 +229,17 @@ async function main() {
     request.on("aborted", () => upstream.destroy());
     response.on("close", () => { if (!response.writableEnded) upstream.destroy(); });
     request.pipe(upstream);
-  });
+  };
+  gateway = accountsFixture ? https.createServer(tlsOptions, handleRequest) : http.createServer(handleRequest);
   gateway.on("error", error => { console.error(error.message); void shutdown(1); });
   await new Promise(accept => gateway.listen(gatewayPort, "127.0.0.1", accept));
-  console.log(`SIMULATED SERVICES INGRESS READY http://localhost:${gatewayPort}`);
+  if (accountsFixture) {
+    const manifest = join(root, "test-results-accounts", "fixture.json");
+    await mkdir(join(root, "test-results-accounts"), { recursive: true });
+    await writeFile(manifest, JSON.stringify({ localFixture: true, origin: publicOrigin, temporary, accounts: join(temporary, "musical-daily", "accounts.sqlite"), encore: join(temporary, "artist-encore", "encore.sqlite"), doubleDrop: join(temporary, "double-or-drop", "double-drop.sqlite") }, null, 2));
+    console.log(`Local auth fixture manifest: ${manifest}`);
+  }
+  console.log(`SIMULATED SERVICES INGRESS READY ${publicOrigin}`);
   console.log("Uses built production apps and vercel.json routing; this is not a Vercel emulator or storage migration.");
   console.log(`Disposable SQLite/cache directory: ${temporary}`);
 }

@@ -11,7 +11,7 @@ export interface Database extends SqlExecutor {
   transaction<T>(fn: (tx: SqlExecutor) => Promise<T>): Promise<T>;
   close(): void;
 }
-export type DatabaseScope = "encore" | "double-drop" | "music-cache";
+export type DatabaseScope = "encore" | "double-drop" | "music-cache" | "accounts";
 export function createDatabase(options: { url: string; authToken?: string }): Database;
 export function openLocalDatabase(path: string): Database;
 export function databaseFor(scope: DatabaseScope): Database;
