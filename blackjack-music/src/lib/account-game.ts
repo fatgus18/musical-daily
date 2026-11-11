@@ -1,4 +1,4 @@
-import { getAccount, loadProgress, saveProgress } from "@musical-daily/accounts/server";
+import { loadAccountProgress, saveProgress } from "@musical-daily/accounts/server";
 import { evaluateRank, generateDailyPuzzle, type DailyPuzzleData, type RankTier, type RulesVersion } from "./puzzle";
 export { sameOrigin } from "./request-origin";
 
@@ -42,9 +42,8 @@ export function pickHand(hand: AccountHand, trackId: string): AccountHand {
   return next;
 }
 export async function readAccountHand(request: Request, date: string) {
-  const user = await getAccount(request, "blackjack");
+  const { user, progress: stored } = await loadAccountProgress(request, "blackjack", accountHandKey(date));
   if (!user) return null;
-  const stored = await loadProgress(request, "blackjack", accountHandKey(date));
   return { user, hand: stored?.value as AccountHand | undefined, revision: stored?.revision || 0 };
 }
 export async function persistHand(request: Request, hand: AccountHand, revision: number) {

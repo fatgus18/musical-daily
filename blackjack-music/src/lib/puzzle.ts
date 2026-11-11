@@ -1,4 +1,5 @@
 import { getCatalogVersion, getTrackPool, TrackRecord } from "./tracks";
+import { dailyDate } from "./daily-clock";
 
 export const GAME_EPOCH = "2026-10-01"; // Day #1 launch date
 export type RulesVersion = "v2" | "v3-exact";
@@ -34,13 +35,7 @@ export type RankTier =
   | "SOUNDCHECK"
   | "BUST";
 
-export function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
+export const getTodayDateString = dailyDate;
 
 export function getPuzzleNumber(dateStr: string): number {
   const [y, m, d] = dateStr.split("-").map(Number);

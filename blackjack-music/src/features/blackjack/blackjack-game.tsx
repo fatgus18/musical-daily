@@ -8,6 +8,9 @@ import { MusicalDailyBrand } from "@/components/musical-daily-brand";
 import { AccountButton, useAccount } from "@/components/account-client";
 import { useSound } from "@/components/sound-client";
 import { withBasePath } from "@/lib/app-path";
+import { buildShareScore } from "@/lib/share-score";
+import { guestBoardIdentity, presentBoard } from "@/lib/board-presentation";
+import { dailyDate, nextDailyReset } from "@/lib/daily-clock";
 import type { GameStats } from "@musical-daily/accounts";
 import type { PublicTrackCard, RankTier, RulesVersion } from "@/lib/puzzle";
 
@@ -75,14 +78,6 @@ function formatStreams(n: number): string {
   return `${Math.round(n / 1_000_000)}M`;
 }
 
-function getLocalDateStr(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
 function getYesterdayDateStr(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
@@ -100,7 +95,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   const { play: playSound } = useSound();
   const soundActive = useRef(true);
   useEffect(() => { soundActive.current = true; return () => { soundActive.current = false; }; }, []);
-  const playDate = useCallback(() => accountId ? new Date().toISOString().slice(0, 10) : getLocalDateStr(), [accountId]);
+  const playDate = dailyDate;
   const storagePrefix = accountId ? `account:${accountId}:` : "";
   const accountRevision = useRef<number | undefined>(undefined);
   const [board, setBoard] = useState<DailyApiResponse | null>(null);
@@ -323,7 +318,9 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   const recordCompletedDailyStats = (dateStr: string, rank: RankTier) => {
     if (accountId) { void refreshStats().catch(cause => setError(cause.message)); return; }
     setStats((prev) => {
-      if (prev.lastCompletedDate === dateStr) return prev;
+      // A guest upgrading from local dates may already have tomorrow's result.
+      // Completing an older UTC hand must not rewind their recorded streak.
+      if (prev.lastCompletedDate && prev.lastCompletedDate >= dateStr) return prev;
 
       const isWin = rank !== "BUST";
       const wasYesterday =
@@ -386,7 +383,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
         if (accountId && !customSeed && !data.accountState) throw new Error("Your sign-in session changed. Refresh the page before continuing.");
         accountRevision.current = data.accountRevision;
         if (accountId && !customSeed) saved = data.accountState || null;
-        setBoard(data);
+        setBoard({ ...data, tracks: presentBoard(data.tracks, data, accountId ? `account:${accountId}` : guestBoardIdentity()) });
 
         // Restore saved state if in Daily Mode
         if (!customSeed) {
@@ -429,16 +426,11 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
     [stopAudio, accountId]
   );
 
-  // Account boards roll over together at UTC midnight; existing guest boards keep local dates.
+  // Everyone gets the same challenge at UTC midnight, including guests.
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
-      const tomorrow = accountId ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)) : new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + 1
-      );
-      const diff = Math.max(0, tomorrow.getTime() - now.getTime());
+      const diff = Math.max(0, nextDailyReset(now) - now.getTime());
       const hrs = String(Math.floor(diff / 3600000)).padStart(2, "0");
       const mins = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
       const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
@@ -633,35 +625,18 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
   const handleShare = async () => {
     if (!board || !finishData) return;
-    const pct = ((finishData.finalSum / board.targetStreams) * 100).toFixed(1);
-    const gridRows: string[] = [];
-
-    for (let i = 0; i < 9; i += 3) {
-      const row = board.tracks
-        .slice(i, i + 3)
-        .map((t) => {
-          if (pickedIds.includes(t.id)) return "🟩";
-          if (burnedIds.includes(t.id)) return "🛡️";
-          if (finishData.optimalHandIds.includes(t.id)) return "⭐";
-          return "⬛";
-        })
-        .join("");
-      gridRows.push(row);
-    }
-
-    const modeTitle = practiceSeed
-      ? `Stream Blackjack (Practice)`
-      : `Stream Blackjack — Day #${board.puzzleNumber}`;
-
-    const shareText = [
-      `🎧 ${modeTitle}`,
-      `🎯 ${formatStreams(finishData.finalSum)} / ${formatStreams(
-        board.targetStreams
-      )} (${pct}%) — ${finishData.rank}`,
-      `🔥 Streak: ${stats.currentStreak}`,
-      "",
-      ...gridRows,
-    ].join("\n");
+    const shareText = buildShareScore({
+      mode: practiceSeed ? "practice" : "daily",
+      puzzleNumber: board.puzzleNumber,
+      finalSum: finishData.finalSum,
+      targetStreams: board.targetStreams,
+      rank: finishData.rank,
+      picks: pickedIds.length + burnedIds.length,
+      shieldAvailable,
+      streak: stats.currentStreak,
+      origin: window.location.origin,
+      gamePath: withBasePath("/"),
+    });
 
     try {
       await navigator.clipboard.writeText(shareText);
@@ -960,8 +935,9 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
                 <button
                   onClick={handleShare}
                   className="md-arcade-button flex items-center gap-2 rounded-full bg-[#c4f58a] px-5 py-3 text-sm font-extrabold text-black shadow-[0_4px_20px_rgba(167,139,250,0.4)] transition hover:scale-105 hover:bg-[#dcffb7]"
+                  title="Copy your score and game link without revealing the songs you picked"
                 >
-                  <span>{copiedShare ? "✅ Copied Grid!" : "📤 Share Score"}</span>
+                  <span>{copiedShare ? "✅ Score + link copied!" : "📤 Share Score"}</span>
                 </button>
               </div>
             </div>
@@ -1275,6 +1251,11 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
               <li>
                 🔊 <strong>Audio Previews:</strong> Tap the ▶ button on any
                 album cover to listen to a 30-second snippet while deciding.
+              </li>
+              <li>
+                🌍 <strong>One daily challenge:</strong> Everyone gets the same
+                songs and cap, with a personal card layout. The next hand arrives
+                at midnight UTC. Shared scores keep your song choices private.
               </li>
             </ul>
           </div>

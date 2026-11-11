@@ -35,6 +35,84 @@ test("Google subject is the account key; changed email retains identity and same
   assert.equal(one.id, changed.id); assert.notEqual(one.id, other.id); store.close();
 });
 
+test("session progress is one fresh SQL read, scoped to the active audience, account, game and key", async (context) => {
+  const { store, advance } = fixture();
+  try {
+    const user = await store.user(identity);
+    const other = await store.user({ ...identity, sub: "other-player", email: "other@example.test" });
+    const hub = await store.createSession(user.id, "hub");
+    const otherSession = await store.createSession(other.id, "hub");
+    const standalone = await store.createSession(user.id, "tempo");
+    const key = "daily:2026-11-02";
+    await store.saveProgress(user.id, "tempo", key, { round: 2 }, 0);
+    await store.saveProgress(user.id, "blackjack", key, { pickedIds: ["song-one"] }, 0);
+    await store.saveProgress(other.id, "tempo", key, { round: 4 }, 0);
+    const execute = store.db.execute.bind(store.db);
+    const reads = context.mock.method(store.db, "execute", execute);
+    context.mock.method(store, "session", async () => { throw new Error("A separate session read defeats the combined lookup"); });
+    const oneRead = async (token: string, audience: string, game: "tempo" | "blackjack", progressKey = key) => {
+      const before = reads.mock.callCount();
+      const result = await store.sessionProgress(token, audience, game, progressKey);
+      assert.equal(reads.mock.callCount() - before, 1);
+      assert.match(String(reads.mock.calls.at(-1)!.arguments[0]), /LEFT JOIN progress/);
+      return result;
+    };
+    assert.deepEqual(await oneRead(hub.token, "hub", "tempo"), { user, progress: { value: { round: 2 }, revision: 1 } });
+    assert.deepEqual(await oneRead(hub.token, "hub", "blackjack"), { user, progress: { value: { pickedIds: ["song-one"] }, revision: 1 } });
+    assert.deepEqual(await oneRead(otherSession.token, "hub", "tempo"), { user: other, progress: { value: { round: 4 }, revision: 1 } });
+    assert.deepEqual(await oneRead(otherSession.token, "hub", "blackjack"), { user: other, progress: null });
+    assert.deepEqual(await oneRead(hub.token, "hub", "tempo", "daily:2026-11-03"), { user, progress: null });
+    assert.deepEqual(await oneRead(hub.token, "tempo", "tempo"), { user: null, progress: null });
+    assert.deepEqual(await oneRead(standalone.token, "hub", "tempo"), { user: null, progress: null });
+    assert.deepEqual(await oneRead(standalone.token, "tempo", "tempo"), { user, progress: { value: { round: 2 }, revision: 1 } });
+    assert.deepEqual(await oneRead(randomToken(), "hub", "tempo"), { user: null, progress: null });
+    const beforeInvalid = reads.mock.callCount();
+    for (const invalid of ["", "../private", "x".repeat(201), null, 3]) {
+      await assert.rejects(store.sessionProgress(hub.token, "hub", "tempo", invalid as string), /Invalid progress key/);
+    }
+    assert.deepEqual(await store.sessionProgress("", "hub", "tempo", key), { user: null, progress: null });
+    assert.equal(reads.mock.callCount(), beforeInvalid, "invalid keys and absent sessions do not read storage");
+    await store.saveProgress(user.id, "tempo", key, { round: 3 }, 1);
+    assert.deepEqual(await oneRead(hub.token, "hub", "tempo"), { user, progress: { value: { round: 3 }, revision: 2 } });
+    await store.revoke(hub.family);
+    assert.deepEqual(await oneRead(hub.token, "hub", "tempo"), { user: null, progress: null }, "revocation is immediately authoritative");
+    assert.equal((await oneRead(otherSession.token, "hub", "tempo")).user?.id, other.id);
+    advance(30 * 86400000);
+    assert.deepEqual(await oneRead(otherSession.token, "hub", "tempo"), { user: null, progress: null }, "expiry is checked at the boundary");
+  } finally { store.close(); }
+});
+
+test("combined account-progress service authenticates callers before its one scoped read in both deployment modes", async (context) => {
+  const paths = { blackjack: "/blackjack", tempo: "/tempo-trap", encore: "/encore", "double-drop": "/double-or-drop" } as const;
+  for (const settings of [config, { ...config, paths }]) {
+    const { store, handlers } = fixture(settings);
+    try {
+      const user = await store.user(identity);
+      const audience = "paths" in settings ? "hub" : "tempo";
+      const session = await store.createSession(user.id, audience);
+      const wrong = await store.createSession(user.id, audience === "hub" ? "tempo" : "hub");
+      const execute = store.db.execute.bind(store.db);
+      const reads = context.mock.method(store.db, "execute", execute);
+      context.mock.method(store, "session", async () => { throw new Error("Combined action must not run a preliminary session query"); });
+      const body = { app: "tempo", action: "account-progress", token: session.token, key: "daily:2026-11-02" };
+      assert.equal((await handlers.service(service(body, "wrong-secret"))).status, 401);
+      assert.equal((await handlers.service(service(body, config.secret, config.hub))).status, 401);
+      assert.equal((await handlers.service(service({ ...body, app: "unknown" }))).status, 400);
+      assert.equal((await handlers.service(service({ ...body, key: "../private" }))).status, 400);
+      assert.equal(reads.mock.callCount(), 0);
+      const response = await handlers.service(service(body));
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("Cache-Control"), "no-store");
+      assert.deepEqual(await response.json(), { user, progress: null });
+      assert.equal(reads.mock.callCount(), 1);
+      assert.deepEqual(await (await handlers.service(service({ ...body, token: wrong.token }))).json(), { user: null, progress: null });
+      assert.equal(reads.mock.callCount(), 2);
+      context.mock.method(store.db, "execute", async () => { throw new Error("Temporary database outage"); });
+      assert.equal((await handlers.service(service(body))).status, 503, "storage outages cannot look like guests");
+    } finally { store.close(); }
+  }
+});
+
 test("OAuth callback requires browser state and exchanges Google PKCE/nonce once", async () => {
   const { store, handlers } = fixture();
   const login = await handlers.login(request("/api/account/login?returnTo=/stats"));

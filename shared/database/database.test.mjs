@@ -1,6 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { openLocalDatabase, databaseFor } from "./index.mjs";
+import { createDatabase, openLocalDatabase, databaseFor } from "./index.mjs";
+
+test("remote reads use independent HTTP streams instead of a global request queue", async () => {
+  let active = 0; let peak = 0; let requests = 0;
+  const db = createDatabase({ url: "https://database.example.invalid", authToken: "test-only-token", fetch: async (input, init) => {
+    const body = await new Request(input, init).json();
+    requests++; active++; peak = Math.max(peak, active);
+    await new Promise(resolve => setTimeout(resolve, 40));
+    active--;
+    return Response.json({ baton: null, base_url: null, results: body.requests.map(request => ({ type: "ok", response: request.type === "execute" ? {
+      type: "execute", result: { cols: [{ name: "value", decltype: "INTEGER" }], rows: [[{ type: "integer", value: "1" }]], affected_row_count: 0, last_insert_rowid: null },
+    } : { type: request.type } })) });
+  } });
+  try {
+    const values = await Promise.all([db.execute("SELECT 1 AS value"), db.execute("SELECT 1 AS value")]);
+    assert.equal(peak, 2, "one remote request must not wait for the other to finish");
+    assert.equal(requests, 2);
+    assert.deepEqual(values.map(value => value.rows), [[{ value: 1 }], [{ value: 1 }]]);
+  } finally { db.close(); }
+});
 
 test("transaction executor commits atomically and rolls back failed writes", async () => {
   const db = openLocalDatabase(":memory:");

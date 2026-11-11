@@ -1,6 +1,6 @@
 import { openLocalDatabase, type Database, type SqlExecutor } from "@musical-daily/database";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { AccountUser, AccountStats, GameStats, ResultEvent, GameId, ProgressResult } from "@musical-daily/accounts";
+import type { AccountUser, AccountStats, GameStats, ResultEvent, GameId, ProgressResult, ProgressSnapshot } from "@musical-daily/accounts";
 
 export const randomToken = () => randomBytes(32).toString("base64url");
 export const hash = (value: string) => createHash("sha256").update(value).digest("base64url");
@@ -77,6 +77,25 @@ export class AccountStore {
   async session(token: string, app?: string): Promise<Session | null> {
     await this.ready;
     return this.sessionWith(this.db, token, app);
+  }
+  async sessionProgress(token: string, audience: string, game: GameId, key: string): Promise<{ user: AccountUser | null; progress: ProgressSnapshot | null }> {
+    validateKey(key);
+    if (!token || token.length > 200) return { user: null, progress: null };
+    await this.ready;
+    // One indexed read authenticates the current session and loads only its
+    // owner's game progress. LEFT JOIN preserves valid accounts with no save.
+    // Revocation and expiry are checked in SQL on every request, without a TTL.
+    const row = (await this.db.execute(`SELECT users.id,users.email,users.name,users.picture,
+      progress.value AS progress_value,progress.revision AS progress_revision
+      FROM sessions JOIN users ON users.id=sessions.user_id
+      LEFT JOIN progress ON progress.user_id=sessions.user_id AND progress.game=? AND progress.key=?
+      WHERE sessions.token_hash=? AND sessions.app=? AND sessions.expires>?`,
+    [game, key, hash(token), audience, this.now()])).rows[0];
+    if (!row) return { user: null, progress: null };
+    return {
+      user: { id: String(row.id), email: String(row.email), name: String(row.name), picture: row.picture as string | null },
+      progress: row.progress_revision === null ? null : { value: JSON.parse(String(row.progress_value)) as unknown, revision: Number(row.progress_revision) },
+    };
   }
   private async sessionWith(tx: SqlExecutor, token: string, app?: string): Promise<Session | null> {
     if (!token || token.length > 200) return null;

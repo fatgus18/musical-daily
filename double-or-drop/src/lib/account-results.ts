@@ -1,4 +1,4 @@
-import type {SqlExecutor} from "@musical-daily/database";
+import type {SqlExecutor,SqlStatement} from "@musical-daily/database";
 import type {ResultEvent} from "@musical-daily/accounts";
 import type {Game} from "./types.ts";
 import {discardGame,migrateRetiredMetric,settleClock} from "./engine.ts";
@@ -36,10 +36,20 @@ export async function claimGuestGames(db:SqlExecutor,guestPlayer:string,userId:s
 }
 export async function flushAccountResults(db:SqlExecutor,player:string,publish:(events:ResultEvent[])=>Promise<{saved:boolean}>,now=Date.now()){
   if(!player.startsWith("account:"))return true;
-  // One SQL statement leases the batch across concurrent function instances.
-  const rows=(await db.execute("UPDATE account_result_outbox SET last_attempt=? WHERE game_id IN (SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL AND last_attempt<? ORDER BY created_at LIMIT 50) RETURNING game_id,event",[now,player,now-5000])).rows;
-  if(rows.length){
-    try{const result=await publish(rows.map(row=>JSON.parse(String(row.event))));if(result.saved)await db.batch(rows.map(row=>({sql:"UPDATE account_result_outbox SET synced_at=? WHERE game_id=?",args:[now,row.game_id]})));}catch{/* Durable retries survive an unavailable account service. */}
-  }
-  return !(await db.execute("SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL LIMIT 1",[player])).rows.length;
+  const pending:SqlStatement={sql:"SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL LIMIT 1",args:[player]};
+  // An atomic batch leases work and checks pending state in one database round trip.
+  // A recent lease owned by another request must still report unsynchronized stats.
+  const [claimed,status]=await db.batch([
+    {sql:"UPDATE account_result_outbox SET last_attempt=? WHERE game_id IN (SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL AND last_attempt<? ORDER BY created_at LIMIT 50) RETURNING game_id,event",args:[now,player,now-5000]},pending,
+  ]);
+  if(!claimed.rows.length)return !status.rows.length;
+  try{
+    const result=await publish(claimed.rows.map(row=>JSON.parse(String(row.event))));
+    if(!result.saved)return false;
+    // Re-check after publishing: new results or another in-flight batch remain pending.
+    const results=await db.batch([
+      ...claimed.rows.map(row=>({sql:"UPDATE account_result_outbox SET synced_at=? WHERE game_id=? AND player=? AND synced_at IS NULL",args:[now,row.game_id,player]})),pending,
+    ]);
+    return !results.at(-1)!.rows.length;
+  }catch{/* Durable retries survive an unavailable account service. */return false;}
 }

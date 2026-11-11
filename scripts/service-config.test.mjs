@@ -70,3 +70,10 @@ test("the shared account package is not deployed as a service and callers bind t
     else assert.deepEqual(bindings, [{ type: "service", service: "musical-daily", format: "url", env: "MUSICAL_DAILY_ACCOUNT_SERVICE_URL" }]);
   }
 });
+
+test("each service pins its API functions beside its primary state store", () => {
+  const expected = { "musical-daily": "bom1", "blackjack-music": "bom1", "tempo-trap": "bom1", "artist-encore": "iad1", "double-or-drop": "iad1" };
+  for (const [name, region] of Object.entries(expected)) {
+    assert.deepEqual(deployment.services[name].functions, { "src/app/api/**/route.ts": { regions: [region] } });
+  }
+});

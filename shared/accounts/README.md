@@ -75,7 +75,7 @@ The services build wrapper defaults to guest mode and enables accounts only for 
 
 The hub's **My stats** page displays four stacked cards for the current verified account. Empty accounts show empty states, never invented scores.
 
-Blackjack and Tempo validate daily progression on the server and save progress/results atomically with revision checks. Retried requests cannot duplicate a daily result or overwrite its completed score. Tempo account daily dates and streaks use IST (Asia/Kolkata) consistently across devices. Blackjack and Double or Drop account daily dates use UTC; guest Blackjack retains local dates.
+Blackjack and Tempo validate daily progression on the server and save progress/results atomically with revision checks. Retried requests cannot duplicate a daily result or overwrite its completed score. Tempo daily dates and streaks use IST (Asia/Kolkata) consistently across devices. Blackjack and Double or Drop use UTC for both guests and accounts, so every player gets the same daily challenge regardless of timezone.
 
 Encore uses the central account ID in its own game database. The last answer queues a completed result in a durable outbox. Discarded or replaced mixes queue an incomplete result instead. Batches publish idempotently; network failure keeps the pending result for retry. The interface identifies pending synchronization.
 
@@ -121,6 +121,16 @@ For local development without a managed connection, `ACCOUNTS_DB_PATH` still sel
 Keep service secrets private, use TLS and hosting-level rate limits, and configure database backups appropriate to the selected Turso plan. No Google Cloud project, real credentials or remote database is provisioned by the application itself.
 
 Apps use `file:../shared/accounts`. Install/build from the workspace checkout with this package available; Next configuration traces/transpiles the workspace dependency. Shared account UI lives in [shared/account-ui](../account-ui), with checked-in app copies. Run `node scripts/sync-account-ui.mjs --check` from the workspace root to verify consistency.
+
+## Request design and performance
+
+In the single-domain services deployment, browsers read session and statistics directly from the hub's root `/api/account/*` endpoints. Overlapping focus/visibility refreshes share only the pending request; completed identities are not cached. Logout aborts stale reads before revoking the session, and account changes discard pending stats responses.
+
+Blackjack and Tempo use `loadAccountProgress` to authenticate the active session and load its game progress in one indexed SQL join. A normal saved-daily read uses one game-to-hub request and one database query instead of two requests and three queries. Session expiry, audience, revocation and ownership are checked on every call; mutations still perform fresh authorization and optimistic revision checks.
+
+The remote libSQL adapter allows independent HTTP streams instead of placing every user's request in one JavaScript queue. Local native SQLite keeps its required per-file serialization. Encore and Double or Drop lease and inspect their result outboxes in one atomic batch; after publication, acknowledgment and the final pending check are also atomic. No result is acknowledged before successful publication.
+
+The checked-in services configuration places the hub, Blackjack and Tempo API functions in `bom1`, next to the accounts database. Encore and Double or Drop API functions remain in `iad1`, next to their existing game databases. Each function uses one region; this does not replicate or move user data. Recheck these choices if the primary database locations change. Public HTML, JavaScript and artwork continue to use Vercel's CDN. Hub responses expose an `account` duration in `Server-Timing` for diagnostics; they remain `Cache-Control: no-store`.
 
 ## Validation
 

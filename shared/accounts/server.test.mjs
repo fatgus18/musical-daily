@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getAccount, getStats, loadProgress, makeAccountRoutes, publishResult, publishResults, saveProgress } from "./server.mjs";
+import { getAccount, getStats, loadAccountProgress, loadProgress, makeAccountRoutes, publishResult, publishResults, saveProgress } from "./server.mjs";
 
 const secret = "test-service-secret-with-at-least-thirty-two-characters";
 const publicOrigin = "https://music.example";
@@ -113,6 +113,34 @@ test("services game login returns through central login without a separate game 
   }
 }));
 
+test("account progress uses one authoritative request and never caches identity or progress", async () => environment(async () => {
+  const seen = [];
+  let payload = { user, progress: { value: { round: 1 }, revision: 2 } };
+  globalThis.fetch = async (_input, init) => {
+    const body = JSON.parse(init.body);
+    seen.push(body);
+    assert.equal(init.cache, "no-store");
+    return Response.json(payload);
+  };
+  const key = "daily:2026-11-11";
+  assert.deepEqual(await loadAccountProgress(request(), "tempo", key), payload);
+  assert.deepEqual(seen, [{ app: "tempo", action: "account-progress", token: "central-session", key }]);
+  payload = { user, progress: null };
+  assert.deepEqual(await loadAccountProgress(request(), "tempo", key), payload);
+  payload = { user: null, progress: null };
+  assert.deepEqual(await loadAccountProgress(request(), "tempo", key), payload, "revoked sessions cannot reuse a previous snapshot");
+  assert.equal(seen.length, 3);
+  for (const cookie of ["", "md_tempo_session=legacy-cookie"]) {
+    assert.deepEqual(await loadAccountProgress(request("/api/daily", { headers: { cookie } }), "tempo", key), payload);
+  }
+  assert.equal(seen.length, 3, "guests and legacy game cookies must not contact accounts");
+  delete process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES;
+  assert.deepEqual(await loadAccountProgress(request("/api/daily", { headers: { cookie: "md_tempo_session=standalone" } }), "tempo", key), payload);
+  assert.equal(seen.at(-1).token, "standalone");
+  globalThis.fetch = async () => Response.json({ error: "storage down" }, { status: 503 });
+  await assert.rejects(loadAccountProgress(request("/api/daily", { headers: { cookie: "md_tempo_session=standalone" } }), "tempo", key), /temporarily unavailable/);
+}));
+
 test("services logout revokes and clears the central session, never the conflicting legacy account", async () => environment(async () => {
   process.env.MUSICAL_DAILY_APP_ORIGIN = "https://music.examplec";
   let calls = 0;
@@ -205,6 +233,7 @@ test("guest preview ignores stale account cookies and bindings without requiring
   const signed = request();
   assert.equal(await getAccount(signed, "encore"), null);
   assert.equal(await loadProgress(signed, "encore", "active"), null);
+  assert.deepEqual(await loadAccountProgress(signed, "encore", "active"), { user: null, progress: null });
   assert.deepEqual(await saveProgress(signed, "encore", "active", {}, 5), { saved: false, revision: 0 });
   assert.deepEqual(await publishResult(signed, "encore", {}), { saved: false });
   assert.deepEqual(await publishResults(signed, "encore", [{}]), { saved: false });

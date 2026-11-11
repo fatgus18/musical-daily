@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AccountButton, AccountSignIn, useAccount, guestOnly, type AccountUser } from "./account-client";
+import { AccountButton, AccountSignIn, accountApiPath, useAccount, guestOnly, type AccountUser } from "./account-client";
+import { createAccountRequestCoordinator } from "./account-requests";
 import { withBasePath } from "@/lib/app-path";
 import { MusicalDailyBrand } from "./musical-daily-brand";
 import type { AccountStats, GameStats, GameId } from "@musical-daily/accounts";
@@ -126,28 +127,36 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [pending, setPending] = useState(!!user);
   const [failure, setFailure] = useState<string | null>(null);
-  const [retry, setRetry] = useState(0);
+  const [requests] = useState(createAccountRequestCoordinator);
   const accountId = user?.id;
-  useEffect(() => {
-    if (!accountId || accountLoading || accountError) return;
-    const controller = new AbortController();
-    fetch(withBasePath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal: controller.signal }).then(async response => {
+  const reload = useCallback((): Promise<void> => {
+    if (!accountId || accountLoading || accountError) return Promise.resolve();
+    return requests.run(async signal => {
+      const response = await fetch(accountApiPath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal });
+      if (signal.aborted) throw new DOMException("Stats request cancelled", "AbortError");
       if (response.status === 401) { await refresh(); throw new Error("Please sign in again to see your stats."); }
       if (!response.ok) throw new Error("Your stats could not be loaded. Your saved scores are still safe.");
       const result: StatsResponse = await response.json();
       if (result.user?.id !== accountId) throw new Error("Your account changed. Refresh to see the right scores.");
       if (!result.games || gameOrder.some(id => !result.games[id])) throw new Error("Your stats are temporarily unavailable. Please try again.");
-      if (!controller.signal.aborted) { setData(result); setFailure(null); }
-    }).catch(reason => { if (!controller.signal.aborted) setFailure(reason instanceof Error ? reason.message : "We could not load your stats."); })
-      .finally(() => { if (!controller.signal.aborted) setPending(false); });
-    return () => controller.abort();
-  }, [accountId, accountLoading, accountError, retry, refresh]);
+      return result;
+    }, {
+      success: result => { setData(result); setFailure(null); },
+      error: reason => setFailure(reason instanceof Error ? reason.message : "We could not load your stats."),
+      settled: () => setPending(false),
+    });
+  }, [accountId, accountLoading, accountError, refresh, requests]);
   useEffect(() => {
-    const reload = () => { if (document.visibilityState === "visible") setRetry(value => value + 1); };
-    window.addEventListener("focus", reload);
-    document.addEventListener("visibilitychange", reload);
-    return () => { window.removeEventListener("focus", reload); document.removeEventListener("visibilitychange", reload); };
-  }, []);
+    void reload();
+    const onFocus = () => { if (document.visibilityState === "visible") void reload(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      requests.invalidate();
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [reload, requests]);
   const current = data?.user.id === accountId ? data : null;
   const games = game ? [game] : gameOrder;
   const total = current ? games.reduce((sum, id) => sum + current.games[id].completed, 0) : 0;
@@ -174,7 +183,7 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
       </section>
       {guestOnly ? <section className="md-stats-sign-in" aria-label="Guest preview"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>Just here for the music.</h2><p>Account stats are paused for this guest preview. You can still play every game and see each round’s result in the game.</p></div></section> : !accountLoading && !user && !accountError && <section className="md-stats-sign-in" aria-label="Sign in to save your stats"><span className="md-stats-save-icon" aria-hidden="true">♡</span><div><h2>A home for your high notes.</h2><p>Sign in with Google to see your account stats here and across Musical Daily. Guest scores stay with the game in this browser.</p></div><AccountSignIn/></section>}
       {accountLoading && <p className="md-stats-status" role="status">Getting your little collection ready…</p>}
-      {(accountError || failure) && <div className="md-stats-error" role="alert"><span>{accountError || failure}</span><button type="button" onClick={() => { if (accountError) void refresh(); else { setPending(true); setRetry(value => value + 1); } }}>Try again ↻</button></div>}
+      {(accountError || failure) && <div className="md-stats-error" role="alert"><span>{accountError || failure}</span><button type="button" onClick={() => { if (accountError) void refresh(); else { setPending(true); void reload(); } }}>Try again ↻</button></div>}
 
       <section className="md-stats-cards" aria-label="Your game statistics" aria-busy={loading}>{games.map(id => <StatsCard key={id} game={id} stats={current?.games[id]} href={game ? withBasePath("/") : gameHref(gameUrls[id] || "/", !!user)} signedIn={!!user} loading={loading}/>)}</section>
       {game && <RecentResults game={game} stats={current?.games[game]} />}

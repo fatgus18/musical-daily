@@ -58,6 +58,9 @@ export async function publishResult(request, app, event) { if (guestOnly() || !s
 export async function publishResults(request, app, events) { if (guestOnly()) return { saved: false }; if (!Array.isArray(events) || !events.length || events.length > 50) throw new Error("Expected between one and fifty results"); if (!sessionToken(request, app)) return { saved: false }; return central(request, app, "results", { events }); }
 export async function getStats(request, app) { return guestOnly() ? emptyStats() : central(request, app, "stats"); }
 export async function loadProgress(request, app, key) { if (guestOnly() || !sessionToken(request, app)) return null; return (await central(request, app, "load-progress", { key })).progress; }
+// Identity and progress come from one authoritative read; never cache this
+// snapshot across requests because a session can be revoked at any time.
+export async function loadAccountProgress(request, app, key) { if (guestOnly() || !sessionToken(request, app)) return { user: null, progress: null }; return central(request, app, "account-progress", { key }); }
 export async function saveProgress(request, app, key, value, revision = 0, event) { if (guestOnly() || !sessionToken(request, app)) return { saved: false, revision: 0 }; return central(request, app, "save-progress", { key, value, revision, ...(event ? { event } : {}) }); }
 
 export function makeAccountRoutes(app, hooks = {}) {

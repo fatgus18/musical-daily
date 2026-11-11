@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const apps = ["musical-daily", "blackjack-music", "tempo-trap", "artist-encore", "double-or-drop"];
-const files = [["account-client.tsx", "src/components/account-client.tsx"], ["account-client.css", "src/app/account-client.css"]];
+const files = [["account-client.tsx", "src/components/account-client.tsx"], ["account-requests.ts", "src/components/account-requests.ts"], ["account-client.css", "src/app/account-client.css"]];
 const check = process.argv.includes("--check");
 const mismatches = [];
 for (const app of apps) for (const [sourceName, destinationName] of files) {

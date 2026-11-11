@@ -86,6 +86,14 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
         const exchanged = await store.exchange(app, body.code, body.state, body.verifier);
         return exchanged ? noStoreJson(exchanged) : noStoreJson({ error: "This sign-in link has expired or was already used" }, 401);
       }
+      if (action === "account-progress") {
+        try {
+          return noStoreJson(await store.sessionProgress(typeof body.token === "string" ? body.token : "", config.paths ? "hub" : app, app, body.key));
+        } catch (error) {
+          if (error instanceof AccountValidationError) return noStoreJson({ error: "Invalid account data" }, 400);
+          throw error;
+        }
+      }
       const session = await store.session(typeof body.token === "string" ? body.token : "", config.paths ? "hub" : app);
       if (action === "session") return noStoreJson({ user: session?.user || null, configured: config.configured });
       if (action === "stats") return noStoreJson(await store.stats(session?.user || null));
@@ -107,7 +115,12 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
   // Cloud database failures must be retryable and must never look like a
   // successful sign-out or an empty account. Log only the operation/error type.
   return Object.fromEntries(Object.entries(handlers).map(([operation, handler]) => [operation, async (request: Request) => {
-    try { return await handler(request); }
+    const started = performance.now();
+    try {
+      const response = await handler(request);
+      response.headers.set("Server-Timing", `account;dur=${(performance.now() - started).toFixed(1)}`);
+      return response;
+    }
     catch (error) {
       console.error("Account request failed", { operation, type: error instanceof Error ? error.name : "UnknownError" });
       return noStoreJson({ error: "Account storage is temporarily unavailable. Please retry." }, 503);

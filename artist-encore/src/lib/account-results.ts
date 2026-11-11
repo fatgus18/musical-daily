@@ -39,10 +39,23 @@ export async function claimGuestGames(db:SqlExecutor,guestPlayer:string,userId:s
 }
 export async function flushAccountResults(db:SqlExecutor,player:string,publish:(events:ResultEvent[])=>Promise<{saved:boolean}>,now=Date.now()){
   if(!player.startsWith("account:"))return true;
-  // Claim one retry batch atomically, then release the database before the network call.
-  const rows=(await db.execute(`UPDATE account_result_outbox SET last_attempt=? WHERE game_id IN
-    (SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL AND last_attempt<? ORDER BY created_at LIMIT 50)
-    RETURNING game_id,event`,[now,player,now-5000])).rows;
-  if(rows.length){try{const result=await publish(rows.map(row=>JSON.parse(String(row.event))));if(result.saved)await db.batch(rows.map(row=>({sql:"UPDATE account_result_outbox SET synced_at=? WHERE game_id=?",args:[Date.now(),row.game_id]})));}catch{/* Keep the durable outbox for a later authenticated retry. */}}
-  return !(await db.execute("SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL LIMIT 1",[player])).rows.length;
+  const pending:SqlStatement={sql:"SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL LIMIT 1",args:[player]};
+  // An atomic batch leases work and checks pending state in one database round trip.
+  // A recent lease owned by another request must still report unsynchronized stats.
+  const [claimed,status]=await db.batch([
+    {sql:`UPDATE account_result_outbox SET last_attempt=? WHERE game_id IN
+      (SELECT game_id FROM account_result_outbox WHERE player=? AND synced_at IS NULL AND last_attempt<? ORDER BY created_at LIMIT 50)
+      RETURNING game_id,event`,args:[now,player,now-5000]},pending,
+  ]);
+  if(!claimed.rows.length)return !status.rows.length;
+  try{
+    const result=await publish(claimed.rows.map(row=>JSON.parse(String(row.event))));
+    if(!result.saved)return false;
+    // Release the lease transaction before publishing, then re-check after ACKs:
+    // a new result or another leased batch may have appeared during the network call.
+    const results=await db.batch([
+      ...claimed.rows.map(row=>({sql:"UPDATE account_result_outbox SET synced_at=? WHERE game_id=? AND player=? AND synced_at IS NULL",args:[Date.now(),row.game_id,player]})),pending,
+    ]);
+    return !results.at(-1)!.rows.length;
+  }catch{/* Keep the durable outbox for a later authenticated retry. */return false;}
 }

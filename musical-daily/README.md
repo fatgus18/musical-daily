@@ -45,7 +45,7 @@ The hub's account store uses the asynchronous [shared database adapter](../share
 
 Before activation, follow the [production account checklist](../shared/accounts/README.md#production): verify the Google callback URL, connect the accounts database, configure secrets, set `NEXT_PUBLIC_GUEST_ONLY=0`, rebuild all services, and complete a real Google login plus cross-device score check. Existing Encore/Double or Drop game databases stay separate; Rhythm Lab recordings remain local downloads.
 
-The **My stats** tab opens `/stats`, with four stacked cards for the current account. Scores come from validated game-server results. Signing into any game uses the same account as the hub, and signed-in game links establish the corresponding game session. Double or Drop tracks total banked points, best banked run, comparison accuracy, and runs that ended with banked points.
+The **My stats** tab opens `/stats`, with four stacked cards for the current account. Scores come from validated game-server results. Services share one central login cookie; direct game links retain that account without a per-game handoff. Browser session and stats requests go directly to the hub, and overlapping refreshes share only the pending request. See [request design and performance](../shared/accounts/README.md#request-design-and-performance) for database batching, authoritative progress reads, and function placement. Double or Drop tracks total banked points, best banked run, comparison accuracy, and runs that ended with banked points.
 
 ## Structure
 

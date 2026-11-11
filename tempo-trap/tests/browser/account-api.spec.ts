@@ -11,11 +11,12 @@ test("account daily progress resumes across devices, saves once, and remains iso
   process.env.MUSICAL_DAILY_SERVICE_SECRET = "test-only-tempo-account-service-secret";
   const stored = new Map<string, { value: AccountMix; revision: number }>();
   const events: Array<{ score: number }> = [];
+  const actions: string[] = [];
   globalThis.fetch = async (_input, init) => {
     const body = JSON.parse(String(init?.body));
-    if (body.action === "session") return Response.json({ user: { id: body.token, name: body.token, email: `${body.token}@example.test`, picture: null } });
+    actions.push(body.action);
     const key = `${body.token}:${body.key}`;
-    if (body.action === "load-progress") return Response.json({ progress: stored.get(key) || null });
+    if (body.action === "account-progress") return Response.json({ user: { id: body.token, name: body.token, email: `${body.token}@example.test`, picture: null }, progress: stored.get(key) || null });
     if (body.action === "save-progress") {
       const current = stored.get(key);
       if ((current?.revision || 0) !== body.revision) return Response.json({ saved: false, conflict: true, ...current });
@@ -32,6 +33,10 @@ test("account daily progress resumes across devices, saves once, and remains iso
   });
   try {
     const first = await (await daily(request("daily"))).json();
+    expect(actions).toEqual(["account-progress", "save-progress"]);
+    actions.length = 0;
+    await daily(request("daily"));
+    expect(actions).toEqual(["account-progress"]);
     let token = first.token as string;
     const tracks = getTracks(first.date, first.seed, first.version);
     let previous = "";
@@ -72,8 +77,7 @@ test("an account round deadline cannot be reset and expired answers earn zero", 
   let state: { value: AccountMix; revision: number } | null = null;
   globalThis.fetch = async (_input, init) => {
     const body = JSON.parse(String(init?.body));
-    if (body.action === "session") return Response.json({ user: { id: "alice", name: "Alice", email: "alice@example.test", picture: null } });
-    if (body.action === "load-progress") return Response.json({ progress: state });
+    if (body.action === "account-progress") return Response.json({ user: { id: "alice", name: "Alice", email: "alice@example.test", picture: null }, progress: state });
     if (body.action === "save-progress") { state = { value: body.value, revision: (state?.revision || 0) + 1 }; return Response.json({ saved: true, revision: state.revision }); }
     throw new Error("Unexpected operation");
   };

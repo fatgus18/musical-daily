@@ -3,8 +3,46 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST as reveal } from "../src/app/api/reveal/route";
 import { POST as finish } from "../src/app/api/finish/route";
+import { GET as daily } from "../src/app/api/daily/route";
 import { freshHand, pickHand, finishHand, handEvent } from "../src/lib/account-game";
 import { generateDailyPuzzle } from "../src/lib/puzzle";
+
+test("guest and account daily entry use the same UTC songs and cap around India's midnight", async (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-11T00:30:00+05:30") });
+  const originalFetch = globalThis.fetch;
+  const originalSecret = process.env.MUSICAL_DAILY_SERVICE_SECRET;
+  process.env.MUSICAL_DAILY_SERVICE_SECRET = "test-only-service-key-for-account-routes";
+  const actions: string[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const operation = JSON.parse(String(init?.body));
+    actions.push(operation.action);
+    if (operation.action === "account-progress") return Response.json({ user: { id: "alice", name: "Alice", email: "alice@example.test", picture: null }, progress: null });
+    if (operation.action === "save-progress") return Response.json({ saved: true, revision: 1 });
+    throw new Error(`Unexpected operation ${operation.action}`);
+  };
+  try {
+    const guestResponse = await daily(new NextRequest("http://localhost:3000/api/daily"));
+    const accountResponse = await daily(new NextRequest("http://localhost:3000/api/daily", { headers: { cookie: "md_blackjack_session=test-session" } }));
+    assert.equal(guestResponse.status, 200);
+    assert.equal(accountResponse.status, 200);
+    const guest = await guestResponse.json();
+    const account = await accountResponse.json();
+    assert.equal(guest.date, "2026-11-10");
+    assert.equal(account.date, guest.date);
+    assert.equal(account.catalogVersion, guest.catalogVersion);
+    assert.equal(account.rulesVersion, guest.rulesVersion);
+    assert.equal(account.targetStreams, guest.targetStreams);
+    assert.deepEqual(account.tracks.map((track: { id: string }) => track.id), guest.tracks.map((track: { id: string }) => track.id));
+    assert.ok(account.accountState);
+    assert.equal(guest.accountState, undefined);
+    assert.equal(guest.optimalHandIds, undefined);
+    assert.deepEqual(actions, ["account-progress", "save-progress"], "one identity/progress read plus the first-hand write");
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalSecret === undefined) delete process.env.MUSICAL_DAILY_SERVICE_SECRET; else process.env.MUSICAL_DAILY_SERVICE_SECRET = originalSecret;
+    context.mock.timers.reset();
+  }
+});
 
 test("account completion is derived from server picks, saved atomically and cannot be overwritten", async () => {
   const originalFetch = globalThis.fetch;
@@ -18,8 +56,7 @@ test("account completion is derived from server picks, saved atomically and cann
   globalThis.fetch = async (_input, init) => {
     if (unavailable) throw new Error("network unavailable");
     const request = JSON.parse(String(init?.body));
-    if (request.action === "session") return Response.json({ user: { id: "alice", name: "Alice", email: "alice@example.test", picture: null } });
-    if (request.action === "load-progress") return Response.json({ progress: { value: hand, revision } });
+    if (request.action === "account-progress") return Response.json({ user: { id: "alice", name: "Alice", email: "alice@example.test", picture: null }, progress: { value: hand, revision } });
     if (request.action === "save-progress") {
       if (request.revision !== revision) return Response.json({ saved: false, revision, conflict: true, value: hand });
       hand = request.value; revision++;

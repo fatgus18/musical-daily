@@ -4,6 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { withBasePath } from "@/lib/app-path";
+import { accountRequestPath, createAccountRequestCoordinator } from "./account-requests";
 
 export const guestOnly = process.env.NEXT_PUBLIC_GUEST_ONLY === "1";
 
@@ -18,29 +19,36 @@ interface AccountContextValue extends AccountSession {
 const AccountContext = createContext<AccountContextValue | null>(null);
 const CHANGE_KEY = "musical-daily:account-change";
 
+export function accountApiPath(path: string): string {
+  // All service-mounted games share the hub's root cookie and browser API.
+  // Standalone local apps keep their own account proxy route.
+  return accountRequestPath(path, process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES === "1", withBasePath);
+}
+
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AccountSession>({ user: null, configured: false });
   const [loading, setLoading] = useState(!guestOnly);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const request = useRef(0);
-  const invalidatePending = useCallback(() => { request.current++; }, []);
-  const refresh = useCallback(async () => {
-    if (guestOnly) return;
-    const current = ++request.current;
-    try {
-      const response = await fetch(withBasePath("/api/account/session"), { cache: "no-store", credentials: "same-origin" });
+  const [requests] = useState(createAccountRequestCoordinator);
+  const refresh = useCallback((): Promise<void> => {
+    if (guestOnly) return Promise.resolve();
+    return requests.run(async signal => {
+      const response = await fetch(accountApiPath("/api/account/session"), { cache: "no-store", credentials: "same-origin", signal });
       if (!response.ok) throw new Error("Your account could not be loaded. Please try again.");
-      const value: AccountSession = await response.json();
-      if (current !== request.current) return;
-      setSession({ user: value.user ?? null, configured: value.configured === true });
-      setError(null);
-    } catch {
-      if (current !== request.current) return;
-      setSession({ user: null, configured: false });
-      setError("Your account could not be loaded. Please try again.");
-    } finally { if (current === request.current) setLoading(false); }
-  }, []);
+      return response.json() as Promise<AccountSession>;
+    }, {
+      success: value => {
+        setSession({ user: value.user ?? null, configured: value.configured === true });
+        setError(null);
+      },
+      error: () => {
+        setSession({ user: null, configured: false });
+        setError("Your account could not be loaded. Please try again.");
+      },
+      settled: () => setLoading(false),
+    });
+  }, [requests]);
   useEffect(() => {
     if (guestOnly) return;
     // Read the browser-only callback result after hydration, then remove it from the URL.
@@ -53,14 +61,18 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       void refresh();
     });
     const onFocus = () => { if (document.visibilityState === "visible") void refresh(); };
-    const onStorage = (event: StorageEvent) => { if (event.key === CHANGE_KEY) void refresh(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== CHANGE_KEY) return;
+      requests.invalidate();
+      void refresh();
+    };
     window.addEventListener("focus", onFocus);
     window.addEventListener("pageshow", onFocus);
     window.addEventListener("storage", onStorage);
     document.addEventListener("visibilitychange", onFocus);
     const interval = window.setInterval(onFocus, 60_000);
     return () => {
-      invalidatePending();
+      requests.invalidate();
       window.cancelAnimationFrame(noticeFrame);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("pageshow", onFocus);
@@ -68,17 +80,21 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", onFocus);
       window.clearInterval(interval);
     };
-  }, [refresh, invalidatePending]);
+  }, [refresh, requests]);
   const signOut = useCallback(async () => {
     if (guestOnly) return;
-    const response = await fetch(withBasePath("/api/account/logout"), { method: "POST", credentials: "same-origin" });
-    if (!response.ok) throw new Error("We could not sign you out. Please try again.");
-    invalidatePending();
-    setSession(value => ({ ...value, user: null }));
-    setError(null);
-    try { localStorage.setItem(CHANGE_KEY, String(Date.now())); } catch { /* Private mode can disable storage. */ }
+    // Cancel before logout, and suppress focus refreshes until the cookie is
+    // revoked. An older response must never restore a signed-out identity.
+    requests.pause();
+    try {
+      const response = await fetch(accountApiPath("/api/account/logout"), { method: "POST", credentials: "same-origin" });
+      if (!response.ok) throw new Error("We could not sign you out. Please try again.");
+      setSession(value => ({ ...value, user: null }));
+      setError(null);
+      try { localStorage.setItem(CHANGE_KEY, String(Date.now())); } catch { /* Private mode can disable storage. */ }
+    } finally { requests.resume(); }
     await refresh();
-  }, [refresh, invalidatePending]);
+  }, [refresh, requests]);
   return <AccountContext.Provider value={{ ...session, loading, error, refresh, signOut }}>{notice && <div className="md-account-notice" role="alert"><span>{notice}</span><button type="button" onClick={() => setNotice(null)} aria-label="Dismiss sign-in message">×</button></div>}{children}</AccountContext.Provider>;
 }
 
@@ -119,7 +135,7 @@ export function AccountSignIn() {
   if (error) return <div className="md-account-message"><p role="alert">{error}</p><button type="button" onClick={() => void refresh()}>Try again</button></div>;
   if (!configured) return <div className="md-account-message"><p>Google sign-in is being set up. You can keep playing as a guest.</p><button type="button" onClick={() => void refresh()}>Check again</button></div>;
   const login = `/api/account/login?returnTo=${encodeURIComponent(returnTo)}`;
-  return <a className="md-google-sign-in" href={process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES === "1" ? login : withBasePath(login)}><GoogleMark /> Continue with Google</a>;
+  return <a className="md-google-sign-in" href={accountApiPath(login)}><GoogleMark /> Continue with Google</a>;
 }
 
 export function AccountButton({ statsHref = "/stats" }: { statsHref?: string }) {

@@ -8,22 +8,27 @@ const result = value => ({ rows: value.rows.map(row => Object.fromEntries(Object
 const statements = values => values.map(({ sql, args }) => ({ sql, args: args ? [...args] : [] }));
 // Native local SQLite clients cannot safely interleave an open write transaction
 // with another handle on the same file in one JavaScript process. Remote clients
-// use independent queues and let the managed database coordinate transactions.
+// use independent HTTP streams and let the managed database coordinate transactions.
 const localQueues = new Map();
 
 /** One explicit transaction executor; no implicit globals or retries of committed mutations. */
 export function createDatabase(options) {
   let client;
   let closed = false;
-  const localKey = options.url.startsWith("file:") && !options.url.includes(":memory:") ? options.url : null;
-  const queue = (localKey && localQueues.get(localKey)) || { tail: Promise.resolve(), handles: 0 };
-  queue.handles++;
+  const local = options.url.startsWith("file:");
+  const localKey = local && !options.url.includes(":memory:") ? options.url : null;
+  const queue = local ? ((localKey && localQueues.get(localKey)) || { tail: Promise.resolve(), handles: 0 }) : null;
+  if (queue) queue.handles++;
   if (localKey) localQueues.set(localKey, queue);
   const connect = () => {
     if (closed) throw new Error("Database is closed.");
     return client ||= createClient({ ...options, intMode: "number" });
   };
   const exclusive = operation => {
+    // The HTTP driver gives every operation/transaction its own stream. Do not
+    // make one player's slow request hold up unrelated remote session reads.
+    // Native local SQLite still requires its per-file (or per-memory) queue.
+    if (!queue) return Promise.resolve().then(operation);
     const work = queue.tail.then(operation);
     queue.tail = work.catch(() => {});
     return work;
@@ -62,8 +67,8 @@ export function createDatabase(options) {
       if (closed) return;
       closed = true;
       client?.close();
-      queue.handles--;
-      if (localKey) void queue.tail.then(() => {
+      if (queue) queue.handles--;
+      if (localKey && queue) void queue.tail.then(() => {
         if (queue.handles === 0 && localQueues.get(localKey) === queue) localQueues.delete(localKey);
       });
     },

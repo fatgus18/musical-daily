@@ -4,6 +4,7 @@
     "musical-daily": {
       "root": "musical-daily",
       "framework": "nextjs",
+      "functions": { "src/app/api/**/route.ts": { "regions": ["bom1"] } },
       "buildCommand": "node ../scripts/service-next.mjs musical-daily build",
       "devCommand": "node ../scripts/service-next.mjs musical-daily dev",
       "installCommand": "npm ci --prefix .."
@@ -11,6 +12,7 @@
     "blackjack-music": {
       "root": "blackjack-music",
       "framework": "nextjs",
+      "functions": { "src/app/api/**/route.ts": { "regions": ["bom1"] } },
       "buildCommand": "node ../scripts/service-next.mjs blackjack-music build",
       "devCommand": "node ../scripts/service-next.mjs blackjack-music dev",
       "bindings": [
@@ -26,6 +28,7 @@
     "tempo-trap": {
       "root": "tempo-trap",
       "framework": "nextjs",
+      "functions": { "src/app/api/**/route.ts": { "regions": ["bom1"] } },
       "buildCommand": "node ../scripts/service-next.mjs tempo-trap build",
       "devCommand": "node ../scripts/service-next.mjs tempo-trap dev",
       "bindings": [
@@ -41,6 +44,7 @@
     "artist-encore": {
       "root": "artist-encore",
       "framework": "nextjs",
+      "functions": { "src/app/api/**/route.ts": { "regions": ["iad1"] } },
       "buildCommand": "node ../scripts/service-next.mjs artist-encore build",
       "devCommand": "node ../scripts/service-next.mjs artist-encore dev",
       "bindings": [
@@ -56,6 +60,7 @@
     "double-or-drop": {
       "root": "double-or-drop",
       "framework": "nextjs",
+      "functions": { "src/app/api/**/route.ts": { "regions": ["iad1"] } },
       "buildCommand": "node ../scripts/service-next.mjs double-or-drop build",
       "devCommand": "node ../scripts/service-next.mjs double-or-drop dev",
       "bindings": [

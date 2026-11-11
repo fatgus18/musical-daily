@@ -1,13 +1,12 @@
-import { getAccount, loadProgress, saveProgress } from "@musical-daily/accounts/server";
+import { loadAccountProgress, saveProgress } from "@musical-daily/accounts/server";
 import { signSession, type Session } from "./session";
 import type { Progress } from "./types";
 
 export interface AccountMix { session: Session; deadline: number | null }
 export const mixKey = (date: string) => `daily:${date}`;
 export async function loadAccountMix(request: Request, date: string) {
-  const user = await getAccount(request, "tempo");
+  const { user, progress: snapshot } = await loadAccountProgress(request, "tempo", mixKey(date));
   if (!user) return null;
-  const snapshot = await loadProgress(request, "tempo", mixKey(date));
   return { user, mix: snapshot?.value as AccountMix | undefined, revision: snapshot?.revision || 0 };
 }
 export async function saveAccountMix(request: Request, mix: AccountMix, revision: number) {
