@@ -1,7 +1,171 @@
 /* Shared source: node scripts/sync-account-ui.mjs. Scoped for all game themes. */
-.md-account{position:relative;flex-shrink:0;font-family:inherit;z-index:40;line-height:1.5;letter-spacing:normal;text-transform:none}.md-account-trigger{display:flex;align-items:center;justify-content:center;gap:9px;padding:9px 13px;border-radius:30px;border:1px solid #434b41;background:#1c221d;color:#f2f4ed;font-family:inherit;font-size:12px;font-weight:600;line-height:1.3;cursor:pointer;min-height:40px;white-space:nowrap;transition:background .2s,border-color .2s}.md-account-trigger:hover{background:#2a3429;border-color:#8ba776}.md-account-trigger:disabled{opacity:.65;cursor:wait}.md-account-trigger.is-signed-in{padding:5px 11px 5px 5px}.md-account-avatar{width:29px;height:29px;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:#c4f58a;color:#1b281a;font-weight:700}.md-account-avatar img{width:100%;height:100%;object-fit:cover}.md-google-mark{flex:none}.md-account-panel{position:absolute;top:calc(100% + 12px);right:0;width:min(305px,calc(100vw - 32px));border:1px solid #3b4939;border-radius:16px;background:#1b211b;color:#f2f4ed;box-shadow:0 18px 60px #0008;padding:20px;font-family:inherit;font-size:13px;font-weight:400;line-height:1.6;animation:md-account-appear .15s ease-out}.md-account-heading{font-size:17px;letter-spacing:-.4px}.md-account-fine{font-size:12px;line-height:1.7;color:#a9b5a3;margin:7px 0 15px}.md-account-identity{display:flex;flex-direction:column;padding-bottom:14px;border-bottom:1px solid #ffffff13;margin-bottom:12px;min-width:0}.md-account-identity strong{font-size:15px;overflow-wrap:anywhere}.md-account-identity>span{font-size:11px;color:#aab5a4;overflow-wrap:anywhere}.md-account-stats{display:flex;align-items:center;justify-content:space-between;gap:9px;border-radius:8px;font-size:12px;color:#c4f58a;text-decoration:none;padding:9px 0}.md-account-stats:hover{text-decoration:underline}.md-account-stats+ .md-account-fine{margin-bottom:12px}.md-account-sign-out,.md-account-message button{background:transparent;border:1px solid #4b5545;border-radius:8px;padding:8px 12px;color:#e3e9dd;font:inherit;font-size:12px;cursor:pointer}.md-account-sign-out{width:100%}.md-account-sign-out:hover,.md-account-message button:hover{background:#ffffff09}.md-account-sign-out:disabled{opacity:.6;cursor:wait}.md-google-sign-in{display:inline-flex;align-items:center;justify-content:center;gap:11px;min-height:42px;padding:10px 17px;background:#f2f2f2;border:1px solid #8e918f;border-radius:24px;color:#1f1f1f;font-family:Arial,sans-serif;font-size:14px;font-weight:500;line-height:20px;letter-spacing:.25px;text-decoration:none;transition:box-shadow .2s,background .2s;white-space:nowrap}.md-google-sign-in:hover{background:#fff;box-shadow:0 1px 4px #0003}.md-account-panel .md-google-sign-in{width:100%}.md-account-message{font-size:12px;line-height:1.7;color:#bac6b4;max-width:360px}.md-account-message p{margin:8px 0 12px}.md-account-error{font-size:12px;line-height:1.6;color:#ffb6ac}.md-account-loading{font-size:12px;color:#acb7a6}.md-account button:focus-visible,.md-account a:focus-visible,.md-google-sign-in:focus-visible,.md-account-message button:focus-visible{outline:2px solid #c4f58a;outline-offset:4px}@keyframes md-account-appear{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}@media(max-width:450px){.md-account-name{max-width:70px;overflow:hidden;text-overflow:ellipsis}.md-account-trigger{font-size:11px;gap:6px;padding:8px 10px}}@media(prefers-reduced-motion:reduce){.md-account-panel{animation:none}.md-account-trigger,.md-google-sign-in{transition:none}}
-.md-account-notice{position:fixed;z-index:1000;left:50%;top:16px;transform:translateX(-50%);width:min(540px,calc(100% - 32px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 17px;border:1px solid #a38660;border-radius:12px;background:#29261e;color:#f2dcc0;font:400 13px/1.6 Arial,sans-serif;box-shadow:0 8px 40px #0006}.md-account-notice button{font:400 24px/1 Arial,sans-serif;border:0;background:transparent;color:inherit;cursor:pointer;padding:3px 7px}.md-account-notice button:focus-visible{outline:2px solid #c4f58a;outline-offset:3px}
-.md-game-stats-link{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;border:1px solid #ffffff22;border-radius:22px;padding:8px 12px;font:500 11px/1.3 Arial,sans-serif;color:#cbdabf;text-decoration:none;transition:border-color .2s,background .2s}.md-game-stats-link:hover{border-color:#b8d69b88;background:#c4f58a0a}.md-game-stats-link:focus-visible{outline:2px solid #c4f58a;outline-offset:4px}@media(max-width:400px){.md-game-stats-link{padding:7px 9px;font-size:10px}}
-/* Headers wrap differently across games. A viewport-bound mobile sheet keeps
-   both the Google button and signed-in actions visible wherever the trigger sits. */
-@media(max-width:600px){.md-account-panel{position:fixed;top:auto;left:16px;right:16px;bottom:max(16px,env(safe-area-inset-bottom));width:auto;max-height:calc(100dvh - 48px);overflow-y:auto;overscroll-behavior:contain;z-index:1000}}
+.md-account {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 40;
+  color: #faf7ef;
+  font-family: var(--md-font-sans, Arial, Helvetica, sans-serif);
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.md-account *, .md-account *::before, .md-account *::after { box-sizing: border-box; }
+.md-account .md-account-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #737795;
+  border-radius: 14px;
+  background: #282b45;
+  color: #faf7ef;
+  box-shadow: 0 3px 0 #080918;
+  font: 700 13px/1.3 var(--md-font-sans, Arial, Helvetica, sans-serif);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.md-account-trigger:hover { background: #343852; border-color: #c7b2f7; }
+.md-account-trigger[aria-expanded="true"] { border-color: #c7b2f7; background: #34304b; }
+.md-account-trigger:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #080918; }
+.md-account-trigger:disabled { opacity: .65; cursor: wait; }
+.md-account-trigger.is-signed-in { padding: 5px 10px 5px 5px; }
+.md-account-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 29px;
+  height: 29px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #c7b2f7;
+  color: #20233b;
+  font-size: 14px;
+  font-weight: 800;
+}
+.md-account-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.md-account-name { min-width: 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.md-account .md-account-icon { display: block; flex: none; width: 20px; height: 20px; }
+.md-account .md-account-icon-chevron { width: 14px; height: 14px; transition: transform 160ms ease; }
+.md-account-trigger[aria-expanded="true"] .md-account-icon-chevron { transform: rotate(180deg); }
+.md-google-mark { flex: none; }
+.md-account-panel {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100dvh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  border: 2px solid #737795;
+  border-radius: 20px;
+  background: #20233b;
+  color: #faf7ef;
+  box-shadow: 5px 6px 0 #080918, 0 16px 36px #08091866;
+  font: 400 14px/1.5 var(--md-font-sans, Arial, Helvetica, sans-serif);
+  text-align: left;
+  animation: md-account-appear 150ms ease-out;
+}
+.md-account-heading { display: block; font-size: 18px; line-height: 1.4; letter-spacing: -.4px; }
+.md-account-fine { margin: 8px 0 18px; color: #c3c5d7; font-size: 14px; line-height: 1.6; }
+.md-account-identity { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 3px 0 17px; }
+.md-account-profile-avatar { width: 42px; height: 42px; border-radius: 13px; font-size: 20px; }
+.md-account-identity-detail { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.md-account-identity-detail strong { font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.md-account-identity-detail > span { color: #c3c5d7; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.md-account-stats {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 2px solid #151628;
+  border-radius: 12px;
+  background: #c7b2f7;
+  color: #20233b;
+  box-shadow: 0 3px 0 #111321;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+.md-account-stats > span { flex: 1; }
+.md-account-stats:hover { background: #d9c8ff; text-decoration: none; }
+.md-account .md-account-sign-out, .md-account-message button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #737795;
+  border-radius: 12px;
+  background: #282b45;
+  color: #faf7ef;
+  font: 600 13px/1.5 var(--md-font-sans, Arial, Helvetica, sans-serif);
+  cursor: pointer;
+}
+.md-account-sign-out { width: 100%; margin-top: 12px; }
+.md-account-sign-out:hover, .md-account-message button:hover { background: #343852; border-color: #c7b2f7; }
+.md-account-sign-out:disabled { opacity: .6; cursor: wait; }
+.md-account-sign-out .md-account-icon { width: 17px; height: 17px; }
+.md-google-sign-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  min-height: 44px;
+  padding: 10px 17px;
+  background: #f2f2f2;
+  border: 1px solid #8e918f;
+  border-radius: 24px;
+  color: #1f1f1f;
+  font: 500 14px/20px Arial, sans-serif;
+  letter-spacing: .25px;
+  text-decoration: none;
+  transition: box-shadow 160ms ease, background 160ms ease;
+  white-space: nowrap;
+}
+.md-google-sign-in:hover { background: #fff; box-shadow: 0 1px 4px #0003; }
+.md-account-panel .md-google-sign-in { width: 100%; }
+.md-account-message { max-width: 360px; color: #c3c5d7; font-size: 14px; line-height: 1.7; }
+.md-account-message p { margin: 8px 0 12px; }
+.md-account-error { margin: 12px 0 0; color: #ffb6ac; font-size: 13px; line-height: 1.6; }
+.md-account-loading { color: #c3c5d7; font-size: 13px; }
+.md-account button:focus-visible, .md-account a:focus-visible, .md-google-sign-in:focus-visible, .md-account-message button:focus-visible { outline: 3px solid #ffea87; outline-offset: 4px; }
+.md-account-notice { position: fixed; z-index: 1000; left: 50%; top: 16px; transform: translateX(-50%); width: min(540px, calc(100% - 32px)); display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 17px; border: 2px solid #d7c17b; border-radius: 14px; background: #29283d; color: #ffedba; font: 400 14px/1.6 Arial, sans-serif; box-shadow: 0 6px 0 #080918; }
+.md-account-notice button { flex: none; min-width: 40px; min-height: 40px; padding: 3px 7px; border: 0; background: transparent; color: inherit; font: 400 24px/1 Arial, sans-serif; cursor: pointer; }
+.md-account-notice button:focus-visible { outline: 3px solid #ffea87; outline-offset: 3px; }
+.md-game-stats-link { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 10px 14px; border: 1px solid #737795; border-radius: 12px; background: #282b45; color: #faf7ef; font: 700 13px/1.4 Arial, sans-serif; white-space: nowrap; text-decoration: none; transition: border-color 160ms ease, background 160ms ease; }
+.md-game-stats-link:hover { border-color: #c7b2f7; background: #343852; }
+.md-game-stats-link:focus-visible { outline: 3px solid #ffea87; outline-offset: 4px; }
+@keyframes md-account-appear { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+/* Headers wrap differently across games. Keep the existing viewport-bound
+   mobile sheet so every sign-in and signed-in action stays within reach. */
+@media (min-width: 601px) and (max-width: 1099px) {
+  .md-account-panel { position: fixed; top: auto; right: 24px; bottom: 24px; max-height: calc(100dvh - 48px); z-index: 1000; }
+}
+@media (max-width: 600px) {
+  .md-account-panel { position: fixed; top: auto; left: 16px; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); width: auto; max-height: calc(100dvh - 48px); z-index: 1000; }
+}
+@media (max-width: 450px) {
+  .md-account-name { max-width: 62px; }
+  .md-account-trigger { gap: 6px; padding: 9px 10px; }
+  .md-account-trigger.is-signed-in { padding-right: 7px; }
+}
+html[data-contrast="high"] .md-account-identity-detail > span { color: #e5e8ef; }
+html[data-contrast="high"] .md-account-stats { background: #101216; color: #d5ffa0; border-color: #d3d8df; box-shadow: none; }
+html[data-contrast="high"] .md-account-sign-out { background: #101216; }
+@media (prefers-reduced-motion: reduce) {
+  .md-account-panel { animation: none; }
+  .md-account-trigger, .md-account-stats, .md-account .md-account-icon-chevron, .md-google-sign-in, .md-game-stats-link { transition: none; }
+  .md-account-trigger:active:not(:disabled) { transform: none; }
+}
+@media (forced-colors: active) {
+  .md-account-trigger, .md-account-panel, .md-account-stats, .md-account-sign-out { color: CanvasText; background: Canvas; border-color: CanvasText; box-shadow: none; }
+  .md-account-avatar { border: 1px solid CanvasText; }
+}

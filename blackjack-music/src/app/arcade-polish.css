@@ -6,9 +6,9 @@ body.md-game-blackjack .bj-main { max-width: 1160px; padding: 25px 28px 48px; }
 body.md-game-blackjack .bj-header { position: relative; top: auto; border-bottom: 2px solid #474a68; background: #121323; box-shadow: none; backdrop-filter: none; }
 body.md-game-blackjack .bj-header > div { max-width: 1160px; min-height: 88px; padding: 16px 28px; gap: 16px; }
 body.md-game-blackjack .bj-header > div > div:last-child { gap: 8px; flex-wrap: wrap; }
-body.md-game-blackjack .bj-header button:not(.md-account-trigger) { min-height: 40px; border: 1px solid #737795; border-radius: 11px; background: #282b45; color: #faf7ef; font: 700 13px/1.3 var(--md-font-sans); letter-spacing: 0; padding: 9px 12px; }
-body.md-game-blackjack .bj-header button[aria-pressed="true"] { background: var(--md-accent); color: #1c2b23; border-color: var(--md-accent); }
-body.md-game-blackjack .bj-header button:last-child { min-width: 40px; }
+body.md-game-blackjack .bj-header > div > div > button { min-height: 40px; border: 1px solid #737795; border-radius: 11px; background: #282b45; color: #faf7ef; font: 700 13px/1.3 var(--md-font-sans); letter-spacing: 0; padding: 9px 12px; }
+body.md-game-blackjack .bj-header > div > div > button[aria-pressed="true"] { background: var(--md-accent); color: #1c2b23; border-color: var(--md-accent); }
+body.md-game-blackjack .bj-header > div > div > button:last-child { min-width: 40px; }
 body.md-game-blackjack .game-heading { padding: 14px 0 25px; gap: 20px; align-items: center; }
 body.md-game-blackjack .game-heading h1 { font: 800 clamp(38px, 4.8vw, 62px)/1.03 var(--md-font-sans); letter-spacing: -.065em; margin: 0 0 16px; }
 body.md-game-blackjack .game-heading h1 em { color: #c4f58a; font-style: normal; }
@@ -92,7 +92,7 @@ body.md-game-blackjack .buddy-spark { transform-origin: center; animation: bj-bu
   body.md-game-blackjack .bj-main { padding: 18px 16px 70px; }
   body.md-game-blackjack .bj-header > div { padding: 15px 16px; min-height: 0; }
   body.md-game-blackjack .bj-header > div > div:last-child { gap: 6px; }
-  body.md-game-blackjack .bj-header button:not(.md-account-trigger) { font-size: 12px; min-height: 38px; padding: 9px 10px; }
+  body.md-game-blackjack .bj-header > div > div > button { font-size: 12px; min-height: 38px; padding: 9px 10px; }
   body.md-game-blackjack .game-heading { display: grid; grid-template-columns: minmax(0, 1fr) 100px; align-items: center; gap: 10px; padding: 10px 0 20px; }
   body.md-game-blackjack .game-heading h1 { font-size: clamp(30px, 7.6vw, 42px); line-height: 1.08; margin-bottom: 12px; }
   body.md-game-blackjack .game-heading p { font-size: 14px; }

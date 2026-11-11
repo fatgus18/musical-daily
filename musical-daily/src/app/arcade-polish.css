@@ -106,6 +106,8 @@ body:has(.home-hub) { background: radial-gradient(ellipse at 95% 5%, #bda4ff13, 
 .home-hub ~ dialog :is(p, .help-game p) { color: #ded9eb; font-size: 15px; line-height: 1.65; }
 .home-hub ~ dialog .help-fine { font-size: 13px; }
 .home-hub ~ dialog .help-game a { font-size: 14px; }
+.home-hub ~ dialog .help-game { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 16px; border-top-color: #c9b3ff33; }
+.home-hub ~ dialog .help-game > b { align-self: start; display: grid; place-items: center; min-height: 28px; background: transparent; border: 0; box-shadow: none; font: 700 14px/1.4 ui-monospace, Consolas, monospace; }
 .hub-header .question-icon { font-size: 12px; }
 
 @media (prefers-reduced-motion: no-preference) {

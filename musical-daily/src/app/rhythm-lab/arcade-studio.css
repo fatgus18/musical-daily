@@ -14,7 +14,9 @@ body:has(.studio-page) { background: radial-gradient(ellipse at 70% 0, #c9b3ff10
 .studio-shell .studio-transport-actions > button { border: 2px solid #121323; border-radius: 10px; min-height: 46px; font: 750 14px/1.3 var(--md-font-sans, Arial, sans-serif); box-shadow: 3px 3px 0 #121323; }
 .studio-shell .studio-beat-button, .studio-shell .studio-beat-button.is-playing { background: #8ae4cb; color: #121323; border-color: #121323; }
 .studio-shell .studio-record-button { background: #ff9b8e; color: #121323; border-color: #121323; }
+.studio-shell .studio-record-button > svg { color: inherit; width: 20px; height: 20px; flex: 0 0 20px; opacity: 1; }
 .studio-shell .studio-record-button.is-recording { background: #b82f43; color: #fff; border-color: #121323; }
+.studio-shell .studio-record-button.is-recording > svg { animation: none; }
 .studio-shell .studio-transport-actions > .studio-panic { background: #e8e4ed; color: #121323; border-color: #121323; min-height: 39px; height: 39px; }
 .studio-shell :is(.studio-tempo-control, .studio-swing-control, .studio-master-control) { border-color: #12132325; }
 .studio-shell .studio-transport :is(.studio-tempo-control > span, .studio-swing-control > span, .studio-master-control label > span) { color: #454052; font: 700 12px/1.5 var(--md-font-sans, Arial, sans-serif); letter-spacing: .4px; }

@@ -92,6 +92,15 @@ function GoogleMark() {
   return <svg className="md-google-mark" viewBox="0 0 48 48" width="18" height="18" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6C44.4 38.02 46.98 31.86 46.98 24.55Z"/><path fill="#FBBC05" d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.87 23.87 0 0 0 0 24c0 3.87.93 7.53 2.56 10.78l7.97-6.19Z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.91-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.18 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"/></svg>;
 }
 
+function AccountIcon({ name }: { name: "stats" | "arrow" | "chevron" | "sign-out" }) {
+  return <svg className={`md-account-icon md-account-icon-${name}`} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {name === "stats" && <><path d="M4 20h16M6 16v-5m6 5V4m6 12V8" /><circle cx="6" cy="8" r=".5" fill="currentColor" stroke="none" /></>}
+    {name === "arrow" && <path d="M5 12h14m-6-6 6 6-6 6" />}
+    {name === "chevron" && <path d="m6 9 6 6 6-6" />}
+    {name === "sign-out" && <><path d="M10 4H5v16h5m-1-8h12m-5-5 5 5-5 5" /></>}
+  </svg>;
+}
+
 function subscribeLocation(onChange: () => void) {
   window.addEventListener("popstate", onChange);
   return () => window.removeEventListener("popstate", onChange);
@@ -146,10 +155,10 @@ function AccountButtonState({ statsHref }: { statsHref: string }) {
   const initial = (user?.name?.trim() || user?.email || "M").slice(0, 1).toUpperCase();
   return <div className="md-account" ref={root}>
     <button type="button" className={`md-account-trigger${user ? " is-signed-in" : ""}`} ref={trigger} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={loading}>
-      {user ? <><span className="md-account-avatar">{user.picture && !brokenImage ? <Image src={user.picture} alt="" width={29} height={29} unoptimized referrerPolicy="no-referrer" onError={() => setBrokenImage(true)} /> : initial}</span><span className="md-account-name">{user.name?.split(" ")[0] || "My account"}</span><span aria-hidden="true">⌄</span></> : <><GoogleMark /><span>{loading ? "Loading…" : error ? "Account" : "Sign in"}</span></>}
+      {user ? <><span className="md-account-avatar">{user.picture && !brokenImage ? <Image src={user.picture} alt="" width={29} height={29} unoptimized referrerPolicy="no-referrer" onError={() => setBrokenImage(true)} /> : initial}</span><span className="md-account-name">{user.name?.split(" ")[0] || "My account"}</span><AccountIcon name="chevron" /></> : <><GoogleMark /><span>{loading ? "Loading…" : error ? "Account" : "Sign in"}</span></>}
     </button>
     {open && <div className="md-account-panel" id={id}>
-      {user ? <><div className="md-account-identity"><strong>{user.name || "Music lover"}</strong><span>{user.email}</span></div><a className="md-account-stats" href={statsHref}><span aria-hidden="true">▂ ▅ ▃ ▇</span> Your listening legacy <span aria-hidden="true">↗</span></a><p className="md-account-fine">One account. All your games.</p><button className="md-account-sign-out" type="button" disabled={busy} onClick={() => void leave()}>{busy ? "Signing out…" : "Sign out"}</button>{signOutError && <p className="md-account-error" role="alert">{signOutError}</p>}</> : <><strong className="md-account-heading">Make yourself at home.</strong><p className="md-account-fine">Keep your scores together across all your games.</p><AccountSignIn /></>}
+      {user ? <><div className="md-account-identity"><span className="md-account-avatar md-account-profile-avatar">{user.picture && !brokenImage ? <Image src={user.picture} alt="" width={42} height={42} unoptimized referrerPolicy="no-referrer" onError={() => setBrokenImage(true)} /> : initial}</span><div className="md-account-identity-detail"><strong>{user.name || "Music lover"}</strong><span>{user.email}</span></div></div><a className="md-account-stats" href={statsHref}><AccountIcon name="stats" /><span>My stats</span><AccountIcon name="arrow" /></a><button className="md-account-sign-out" type="button" disabled={busy} onClick={() => void leave()}><AccountIcon name="sign-out" /><span>{busy ? "Signing out…" : "Sign out"}</span></button>{signOutError && <p className="md-account-error" role="alert">{signOutError}</p>}</> : <><strong className="md-account-heading">Make yourself at home.</strong><p className="md-account-fine">Keep your scores together across all your games.</p><AccountSignIn /></>}
     </div>}
   </div>;
 }
