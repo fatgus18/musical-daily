@@ -3,21 +3,29 @@
 // Shared source. Run `node scripts/sync-account-ui.mjs` from the workspace root.
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import { ACCOUNT_AVATARS, type AccountAvatar, type AccountUser } from "@musical-daily/accounts";
 import { withBasePath } from "@/lib/app-path";
 import { accountRequestPath, createAccountRequestCoordinator } from "./account-requests";
 
 export const guestOnly = process.env.NEXT_PUBLIC_GUEST_ONLY === "1";
 
-export interface AccountUser { id: string; name: string; email: string; picture: string | null }
+export type { AccountUser } from "@musical-daily/accounts";
 interface AccountSession { user: AccountUser | null; configured: boolean }
 interface AccountContextValue extends AccountSession {
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
+  avatarSaving: boolean;
+  updateAvatar: (avatar: AccountAvatar | null) => Promise<boolean>;
 }
 const AccountContext = createContext<AccountContextValue | null>(null);
 const CHANGE_KEY = "musical-daily:account-change";
+
+function notifyAccountChange() {
+  // A unique value also notifies other tabs when two changes happen within a millisecond.
+  try { localStorage.setItem(CHANGE_KEY, `${Date.now()}:${Math.random().toString(36).slice(2)}`); } catch { /* Private mode can disable storage. */ }
+}
 
 export function accountApiPath(path: string): string {
   // All service-mounted games share the hub's root cookie and browser API.
@@ -30,7 +38,18 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(!guestOnly);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
   const [requests] = useState(createAccountRequestCoordinator);
+  const currentUser = useRef<AccountUser | null>(null);
+  const mounted = useRef(false);
+  const signingOut = useRef(false);
+  const avatarWrite = useRef<{ controller: AbortController; timeout: ReturnType<typeof setTimeout> } | null>(null);
+  const cancelAvatarWrite = useCallback(() => {
+    const pending = avatarWrite.current;
+    avatarWrite.current = null;
+    if (pending) { clearTimeout(pending.timeout); pending.controller.abort(); }
+    if (mounted.current) setAvatarSaving(false);
+  }, []);
   const refresh = useCallback((): Promise<void> => {
     if (guestOnly) return Promise.resolve();
     return requests.run(async signal => {
@@ -39,10 +58,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       return response.json() as Promise<AccountSession>;
     }, {
       success: value => {
+        currentUser.current = value.user ?? null;
         setSession({ user: value.user ?? null, configured: value.configured === true });
         setError(null);
       },
       error: () => {
+        currentUser.current = null;
         setSession({ user: null, configured: false });
         setError("Your account could not be loaded. Please try again.");
       },
@@ -51,6 +72,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, [requests]);
   useEffect(() => {
     if (guestOnly) return;
+    mounted.current = true;
     // Read the browser-only callback result after hydration, then remove it from the URL.
     const noticeFrame = window.requestAnimationFrame(() => {
       const location = new URL(window.location.href);
@@ -63,6 +85,11 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     const onFocus = () => { if (document.visibilityState === "visible") void refresh(); };
     const onStorage = (event: StorageEvent) => {
       if (event.key !== CHANGE_KEY) return;
+      // Another tab may have switched accounts or changed this profile. Never
+      // apply a response started with the old cookie to the new identity.
+      currentUser.current = null;
+      cancelAvatarWrite();
+      if (!signingOut.current) requests.resume();
       requests.invalidate();
       void refresh();
     };
@@ -72,6 +99,8 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener("visibilitychange", onFocus);
     const interval = window.setInterval(onFocus, 60_000);
     return () => {
+      mounted.current = false;
+      cancelAvatarWrite();
       requests.invalidate();
       window.cancelAnimationFrame(noticeFrame);
       window.removeEventListener("focus", onFocus);
@@ -80,22 +109,64 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", onFocus);
       window.clearInterval(interval);
     };
-  }, [refresh, requests]);
+  }, [cancelAvatarWrite, refresh, requests]);
+  const updateAvatar = useCallback(async (avatar: AccountAvatar | null): Promise<boolean> => {
+    const accountId = currentUser.current?.id;
+    if (guestOnly || !mounted.current || !accountId || signingOut.current || avatarWrite.current) return false;
+    // Pause reads for the write so an older session response cannot briefly
+    // replace the saved avatar. Gameplay and stats keep their existing identity.
+    requests.pause();
+    const controller = new AbortController();
+    const write = { controller, timeout: setTimeout(() => controller.abort(), 15_000) };
+    avatarWrite.current = write;
+    setAvatarSaving(true);
+    const current = () => mounted.current && avatarWrite.current === write && !signingOut.current && currentUser.current?.id === accountId;
+    try {
+      const response = await fetch(accountApiPath("/api/account/avatar"), {
+        method: "POST", credentials: "same-origin", cache: "no-store", signal: controller.signal,
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avatar }),
+      });
+      if (!response.ok) throw new Error(response.status === 401 ? "Please sign in again to change your picture." : "Your picture could not be saved. Please try again.");
+      const result = await response.json() as { user?: AccountUser };
+      if (!current()) return false;
+      if (!result.user || result.user.id !== accountId) throw new Error("Your account changed. Reopen your profile and try again.");
+      if (controller.signal.aborted) return false;
+      requests.invalidate();
+      currentUser.current = result.user;
+      setSession(value => value.user?.id === accountId ? { ...value, user: result.user! } : value);
+      notifyAccountChange();
+      return true;
+    } catch (reason) {
+      if (!current()) return false;
+      if (controller.signal.aborted) throw new Error("That took a little too long. Please try again.");
+      throw reason;
+    } finally {
+      clearTimeout(write.timeout);
+      if (avatarWrite.current === write) {
+        avatarWrite.current = null;
+        if (mounted.current) setAvatarSaving(false);
+        if (!signingOut.current) requests.resume();
+      }
+    }
+  }, [requests]);
   const signOut = useCallback(async () => {
     if (guestOnly) return;
     // Cancel before logout, and suppress focus refreshes until the cookie is
     // revoked. An older response must never restore a signed-out identity.
+    signingOut.current = true;
+    cancelAvatarWrite();
     requests.pause();
     try {
       const response = await fetch(accountApiPath("/api/account/logout"), { method: "POST", credentials: "same-origin" });
       if (!response.ok) throw new Error("We could not sign you out. Please try again.");
+      currentUser.current = null;
       setSession(value => ({ ...value, user: null }));
       setError(null);
-      try { localStorage.setItem(CHANGE_KEY, String(Date.now())); } catch { /* Private mode can disable storage. */ }
-    } finally { requests.resume(); }
+      notifyAccountChange();
+    } finally { signingOut.current = false; requests.resume(); }
     await refresh();
-  }, [refresh, requests]);
-  return <AccountContext.Provider value={{ ...session, loading, error, refresh, signOut }}>{notice && <div className="md-account-notice" role="alert"><span>{notice}</span><button type="button" onClick={() => setNotice(null)} aria-label="Dismiss sign-in message">×</button></div>}{children}</AccountContext.Provider>;
+  }, [cancelAvatarWrite, refresh, requests]);
+  return <AccountContext.Provider value={{ ...session, loading, error, refresh, signOut, avatarSaving, updateAvatar }}>{notice && <div className="md-account-notice" role="alert"><span>{notice}</span><button type="button" onClick={() => setNotice(null)} aria-label="Dismiss sign-in message">×</button></div>}{children}</AccountContext.Provider>;
 }
 
 export function useAccount() {
@@ -127,6 +198,55 @@ function currentReturnPath() {
   return location.pathname + location.search;
 }
 
+function GoogleProfilePicture({ user }: { user: AccountUser }) {
+  const [broken, setBroken] = useState(false);
+  const initial = (user.name?.trim() || user.email || "M").slice(0, 1).toUpperCase();
+  return user.picture && !broken
+    ? <Image src={user.picture} alt="" width={42} height={42} unoptimized referrerPolicy="no-referrer" onError={() => setBroken(true)} />
+    : <>{initial}</>;
+}
+
+function ProfileAvatar({ user, large = false, useDefault = false }: { user: AccountUser; large?: boolean; useDefault?: boolean }) {
+  const avatar = !useDefault && ACCOUNT_AVATARS.find(option => option.id === user.avatar);
+  return <span className={`md-account-avatar${large ? " md-account-profile-avatar" : ""}${avatar ? " md-account-emoji-avatar" : ""}`} data-avatar={avatar ? avatar.id : "default"} aria-hidden="true">
+    {avatar ? avatar.emoji : <GoogleProfilePicture key={user.picture} user={user} />}
+  </span>;
+}
+
+function SelectionCheck() {
+  return <svg className="md-avatar-check" width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+function AvatarPicker({ user, signingOut }: { user: AccountUser; signingOut: boolean }) {
+  const { avatarSaving, updateAvatar } = useAccount();
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  async function choose(avatar: AccountAvatar | null) {
+    setError(null); setSaved(false);
+    try {
+      const changed = await updateAvatar(avatar);
+      if (mounted.current) setSaved(changed);
+    } catch (reason) {
+      if (mounted.current) setError(reason instanceof Error ? reason.message : "Your picture could not be saved. Please try again.");
+    }
+  }
+  const selected = ACCOUNT_AVATARS.some(option => option.id === user.avatar) ? user.avatar : null;
+  const disabled = avatarSaving || signingOut;
+  return <section className="md-avatar-picker" aria-label="Profile picture" aria-busy={avatarSaving}>
+    <div className="md-avatar-heading"><strong>Profile picture</strong><span>Pick your vibe</span></div>
+    <button type="button" className="md-avatar-default" aria-label="Default — Google photo" aria-pressed={!selected} disabled={disabled} onClick={() => void choose(null)}>
+      <ProfileAvatar user={user} useDefault /><span>Default <small>Google photo</small></span>{!selected && <SelectionCheck />}
+    </button>
+    <div className="md-avatar-grid">{ACCOUNT_AVATARS.map(option => <button key={option.id} type="button" className="md-avatar-option" aria-label={option.label} title={option.label} aria-pressed={selected === option.id} disabled={disabled} onClick={() => void choose(option.id)}>
+      <span aria-hidden="true">{option.emoji}</span>{selected === option.id && <SelectionCheck />}
+    </button>)}</div>
+    <p className="md-avatar-status" role="status" aria-live="polite">{avatarSaving ? "Saving your look…" : saved ? "Saved. Looking good!" : "One look across all your games."}</p>
+    {error && <p className="md-avatar-error md-account-error" role="alert">{error}</p>}
+  </section>;
+}
+
 export function AccountSignIn() {
   const { configured, loading, error, refresh } = useAccount();
   const returnTo = useSyncExternalStore(subscribeLocation, currentReturnPath, () => "/");
@@ -142,7 +262,7 @@ export function AccountButton({ statsHref = "/stats" }: { statsHref?: string }) 
   const { user } = useAccount();
   if (guestOnly) return null;
   // A new identity gets fresh menu and avatar state before it is displayed.
-  return <AccountButtonState key={`${user?.id ?? "guest"}:${user?.picture ?? ""}`} statsHref={withBasePath(statsHref)} />;
+  return <AccountButtonState key={user?.id ?? "guest"} statsHref={withBasePath(statsHref)} />;
 }
 
 function AccountButtonState({ statsHref }: { statsHref: string }) {
@@ -150,7 +270,6 @@ function AccountButtonState({ statsHref }: { statsHref: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
-  const [brokenImage, setBrokenImage] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const id = useId();
@@ -168,13 +287,12 @@ function AccountButtonState({ statsHref }: { statsHref: string }) {
     catch (reason) { setSignOutError(reason instanceof Error ? reason.message : "Sign-out failed. Please try again."); }
     finally { setBusy(false); }
   }
-  const initial = (user?.name?.trim() || user?.email || "M").slice(0, 1).toUpperCase();
   return <div className="md-account" ref={root}>
     <button type="button" className={`md-account-trigger${user ? " is-signed-in" : ""}`} ref={trigger} aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} disabled={loading}>
-      {user ? <><span className="md-account-avatar">{user.picture && !brokenImage ? <Image src={user.picture} alt="" width={29} height={29} unoptimized referrerPolicy="no-referrer" onError={() => setBrokenImage(true)} /> : initial}</span><span className="md-account-name">{user.name?.split(" ")[0] || "My account"}</span><AccountIcon name="chevron" /></> : <><GoogleMark /><span>{loading ? "Loading…" : error ? "Account" : "Sign in"}</span></>}
+      {user ? <><ProfileAvatar user={user} /><span className="md-account-name">{user.name?.split(" ")[0] || "My account"}</span><AccountIcon name="chevron" /></> : <><GoogleMark /><span>{loading ? "Loading…" : error ? "Account" : "Sign in"}</span></>}
     </button>
     {open && <div className="md-account-panel" id={id}>
-      {user ? <><div className="md-account-identity"><span className="md-account-avatar md-account-profile-avatar">{user.picture && !brokenImage ? <Image src={user.picture} alt="" width={42} height={42} unoptimized referrerPolicy="no-referrer" onError={() => setBrokenImage(true)} /> : initial}</span><div className="md-account-identity-detail"><strong>{user.name || "Music lover"}</strong><span>{user.email}</span></div></div><a className="md-account-stats" href={statsHref}><AccountIcon name="stats" /><span>My stats</span><AccountIcon name="arrow" /></a><button className="md-account-sign-out" type="button" disabled={busy} onClick={() => void leave()}><AccountIcon name="sign-out" /><span>{busy ? "Signing out…" : "Sign out"}</span></button>{signOutError && <p className="md-account-error" role="alert">{signOutError}</p>}</> : <><strong className="md-account-heading">Make yourself at home.</strong><p className="md-account-fine">Keep your scores together across all your games.</p><AccountSignIn /></>}
+      {user ? <><div className="md-account-identity"><ProfileAvatar user={user} large /><div className="md-account-identity-detail"><strong>{user.name || "Music lover"}</strong><span>{user.email}</span></div></div><AvatarPicker user={user} signingOut={busy} /><a className="md-account-stats" href={statsHref}><AccountIcon name="stats" /><span>My stats</span><AccountIcon name="arrow" /></a><button className="md-account-sign-out" type="button" disabled={busy} onClick={() => void leave()}><AccountIcon name="sign-out" /><span>{busy ? "Signing out…" : "Sign out"}</span></button>{signOutError && <p className="md-account-error" role="alert">{signOutError}</p>}</> : <><strong className="md-account-heading">Make yourself at home.</strong><p className="md-account-fine">Keep your scores together across all your games.</p><AccountSignIn /></>}
     </div>}
   </div>;
 }

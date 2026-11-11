@@ -71,6 +71,19 @@ The services build wrapper defaults to guest mode and enables accounts only for 
 - Sign-out revokes the browser session family across all apps. Other tabs reconcile on focus and periodic refresh. A separately signed-in device retains its own session.
 - An account-service outage does not silently turn a signed-in game into guest progress.
 
+## Profile pictures
+
+The account menu offers the ten music emojis in `ACCOUNT_AVATARS`, plus
+**Default** for the original Google photo. A stable avatar ID (or `null` for
+Default) is saved in `account_preferences`, separately from the Google picture,
+so later Google sign-ins preserve the choice and can still refresh the photo.
+
+Services clients send `POST /api/account/avatar` with `{ "avatar": "guitar" }`
+or `{ "avatar": null }`. The authenticated session determines the account;
+requests must be same-origin and may contain only a supported avatar selection.
+Standalone games use their account proxy route. Session and stats responses
+include the preference, and other tabs refresh after a successful save.
+
 ## Scores and guest history
 
 The hub's **My stats** page displays four stacked cards for the current verified account. Empty accounts show empty states, never invented scores.

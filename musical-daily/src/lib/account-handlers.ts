@@ -1,21 +1,21 @@
-import { AccountStore, AccountValidationError, randomToken, hash, SESSION_AGE } from "./account-store.ts";
+import { AccountStore, AccountValidationError, randomToken, hash, SESSION_AGE, ACCOUNT_PREFERENCES_SCHEMA } from "./account-store.ts";
 import type { AuthFlow, Session } from "./account-store.ts";
 import { accountConfig, equalSecret, games, noStoreJson, readCookie, redirect, safeReturnPath, setCookie } from "./account-config.ts";
 import type { AccountConfig, GameId } from "./account-config.ts";
 import { googleProvider } from "./google-provider.ts";
 import type { GoogleProvider } from "./google-provider.ts";
-import type { ResultEvent } from "@musical-daily/accounts";
+import { isAccountAvatar, type ResultEvent } from "@musical-daily/accounts";
 import { databaseFor } from "@musical-daily/database";
 
 const cookieName = "md_hub_session";
 const flowCookie = "md_google_flow";
 const opaque = (value: unknown): value is string => typeof value === "string" && /^[A-Za-z0-9_-]{43,128}$/.test(value);
-async function requestBody(request: Request) {
-  if (!request.headers.get("content-type")?.startsWith("application/json")) throw new Error("Expected JSON");
-  if (Number(request.headers.get("content-length") || 0) > 150000) throw new Error("Request too large");
+async function requestBody(request: Request, maxBytes = 150000) {
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") throw new Error("Expected JSON");
+  if (Number(request.headers.get("content-length") || 0) > maxBytes) throw new Error("Request too large");
   if (!request.body) throw new Error("Missing request body");
   const reader = request.body.getReader(); const chunks: Uint8Array[] = []; let size = 0;
-  while (true) { const { value, done } = await reader.read(); if (done) break; size += value.byteLength; if (size > 150000) { await reader.cancel(); throw new Error("Request too large"); } chunks.push(value); }
+  while (true) { const { value, done } = await reader.read(); if (done) break; size += value.byteLength; if (size > maxBytes) { await reader.cancel(); throw new Error("Request too large"); } chunks.push(value); }
   const body = JSON.parse(Buffer.concat(chunks).toString()); if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Invalid request"); return body;
 }
 
@@ -44,6 +44,16 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
   const handlers = {
     async session(request: Request) { return noStoreJson({ user: (await hubSession(request))?.user || null, configured: config.configured }); },
     async stats(request: Request) { return noStoreJson(await store.stats((await hubSession(request))?.user || null)); },
+    async avatar(request: Request) {
+      if (request.headers.get("origin") !== config.hub) return noStoreJson({ error: "Invalid request origin" }, 403);
+      const token = readCookie(request, cookieName);
+      if (!token) return noStoreJson({ error: "Please sign in again" }, 401);
+      let body;
+      try { body = await requestBody(request, 1024); } catch { return noStoreJson({ error: "Invalid avatar selection" }, 400); }
+      if (Object.keys(body).length !== 1 || !Object.hasOwn(body, "avatar") || body.avatar !== null && !isAccountAvatar(body.avatar)) return noStoreJson({ error: "Invalid avatar selection" }, 400);
+      const user = await store.updateAvatar(token, "hub", body.avatar);
+      return user ? noStoreJson({ user }) : noStoreJson({ error: "Please sign in again" }, 401);
+    },
     async login(request: Request) { return start(request, null, safeReturnPath(new URL(request.url).searchParams.get("returnTo"))); },
     async authorize(request: Request) {
       const params = new URL(request.url).searchParams; const app = params.get("app") as GameId; const state = params.get("state"); const challenge = params.get("challenge");
@@ -94,6 +104,11 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
           throw error;
         }
       }
+      if (action === "avatar") {
+        if (Object.keys(body).length !== 4 || !["app", "action", "token", "avatar"].every(key => Object.hasOwn(body, key)) || body.avatar !== null && !isAccountAvatar(body.avatar) || Buffer.byteLength(JSON.stringify(body)) > 1024) return noStoreJson({ error: "Invalid avatar selection" }, 400);
+        const user = await store.updateAvatar(typeof body.token === "string" ? body.token : "", config.paths ? "hub" : app, body.avatar);
+        return user ? noStoreJson({ user }) : noStoreJson({ error: "Please sign in again" }, 401);
+      }
       const session = await store.session(typeof body.token === "string" ? body.token : "", config.paths ? "hub" : app);
       if (action === "session") return noStoreJson({ user: session?.user || null, configured: config.configured });
       if (action === "stats") return noStoreJson(await store.stats(session?.user || null));
@@ -128,14 +143,15 @@ export function createAccountHandlers(config: AccountConfig, store: AccountStore
   }])) as typeof handlers;
 }
 
-const globalStore = globalThis as typeof globalThis & { musicalDailyAccounts?: { path: string; store: AccountStore } };
+const accountSchemaVersion = 1;
+const globalStore = globalThis as typeof globalThis & { musicalDailyAccounts?: { path: string; schemaVersion?: number; store: AccountStore } };
 // Guest deployments must not open SQLite merely to report that sign-in is off.
 function guestHandlers() {
   const unavailable = async (_request: Request) => noStoreJson({ error: "Accounts are paused for this guest preview.", configured: false }, 503);
   return {
     session: async (_request: Request) => noStoreJson({ user: null, configured: false }),
     stats: async (_request: Request) => noStoreJson({ error: "Account statistics are paused for this guest preview.", configured: false }, 401),
-    login: unavailable, authorize: unavailable, callback: unavailable, service: unavailable,
+    login: unavailable, authorize: unavailable, callback: unavailable, service: unavailable, avatar: unavailable,
     logout: async (request: Request) => {
       const publicOrigin = new URL(request.url).origin;
       if (request.headers.get("origin") !== publicOrigin) return noStoreJson({ error: "Invalid request origin" }, 403);
@@ -153,9 +169,18 @@ export function accountHandlers() {
   if (!globalStore.musicalDailyAccounts || globalStore.musicalDailyAccounts.path !== path) {
     const database = process.env.ACCOUNTS_TURSO_DATABASE_URL || process.env.VERCEL === "1" ? databaseFor("accounts") : config.database;
     const store = new AccountStore(database);
-    globalStore.musicalDailyAccounts = { path, store };
+    globalStore.musicalDailyAccounts = { path, schemaVersion: accountSchemaVersion, store };
     void store.ready.catch(() => {
       // A transient cold-start failure must not poison this warm function.
+      if (globalStore.musicalDailyAccounts?.store === store) delete globalStore.musicalDailyAccounts;
+    });
+  } else if (globalStore.musicalDailyAccounts.schemaVersion !== accountSchemaVersion) {
+    // A hot reload must initialize new tables before new methods can read them.
+    // Keep the active connection and sessions, with no extra query on normal reads.
+    const store = globalStore.musicalDailyAccounts.store;
+    store.ready = store.ready.then(() => store.db.executeMultiple(ACCOUNT_PREFERENCES_SCHEMA));
+    globalStore.musicalDailyAccounts.schemaVersion = accountSchemaVersion;
+    void store.ready.catch(() => {
       if (globalStore.musicalDailyAccounts?.store === store) delete globalStore.musicalDailyAccounts;
     });
   }

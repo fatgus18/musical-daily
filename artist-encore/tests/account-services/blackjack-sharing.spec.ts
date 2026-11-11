@@ -89,7 +89,7 @@ test("daily Blackjack has a stable personal layout, a shared exact cap and a spo
       await card.locator("h3").click();
       await expect(page.locator(".bj-track-card[data-state='picked']")).toHaveCount(optimalIds.indexOf(id) + 1);
     }
-    await expect(page.locator(".bj-results")).toContainText("100.0% Accuracy");
+    await expect(page.locator(".bj-results")).toContainText("100.0% of cap");
     await page.getByRole("button", { name: "📤 Share Score", exact: true }).click();
     await expect.poll(() => copied).toContain(`${origin}/blackjack/`);
     await expect(page.getByRole("button", { name: "✅ Score + link copied!", exact: true })).toBeVisible();

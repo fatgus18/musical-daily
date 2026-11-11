@@ -74,9 +74,44 @@
 .md-account-fine { margin: 8px 0 18px; color: #c3c5d7; font-size: 14px; line-height: 1.6; }
 .md-account-identity { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 3px 0 17px; }
 .md-account-profile-avatar { width: 42px; height: 42px; border-radius: 13px; font-size: 20px; }
+.md-account-emoji-avatar { background: #e5dbc3; font-size: 20px; line-height: 1; }
+.md-account-profile-avatar.md-account-emoji-avatar { font-size: 29px; }
 .md-account-identity-detail { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .md-account-identity-detail strong { font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
 .md-account-identity-detail > span { color: #c3c5d7; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.md-avatar-picker { margin: 0 0 18px; padding: 16px 0 12px; border-top: 1px solid #555973; border-bottom: 1px solid #555973; }
+.md-avatar-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.md-avatar-heading strong { color: #faf7ef; font: 700 14px/1.5 var(--md-font-sans, Arial, Helvetica, sans-serif); }
+.md-avatar-heading > span { color: #c7b2f7; font: 400 12px/1.5 var(--md-font-sans, Arial, Helvetica, sans-serif); }
+.md-account .md-avatar-default, .md-account .md-avatar-option {
+  position: relative;
+  min-width: 44px;
+  min-height: 46px;
+  margin: 0;
+  padding: 5px;
+  border: 2px solid #737795;
+  border-radius: 12px;
+  background: #30344e;
+  color: #faf7ef;
+  box-shadow: 0 2px 0 #101220;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+.md-account .md-avatar-default { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px; margin-bottom: 10px; text-align: left; font: 700 14px/1.4 var(--md-font-sans, Arial, Helvetica, sans-serif); }
+.md-avatar-default > span:nth-child(2) { flex: 1; }
+.md-avatar-default small { margin-left: 6px; color: inherit; font: 400 12px/1.5 var(--md-font-sans, Arial, Helvetica, sans-serif); }
+.md-avatar-grid { display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 6px; }
+.md-account .md-avatar-option { display: grid; place-items: center; width: 100%; font: 400 25px/1.3 "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+.md-avatar-option > span { display: block; }
+.md-account .md-avatar-default[aria-pressed="true"], .md-account .md-avatar-option[aria-pressed="true"] { background: #c7b2f7; color: #17182a; border-color: #e3d5ff; }
+.md-account .md-avatar-default:hover:not(:disabled), .md-account .md-avatar-option:hover:not(:disabled) { border-color: #f1dda0; background: #424560; }
+.md-account .md-avatar-default[aria-pressed="true"]:hover:not(:disabled), .md-account .md-avatar-option[aria-pressed="true"]:hover:not(:disabled) { background: #d9c8ff; }
+.md-account .md-avatar-default:active:not(:disabled), .md-account .md-avatar-option:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.md-account .md-avatar-default:disabled, .md-account .md-avatar-option:disabled { opacity: .7; cursor: wait; }
+.md-account .md-avatar-check { display: block; flex: none; width: 15px; height: 15px; }
+.md-avatar-option .md-avatar-check { position: absolute; top: -3px; right: -3px; padding: 1px; border: 1px solid #17182a; border-radius: 50%; background: #f6e9bc; color: #17182a; }
+.md-avatar-status { min-height: 20px; margin: 10px 0 0; color: #c3c5d7; font: 400 12px/1.6 var(--md-font-sans, Arial, Helvetica, sans-serif); }
+.md-avatar-error.md-account-error { margin-top: 6px; }
 .md-account-stats {
   display: flex;
   align-items: center;
@@ -160,12 +195,23 @@
 html[data-contrast="high"] .md-account-identity-detail > span { color: #e5e8ef; }
 html[data-contrast="high"] .md-account-stats { background: #101216; color: #d5ffa0; border-color: #d3d8df; box-shadow: none; }
 html[data-contrast="high"] .md-account-sign-out { background: #101216; }
+html[data-contrast="high"] .md-avatar-heading > span, html[data-contrast="high"] .md-avatar-status { color: #e5e8ef; }
+html[data-contrast="high"] .md-avatar-picker { border-color: #d3d8df; }
+html[data-contrast="high"] .md-account .md-avatar-default, html[data-contrast="high"] .md-account .md-avatar-option { background: #101216; color: #fff; border-color: #d3d8df; box-shadow: none; }
+html[data-contrast="high"] .md-account .md-avatar-default[aria-pressed="true"], html[data-contrast="high"] .md-account .md-avatar-option[aria-pressed="true"] { background: #d5ffa0; color: #101216; border-color: #fff; }
+html[data-contrast="high"] .md-account :is(.md-avatar-default, .md-avatar-option):hover:not(:disabled) { background: #101216; color: #fff; border-color: #fff; }
+html[data-contrast="high"] .md-account :is(.md-avatar-default, .md-avatar-option)[aria-pressed="true"]:hover:not(:disabled) { background: #d5ffa0; color: #101216; }
 @media (prefers-reduced-motion: reduce) {
   .md-account-panel { animation: none; }
   .md-account-trigger, .md-account-stats, .md-account .md-account-icon-chevron, .md-google-sign-in, .md-game-stats-link { transition: none; }
   .md-account-trigger:active:not(:disabled) { transform: none; }
+  .md-account .md-avatar-default, .md-account .md-avatar-option { transition: none; }
+  .md-account .md-avatar-default:active:not(:disabled), .md-account .md-avatar-option:active:not(:disabled) { transform: none; }
 }
 @media (forced-colors: active) {
   .md-account-trigger, .md-account-panel, .md-account-stats, .md-account-sign-out { color: CanvasText; background: Canvas; border-color: CanvasText; box-shadow: none; }
   .md-account-avatar { border: 1px solid CanvasText; }
+  .md-account .md-avatar-default, .md-account .md-avatar-option { color: ButtonText; background: ButtonFace; border-color: ButtonText; box-shadow: none; }
+  .md-account .md-avatar-default[aria-pressed="true"], .md-account .md-avatar-option[aria-pressed="true"] { outline: 3px solid Highlight; outline-offset: -3px; }
+  .md-avatar-picker { border-color: CanvasText; }
 }

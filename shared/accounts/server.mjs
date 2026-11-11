@@ -1,5 +1,6 @@
 // Server-only: this module must never be imported from a client component.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { isAccountAvatar } from "./types.mjs";
 
 const ports = { blackjack: 3000, tempo: 3002, encore: 3004, "double-drop": 3005 };
 const random = () => randomBytes(32).toString("base64url");
@@ -36,6 +37,19 @@ function json(body, status = 200) { return Response.json(body, { status, headers
 function cookieValue(name, value, appOrigin, maxAge) { return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${appOrigin.startsWith("https:") ? "; Secure" : ""}`; }
 function redirect(location) { return new Response(null, { status: 303, headers: { Location: location, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } }); }
 function sameOrigin(request, expected) { return request.headers.get("origin") === expected; }
+async function avatarBody(request) {
+  if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json" || Number(request.headers.get("content-length") || 0) > 1024 || !request.body) throw new Error("Invalid avatar selection");
+  const reader = request.body.getReader(); const chunks = []; let size = 0;
+  while (true) {
+    const { value, done } = await reader.read(); if (done) break;
+    size += value.byteLength;
+    if (size > 1024) { await reader.cancel(); throw new Error("Invalid avatar selection"); }
+    chunks.push(value);
+  }
+  const body = JSON.parse(Buffer.concat(chunks).toString());
+  if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).length !== 1 || !Object.hasOwn(body, "avatar") || body.avatar !== null && !isAccountAvatar(body.avatar)) throw new Error("Invalid avatar selection");
+  return body.avatar;
+}
 function serviceEndpoint(publicHub) {
   // Service bindings only exist in running functions. Never use them for public redirects.
   const binding = process.env.MUSICAL_DAILY_ACCOUNT_SERVICE_URL;
@@ -65,6 +79,21 @@ export async function saveProgress(request, app, key, value, revision = 0, event
 
 export function makeAccountRoutes(app, hooks = {}) {
   return {
+    async avatar(request) {
+      if (guestOnly()) return json({ error: "Accounts are paused for this guest preview." }, 503);
+      try {
+        const settings = config(app);
+        if (!sameOrigin(request, settings.appOrigin)) return json({ error: "Invalid request origin" }, 403);
+        if (!sessionToken(request, app)) return json({ error: "Please sign in again" }, 401);
+        let avatar;
+        try { avatar = await avatarBody(request); } catch { return json({ error: "Invalid avatar selection" }, 400); }
+        return json(await central(request, app, "avatar", { avatar }));
+      } catch (error) {
+        if (error.status === 401) return json({ error: "Please sign in again" }, 401);
+        if (error.status === 400) return json({ error: "Invalid avatar selection" }, 400);
+        return json({ error: "Your avatar could not be saved. Please retry." }, 503);
+      }
+    },
     async session(request) { if (guestOnly()) return json({ user: null, configured: false }); try { const settings = config(app); if (settings.secret.length < 32) { if (sessionToken(request, app)) throw new Error("Account service is not configured"); return json({ user: null, configured: false }); } return json(await central(request, app, "session")); } catch { return sessionToken(request, app) ? json({ error: "Account service is temporarily unavailable" }, 503) : json({ user: null, configured: false }); } },
     async login(request) {
       if (guestOnly()) return json({ error: "Google sign-in is disabled for this guest preview" }, 503);

@@ -27,6 +27,55 @@ function request(path = "/api/account/session", options = {}) {
 }
 const cookies = response => response.headers.getSetCookie().map(value => value.split(";")[0]).join("; ");
 
+test("avatar proxy validates browser writes before forwarding the current central or standalone identity", async () => environment(async () => {
+  const seen = [];
+  globalThis.fetch = async (_input, init) => {
+    const body = JSON.parse(init.body); seen.push(body);
+    assert.equal(init.headers["X-Musical-Daily-Service"], secret);
+    return Response.json({ user: { ...user, avatar: body.avatar } });
+  };
+  const routes = makeAccountRoutes("encore");
+  const update = (body, headers = {}) => request("/api/account/avatar", { method: "POST", headers: { origin: publicOrigin, "Content-Type": "application/json", ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
+  for (const avatar of ["guitar", null]) {
+    const response = await routes.avatar(update({ avatar }));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.deepEqual(await response.json(), { user: { ...user, avatar } });
+    assert.deepEqual(seen.at(-1), { app: "encore", action: "avatar", token: "central-session", avatar });
+  }
+  const count = seen.length;
+  assert.equal((await routes.avatar(update({ avatar: "piano" }, { origin: "https://evil.example" }))).status, 403);
+  assert.equal((await routes.avatar(update({ avatar: "piano" }, { cookie: "md_encore_session=old-session" }))).status, 401);
+  for (const body of [{ avatar: "unknown" }, { avatar: "🎧" }, { avatar: 42 }, {}, { avatar: null, id: "other-account" }, "null", "[]", `${" ".repeat(1025)}{"avatar":"piano"}`]) assert.equal((await routes.avatar(update(body))).status, 400);
+  assert.equal((await routes.avatar(update({ avatar: null }, { "Content-Type": "text/plain" }))).status, 400);
+  assert.equal((await routes.avatar(update({ avatar: null }, { "Content-Type": "application/jsonp" }))).status, 400);
+  assert.equal((await routes.avatar(update({ avatar: null }, { "Content-Length": "2000" }))).status, 400);
+  assert.equal(seen.length, count, "invalid browser writes do not reach the service");
+  process.env.NEXT_PUBLIC_MUSICAL_DAILY_SERVICES = "0";
+  process.env.MUSICAL_DAILY_APP_ORIGIN = "https://encore.example";
+  const standalone = await routes.avatar(update({ avatar: "violin" }, { origin: "https://encore.example" }));
+  assert.equal(standalone.status, 200);
+  assert.deepEqual(seen.at(-1), { app: "encore", action: "avatar", token: "old-session", avatar: "violin" });
+}));
+
+test("avatar proxy keeps revoked sessions unauthorized and storage failures retryable", async () => environment(async () => {
+  const routes = makeAccountRoutes("encore");
+  const update = () => request("/api/account/avatar", { method: "POST", headers: { origin: publicOrigin, "Content-Type": "application/json" }, body: JSON.stringify({ avatar: "drums" }) });
+  for (const status of [400, 401, 500, 503]) {
+    globalThis.fetch = async () => Response.json({ error: "Internal service detail" }, { status });
+    const response = await routes.avatar(update());
+    assert.equal(response.status, status >= 500 ? 503 : status);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.doesNotMatch(JSON.stringify(await response.json()), /Internal service detail/);
+  }
+  globalThis.fetch = async () => { throw new Error("Unavailable network"); };
+  assert.equal((await routes.avatar(update())).status, 503);
+  process.env.NEXT_PUBLIC_GUEST_ONLY = "1";
+  const guest = await routes.avatar(update());
+  assert.equal(guest.status, 503);
+  assert.match((await guest.json()).error, /paused/);
+}));
+
 test("bindings resolve at request time and preserve internal path prefixes without dropping authorization", async () => environment(async () => {
   const seen = [];
   globalThis.fetch = async (input, init) => {

@@ -1,10 +1,11 @@
 import { openLocalDatabase, type Database, type SqlExecutor } from "@musical-daily/database";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import type { AccountUser, AccountStats, GameStats, ResultEvent, GameId, ProgressResult, ProgressSnapshot } from "@musical-daily/accounts";
+import { isAccountAvatar, type AccountAvatar, type AccountUser, type AccountStats, type GameStats, type ResultEvent, type GameId, type ProgressResult, type ProgressSnapshot } from "@musical-daily/accounts";
 
 export const randomToken = () => randomBytes(32).toString("base64url");
 export const hash = (value: string) => createHash("sha256").update(value).digest("base64url");
 export const SESSION_AGE = 30 * 86400;
+export const ACCOUNT_PREFERENCES_SCHEMA = "CREATE TABLE IF NOT EXISTS account_preferences(user_id TEXT PRIMARY KEY REFERENCES users(id),avatar TEXT,updated_at INTEGER NOT NULL);";
 export class AccountValidationError extends Error { constructor(message: string) { super(message); this.name = "AccountValidationError"; } }
 export interface Identity { sub: string; email: string; name: string; picture: string | null }
 export interface Session { user: AccountUser; family: string; expires: number; app: string }
@@ -20,6 +21,7 @@ export class AccountStore {
     // awaits this promise before touching tables, including concurrent requests.
     this.ready = this.db.executeMultiple(`PRAGMA foreign_keys=ON;
       CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,google_sub TEXT UNIQUE NOT NULL,email TEXT NOT NULL,name TEXT NOT NULL,picture TEXT,created_at INTEGER NOT NULL);
+      ${ACCOUNT_PREFERENCES_SCHEMA}
       CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),family TEXT NOT NULL,app TEXT NOT NULL,expires INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS session_family ON sessions(family);
       CREATE TABLE IF NOT EXISTS auth_flows(state_hash TEXT PRIMARY KEY,value TEXT NOT NULL,expires INTEGER NOT NULL);
@@ -61,7 +63,8 @@ export class AccountStore {
     await this.ready;
     const row = (await this.db.execute("INSERT INTO users(id,google_sub,email,name,picture,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(google_sub) DO UPDATE SET email=excluded.email,name=excluded.name,picture=excluded.picture RETURNING id", [randomUUID(), identity.sub, identity.email, identity.name, identity.picture, this.now()])).rows[0];
     const id = String(row.id);
-    return { id, email: identity.email, name: identity.name, picture: identity.picture };
+    const preferences = (await this.db.execute("SELECT avatar FROM account_preferences WHERE user_id=?", [id])).rows[0];
+    return { id, email: identity.email, name: identity.name, picture: identity.picture, avatar: isAccountAvatar(preferences?.avatar) ? preferences.avatar : null };
   }
   async createSession(userId: string, app: string, family: string = randomUUID()) {
     return this.transaction(tx => this.createSessionWith(tx, userId, app, family));
@@ -85,23 +88,36 @@ export class AccountStore {
     // One indexed read authenticates the current session and loads only its
     // owner's game progress. LEFT JOIN preserves valid accounts with no save.
     // Revocation and expiry are checked in SQL on every request, without a TTL.
-    const row = (await this.db.execute(`SELECT users.id,users.email,users.name,users.picture,
+    const row = (await this.db.execute(`SELECT users.id,users.email,users.name,users.picture,account_preferences.avatar,
       progress.value AS progress_value,progress.revision AS progress_revision
       FROM sessions JOIN users ON users.id=sessions.user_id
       LEFT JOIN progress ON progress.user_id=sessions.user_id AND progress.game=? AND progress.key=?
+      LEFT JOIN account_preferences ON account_preferences.user_id=sessions.user_id
       WHERE sessions.token_hash=? AND sessions.app=? AND sessions.expires>?`,
     [game, key, hash(token), audience, this.now()])).rows[0];
     if (!row) return { user: null, progress: null };
     return {
-      user: { id: String(row.id), email: String(row.email), name: String(row.name), picture: row.picture as string | null },
+      user: { id: String(row.id), email: String(row.email), name: String(row.name), picture: row.picture as string | null, avatar: isAccountAvatar(row.avatar) ? row.avatar : null },
       progress: row.progress_revision === null ? null : { value: JSON.parse(String(row.progress_value)) as unknown, revision: Number(row.progress_revision) },
     };
   }
   private async sessionWith(tx: SqlExecutor, token: string, app?: string): Promise<Session | null> {
     if (!token || token.length > 200) return null;
-    const row = (await tx.execute("SELECT users.id,email,name,picture,family,expires,app FROM sessions JOIN users ON users.id=sessions.user_id WHERE token_hash=? AND expires>?", [hash(token), this.now()])).rows[0];
+    const row = (await tx.execute("SELECT users.id,email,name,picture,account_preferences.avatar,family,expires,app FROM sessions JOIN users ON users.id=sessions.user_id LEFT JOIN account_preferences ON account_preferences.user_id=sessions.user_id WHERE token_hash=? AND expires>?", [hash(token), this.now()])).rows[0];
     if (!row || (app && row.app !== app)) return null;
-    return { user: { id: String(row.id), email: String(row.email), name: String(row.name), picture: row.picture as string | null }, family: String(row.family), expires: Number(row.expires), app: String(row.app) };
+    return { user: { id: String(row.id), email: String(row.email), name: String(row.name), picture: row.picture as string | null, avatar: isAccountAvatar(row.avatar) ? row.avatar : null }, family: String(row.family), expires: Number(row.expires), app: String(row.app) };
+  }
+  async updateAvatar(token: string, audience: string, avatar: AccountAvatar | null): Promise<AccountUser | null> {
+    if (avatar !== null && !isAccountAvatar(avatar)) throw new AccountValidationError("Invalid account avatar");
+    if (!token || token.length > 200) return null;
+    return this.transaction(async tx => {
+      // Authenticate inside the write transaction so a revoked or expired token
+      // cannot update preferences using an earlier, stale identity read.
+      const session = await this.sessionWith(tx, token, audience);
+      if (!session) return null;
+      await tx.execute("INSERT INTO account_preferences(user_id,avatar,updated_at) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET avatar=excluded.avatar,updated_at=excluded.updated_at", [session.user.id, avatar, this.now()]);
+      return { ...session.user, avatar };
+    });
   }
   async revoke(family: string) {
     await this.ready;
