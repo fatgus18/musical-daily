@@ -2,11 +2,11 @@
    Canonical source. Sync with node scripts/sync-stats-ui.mjs. */
 .md-stats-shell {
   --green: #c7f77b;
-  --stats-paper: #faf7ef;
+  --stats-paper: #e7ddc6;
   --stats-ink: #17182b;
   --stats-muted: #555468;
-  --stats-line: #c8c5c0;
-  --stats-tile: #fffdf8;
+  --stats-line: #c4b79c;
+  --stats-tile: #f0e7d4;
   min-height: 100vh;
   color: #faf7ef;
   background: #121323;
