@@ -18,7 +18,7 @@ const localPath = value => {
 localPath(manifest.encore);
 const operation = process.argv[2];
 
-if (operation === "catalog") {
+if (operation === "catalog" || operation === "random-catalog") {
   // Real song titles and artist identity, test-only media. Browser tests replace
   // only /rooms/audio with a generated WAV; all gameplay APIs remain real.
   const names = ["Hello", "Rolling in the Deep", "Someone Like You", "Set Fire to the Rain", "Easy On Me", "Skyfall", "When We Were Young", "Send My Love (To Your New Lover)", "Water Under the Bridge", "Rumour Has It", "Chasing Pavements", "Make You Feel My Love", "All I Ask", "Turning Tables", "Oh My God", "Love in the Dark", "Hometown Glory", "I Drink Wine", "Don't You Remember", "One and Only", "Million Years Ago", "Remedy", "Love Is a Game", "To Be Loved", "Daydreamer", "Cold Shoulder", "Right as Rain", "My Little Love", "Can I Get It", "He Won't Go"];
@@ -30,6 +30,19 @@ if (operation === "catalog") {
     await cache.put(`live-v1:pool:${artist.id}`, pool, 3600000);
     await cache.put("live-v1:artists:genre-v2:adele", [artist], 3600000);
     await cache.put(`artist-portrait:v2:${artist.id}:adele`, null, 3600000);
+    if (operation === "random-catalog") {
+      // A small ordinary directory cache makes cryptographic random selection
+      // deterministic in eligibility, not in which artist the server picks.
+      // Both candidates use real artist identities and titles; only fixture
+      // preview media is synthetic and never written to production storage.
+      const second = { id: "apple:342260741", name: "Hozier", image: "", url: "https://music.apple.com/us/artist/hozier/342260741" };
+      const secondNames = ["Take Me to Church", "Someone New", "From Eden", "Work Song", "Cherry Wine", "Jackie and Wilson", "Sedated", "Like Real People Do", "Angel of Small Death and the Codeine Scene", "To Be Alone", "It Will Come Back", "In a Week", "Foreigner's God", "Nina Cried Power", "Movement", "Almost (Sweet Music)", "Dinner & Diatribes", "Would That I", "Shrike", "Nobody", "As It Was", "Talk", "No Plan", "Be", "Sunlight", "Wasteland, Baby!", "Too Sweet", "Eat Your Young", "Francesca", "Unknown / Nth"];
+      const secondTracks = secondNames.map((title, index) => ({ ...tracks[index], id: `qa-hozier-${index}`, title, aliases: [], artistId: second.id, artist: second.name, url: second.url, recordingKey: `hozier:${title.toLowerCase()}` }));
+      await cache.put(`live-v1:pool:${second.id}`, { ...pool, artist: second, tracks: secondTracks, discoveryTracks: secondTracks }, 3600000);
+      await cache.put("live-v1:artists:genre-v2:hozier", [second], 3600000);
+      await cache.put(`artist-portrait:v2:${second.id}:hozier`, null, 3600000);
+      await cache.put("streams-v1:directory", [{ id: "4dpARuHxo51G3z768sgnrY", name: artist.name }, { id: "2FXC3k01G6Gw61bmprjgqS", name: second.name }], 3600000);
+    }
     console.log(JSON.stringify({ artist }));
   } finally { await cache.close(); }
 } else {

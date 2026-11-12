@@ -12,7 +12,13 @@ test("WebKit phone discovery and lobby fit and unsupported audio has an actionab
     await page.getByRole("button", { name: "Join a room", exact: true }).tap();
     await expect(page.getByLabel("Room code", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Host a room", exact: true }).tap();
+    await page.getByRole("button", { name: "Surprise us", exact: true }).tap();
+    await expect(page.getByLabel("Find an artist")).toBeHidden();
+    await expect(page.getByRole("button", { name: "Create room", exact: true })).toBeDisabled();
     await page.getByLabel("Your room name").fill("WebKit Listener");
+    await expect(page.getByRole("button", { name: "Create room", exact: true })).toBeEnabled();
+    await page.getByRole("button", { name: "Choose an artist", exact: true }).tap();
+    await expect(page.getByRole("button", { name: "Create room", exact: true })).toBeDisabled();
     await page.getByLabel("Find an artist").fill("Adele");
     await page.getByRole("button", { name: "Choose Adele", exact: true }).tap();
     await page.getByRole("button", { name: "Create room", exact: true }).tap();

@@ -30,12 +30,75 @@ function hidden(state: PublicRoom) {
 
 test.beforeAll(() => { seed("catalog"); });
 
+test("room creation rejects unknown artist modes and conflicting random-artist inputs", async ({ playwright }) => {
+  const client = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+  try {
+    for (const fields of [
+      { artistMode: "shuffle", artistId },
+      { artistMode: null, artistId },
+      { artistMode: "random", artistId },
+      { artistMode: "chosen" },
+    ]) {
+      const response = await client.post("/encore/api/rooms", { headers: { origin }, data: { action: "create", nickname: "Mode validation", requestId: randomUUID(), ...fields } });
+      expect(response.status(), await response.text()).toBe(400);
+      expect((await response.json()).error).toBeTruthy();
+    }
+  } finally { await client.dispose(); }
+});
+
+test("a random room shares one eligible artist and its rematch picks a different artist without rerolling retries", async ({ playwright }) => {
+  seed("random-catalog");
+  const host = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+  const friend = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+  try {
+    const input = { action: "create", artistMode: "random", nickname: "Surprise Host", requestId: randomUUID() };
+    let state = (await json(await host.post("/encore/api/rooms", { headers: { origin }, data: input }))).room as PublicRoom;
+    expect(state.artistMode).toBe("random");
+    expect(["apple:262836961", "apple:342260741"]).toContain(state.artist.id);
+    const duplicate = (await json(await host.post("/encore/api/rooms", { headers: { origin }, data: input }))).room as PublicRoom;
+    expect(duplicate.code).toBe(state.code);
+    expect(duplicate.matchId).toBe(state.matchId);
+    expect(duplicate.artist).toEqual(state.artist);
+    const joined = await post(friend, state.code, { action: "join", nickname: "Surprise Friend" });
+    expect(joined.artistMode).toBe("random");
+    expect(joined.artist).toEqual(state.artist);
+    hidden(joined);
+    const privateState = seed("inspect", state.code);
+    expect(privateState.picks).toHaveLength(10);
+    expect(privateState.picks.every(pick => pick.track.artistId === state.artist.id)).toBe(true);
+    await command(host, state, "ready", { ready: true });
+    await command(friend, joined, "ready", { ready: true });
+    state = await command(host, state, "start");
+    // Real host skip commands finish an unscored match; the private fixture
+    // only shortens reveal clocks. Scores and match transitions stay server-owned.
+    for (let round = 0; round < 10; round++) {
+      expect(state.phase).toBe("loading");
+      state = await command(host, state, "skip");
+      expect(state.reveals.at(-1)?.voided).toBe(true);
+      seed("expire-reveal", state.code);
+      state = await room(host, state.code);
+    }
+    expect(state.phase).toBe("complete");
+    const requestId = randomUUID();
+    const next = await command(host, state, "rematch", { requestId });
+    expect(next.artistMode).toBe("random");
+    expect(next.artist.id).not.toBe(state.artist.id);
+    expect(next.phase).toBe("lobby");
+    expect(next.matchId).not.toBe(state.matchId);
+    const retry = await command(host, state, "rematch", { requestId });
+    expect(retry.matchId).toBe(next.matchId);
+    expect(retry.artist).toEqual(next.artist);
+    expect((await room(friend, state.code)).artist).toEqual(next.artist);
+  } finally { await Promise.all([host.dispose(), friend.dispose()]); }
+});
+
 test("two guest players get one authoritative ten-song match, private answers, persistent membership and accuracy-first ranking", async ({ playwright, browser }) => {
   const host = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
   const friend = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
   const stranger = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
   try {
     let state = await create(host);
+    expect(state.artistMode).toBe("chosen");
     const code = state.code;
     const hostId = state.youId;
     const joined = await post(friend, code, { action: "join", nickname: "Friend", avatar: "guitar" });

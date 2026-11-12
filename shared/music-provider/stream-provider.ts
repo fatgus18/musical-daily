@@ -37,12 +37,16 @@ async function cached<T>(key: string, request: () => Promise<T>): Promise<{ valu
   })();
   pending.set(key, promise); try { return await promise; } finally { pending.delete(key); }
 }
-/** Live per-request artist discovery; no list of supported artists or local song export. */
-export async function loadArtistStreams(name: string): Promise<ArtistStreams | undefined> {
-  const directory = await cached("streams-v1:directory", async () => {
+/** Shared live discovery for stream matching and random artist rooms. */
+export async function loadArtistDirectory():Promise<{value:{id:string;name:string}[];stale:boolean}> {
+  return cached("streams-v1:directory", async () => {
     const artists = parseArtistDirectory(await html(DIRECTORY));
     if (artists.length < 100) throw new Error("Stream directory format changed."); return artists;
   });
+}
+/** Live per-request artist discovery; no list of supported artists or local song export. */
+export async function loadArtistStreams(name: string): Promise<ArtistStreams | undefined> {
+  const directory = await loadArtistDirectory();
   const matches = directory.value.filter(artist => norm(artist.name) === norm(name));
   if (new Set(matches.map(artist => artist.id)).size !== 1) return undefined;
   const artist = matches[0]; const sourceUrl = `https://kworb.net/spotify/artist/${artist.id}_songs.html`;

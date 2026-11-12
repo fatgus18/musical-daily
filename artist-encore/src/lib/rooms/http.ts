@@ -6,7 +6,7 @@ import {store} from "../store.ts";
 import {withBasePath} from "../app-path.ts";
 import {CatalogError} from "../catalog.ts";
 import {ensureRoomSchema} from "./store.ts";
-import {RoomError, type PublicRoom, type RoomActor, type RoomCommand} from "./types.ts";
+import {RoomError, type PublicRoom, type RoomActor, type RoomCommand, type RoomArtistMode} from "./types.ts";
 
 const COOKIE = "encore_room_player";
 export interface RoomIdentity {token:string; id:string; fresh:boolean}
@@ -23,7 +23,7 @@ export function roomReply(body:unknown,identity?:RoomIdentity,status=200) {
 }
 export function roomFailure(error:unknown,identity?:RoomIdentity) {
   if(error instanceof RoomError)return roomReply({error:error.message,code:error.code},identity,error.status);
-  if(error instanceof CatalogError)return roomReply({error:error.message,code:"catalog_unavailable"},identity,422);
+  if(error instanceof CatalogError){const response=roomReply({error:error.message,code:"catalog_unavailable"},identity,error.status);if(error.status===429)response.headers.set("Retry-After","60");return response;}
   const status=error&&typeof error==="object"&&"status" in error?Number(error.status):503;
   if(status===429){const response=roomReply({error:"A few too many requests. Give it a moment and retry.",code:"rate_limit"},identity,429);response.headers.set("Retry-After","60");return response;}
   console.error("Encore room request failed",{type:error instanceof Error?error.name:"UnknownError"});
@@ -47,6 +47,15 @@ export async function roomBody(request:Request,expectedOrigin?:string):Promise<R
 }
 export function onlyFields(body:Record<string,unknown>,keys:string[]){if(Object.keys(body).some(key=>!keys.includes(key)))throw new RoomError("This room request contains unsupported fields.",400,"invalid_body");}
 export function roomArtistId(value:unknown){if(typeof value!=="string"||!/^apple:[1-9]\d{0,14}$/.test(value))throw new RoomError("Choose an artist from the search results.",400,"invalid_artist");return value;}
+export function roomArtistSelection(body:Record<string,unknown>):{artistMode:RoomArtistMode;artistId?:string} {
+  const mode=body.artistMode===undefined?"chosen":body.artistMode;
+  if(mode!=="chosen"&&mode!=="random")throw new RoomError("Choose an artist or let the room surprise you.",400,"invalid_artist_mode");
+  if(mode==="random"){
+    if(body.artistId!==undefined)throw new RoomError("Random rooms choose their artist for everyone. Leave the artist selection empty.",400,"invalid_artist_mode");
+    return {artistMode:mode};
+  }
+  return {artistMode:mode,artistId:roomArtistId(body.artistId)};
+}
 export function roomRequestId(value:unknown){if(typeof value!=="string"||!(/^[a-zA-Z0-9-]{16,80}$/).test(value))throw new RoomError("Refresh and try that room request again.",400,"invalid_request");return value;}
 export async function roomActor(request:Request,body:Record<string,unknown>,identity:RoomIdentity):Promise<RoomActor> {
   const user=await getAccount(request,"encore");
@@ -61,14 +70,16 @@ export async function roomActor(request:Request,body:Record<string,unknown>,iden
   return {id:identity.id,name,avatar};
 }
 export function roomCommand(body:Record<string,unknown>):RoomCommand {
-  onlyFields(body,["action","matchId","round","ready","choiceId","requestId","artistId","audioRevision"]);
+  onlyFields(body,["action","matchId","round","ready","choiceId","requestId","artistId","artistMode","audioRevision"]);
   const actions=["ready","start","loaded","guess","answer","pass","heartbeat","leave","retry","skip","rematch","configure"];
   if(typeof body.action!=="string"||!actions.includes(body.action)||typeof body.matchId!=="string"||body.matchId.length>100||!body.matchId||!Number.isInteger(body.round)||Number(body.round)<0||Number(body.round)>9)throw new RoomError("Reconnect to the current room and try again.",400,"invalid_move");
   if(body.action==="ready"&&typeof body.ready!=="boolean")throw new RoomError("Choose ready or not ready.",400,"invalid_move");
   if(body.action==="answer"&&(typeof body.choiceId!=="string"||body.choiceId.length>128||!body.choiceId))throw new RoomError("Choose one of the four songs.",400,"invalid_move");
   if(body.action==="loaded"&&(!Number.isInteger(body.audioRevision)||Number(body.audioRevision)<0))throw new RoomError("Load the current preview before getting ready.",400,"invalid_move");
   if(body.action==="rematch"||body.action==="configure")roomRequestId(body.requestId);
-  return {action:body.action as RoomCommand["action"],matchId:body.matchId,round:Number(body.round),...(typeof body.ready==="boolean"?{ready:body.ready}:{}),...(typeof body.choiceId==="string"?{choiceId:body.choiceId}:{}),...(typeof body.requestId==="string"?{requestId:body.requestId}:{}),...(typeof body.audioRevision==="number"?{audioRevision:body.audioRevision}:{})};
+  if(body.action!=="configure"&&(body.artistMode!==undefined||body.artistId!==undefined))throw new RoomError("The room's artist can only be changed in the lobby.",400,"invalid_artist_mode");
+  const selection=body.action==="configure"?roomArtistSelection(body):undefined;
+  return {action:body.action as RoomCommand["action"],matchId:body.matchId,round:Number(body.round),...(selection?{artistMode:selection.artistMode}:{}),...(typeof body.ready==="boolean"?{ready:body.ready}:{}),...(typeof body.choiceId==="string"?{choiceId:body.choiceId}:{}),...(typeof body.requestId==="string"?{requestId:body.requestId}:{}),...(typeof body.audioRevision==="number"?{audioRevision:body.audioRevision}:{})};
 }
 const schemas=new WeakMap<Database,Promise<void>>();
 export async function roomDatabase(){const db=await store();let ready=schemas.get(db);if(!ready){ready=ensureRoomSchema(db);schemas.set(db,ready);void ready.catch(()=>{if(schemas.get(db)===ready)schemas.delete(db);});}await ready;return db;}

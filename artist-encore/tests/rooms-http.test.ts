@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {roomArtistId,roomBody,roomCommand,roomIdentity,roomReply,roomActor} from "../src/lib/rooms/http.ts";
+import {roomArtistId,roomArtistSelection,roomBody,roomCommand,roomFailure,roomIdentity,roomReply,roomActor} from "../src/lib/rooms/http.ts";
+import {CatalogError} from "../src/lib/catalog.ts";
 import {allowedPreview,cleanPreview,downloadPreview,MAX_PREVIEW_BYTES} from "../src/lib/rooms/audio.ts";
 
 const origin="https://room.example.test";
@@ -25,6 +26,20 @@ test("room identity is a private cookie and artist IDs match the real catalog",a
   const actor=await roomActor(new Request(origin),{nickname:"  Guest   One ",avatar:"guitar"},first);assert.deepEqual(actor,{id:first.id,name:"Guest One",avatar:"guitar"});
   await assert.rejects(roomActor(new Request(origin),{nickname:"<script>"},first),/nickname/);
   await assert.rejects(roomActor(new Request(origin),{nickname:"Guest",avatar:"https://example.test/photo"},first),/avatar/);
+});
+test("artist selection supports legacy chosen requests and rejects contradictory or forged random settings",()=>{
+  assert.deepEqual(roomArtistSelection({artistId:"apple:262836961"}),{artistMode:"chosen",artistId:"apple:262836961"});
+  assert.deepEqual(roomArtistSelection({artistMode:"chosen",artistId:"apple:262836961"}),{artistMode:"chosen",artistId:"apple:262836961"});
+  assert.deepEqual(roomArtistSelection({artistMode:"random"}),{artistMode:"random"});
+  for(const artistMode of [null,"unknown",[],false,2])assert.throws(()=>roomArtistSelection({artistMode}),{code:"invalid_artist_mode"});
+  assert.throws(()=>roomArtistSelection({artistMode:"random",artistId:"apple:262836961"}),{code:"invalid_artist_mode"});
+  assert.throws(()=>roomArtistSelection({artistMode:"random",artistId:null}),{code:"invalid_artist_mode"});
+  assert.throws(()=>roomArtistSelection({artistMode:"chosen"}),{code:"invalid_artist"});
+  const requestId="artist-selection-test";
+  assert.equal(roomCommand({action:"configure",matchId:"current",round:0,requestId,artistMode:"random"}).artistMode,"random");
+  for(const action of ["ready","rematch","heartbeat"])assert.throws(()=>roomCommand({action,matchId:"current",round:0,ready:true,requestId,artistMode:"random"}),{code:"invalid_artist_mode"});
+  const limited=roomFailure(new CatalogError("Music search is busy.",429,"provider_busy"));
+  assert.equal(limited.status,429);assert.equal(limited.headers.get("retry-after"),"60");
 });
 function atom(type:string,body:Buffer){const head=Buffer.alloc(8);head.writeUInt32BE(body.length+8);head.write(type,4,4,"latin1");return Buffer.concat([head,body]);}
 test("MP4 title/artist tags are removed without moving the music sample offsets",()=>{

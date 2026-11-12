@@ -2,7 +2,7 @@ import {randomInt} from "node:crypto";
 import type {Database,SqlExecutor} from "@musical-daily/database";
 import type {ArtistPool,Track} from "../catalog.ts";
 import {advanceRoom,applyRoomCommand,createRoomState,joinRoomState,projectRoom,requireMember,ROOM_IDLE_MS} from "./engine.ts";
-import {RoomError,type RoomActor,type RoomCommand,type RoomState,type PublicRoom} from "./types.ts";
+import {RoomError,type RoomActor,type RoomArtistMode,type RoomCommand,type RoomState,type PublicRoom} from "./types.ts";
 
 const ALPHABET="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export function normalizeRoomCode(value:string):string {
@@ -37,7 +37,19 @@ function requestId(value:string) {
 export async function pruneRooms(db:SqlExecutor,now=Date.now()) {
   return (await db.execute("DELETE FROM encore_rooms WHERE code IN (SELECT code FROM encore_rooms WHERE expires_at<=? ORDER BY expires_at LIMIT 20)",[now])).rowsAffected;
 }
-export async function createRoom(db:Database,actor:RoomActor,pool:ArtistPool,id:string,now=Date.now()):Promise<PublicRoom> {
+/** Retry a completed creation without another provider lookup or random draw. */
+export async function findCreatedRoom(db:Database,actorId:string,id:string,now=Date.now()):Promise<PublicRoom|undefined> {
+  const row=(await db.execute("SELECT expires_at,state FROM encore_rooms WHERE created_by=? AND request_id=?",[actorId,id])).rows[0];
+  if(!row)return undefined;
+  return readRoom(db,decode(row,now).code,actorId,now);
+}
+/** Rematch responses can be lost. A retry returns the existing match unchanged. */
+export async function findRematchedRoom(db:Database,rawCode:string,id:string,rematchId:string,now=Date.now()):Promise<PublicRoom|undefined> {
+  const code=normalizeRoomCode(rawCode);const room=await load(db,code,now);const player=requireMember(room,id);
+  if(room.hostId!==id||player.left)throw new RoomError("Only the host can change this match.",403,"host_only");
+  return room.lastRematchRequestId===rematchId?readRoom(db,code,id,now):undefined;
+}
+export async function createRoom(db:Database,actor:RoomActor,pool:ArtistPool,id:string,now=Date.now(),artistMode:RoomArtistMode="chosen"):Promise<PublicRoom> {
   requestId(id);
   return db.transaction(async tx=>{
     const duplicate=(await tx.execute("SELECT expires_at,state FROM encore_rooms WHERE created_by=? AND request_id=?",[actor.id,id])).rows[0];
@@ -45,7 +57,7 @@ export async function createRoom(db:Database,actor:RoomActor,pool:ArtistPool,id:
     await pruneRooms(tx,now);
     for(let attempt=0;attempt<8;attempt++){
       const code=Array.from({length:6},()=>ALPHABET[randomInt(ALPHABET.length)]).join("");
-      const room=createRoomState(code,actor,pool,id,now);
+      const room=createRoomState(code,actor,pool,id,now,artistMode);
       const inserted=await tx.execute("INSERT INTO encore_rooms(code,created_by,request_id,expires_at,revision,state) VALUES(?,?,?,?,?,?) ON CONFLICT(code) DO NOTHING",[code,actor.id,id,room.expiresAt,room.revision,JSON.stringify(room)]);
       if(inserted.rowsAffected)return projectRoom(room,actor.id,now);
     }

@@ -16,9 +16,21 @@ Open <http://localhost:3004>. The hub defaults to <http://localhost:3001>. The w
 ## Encore Rooms
 
 Open `/rooms` in the standalone app or `/encore/rooms` on Musical Daily. A host
-chooses an artist and shares a six-character code or invite link. Rooms hold 2–8 players, including the host.
+chooses **Choose an artist** or **Surprise us**, then shares a six-character code or
+invite link. Rooms hold 2–8 players, including the host. Both options use one shared
+artist for the whole match, visible to everyone in the lobby before readying up.
 Guests can play with a nickname; signed-in users bring their selected music avatar.
 
+- **Choose an artist** keeps the existing artist search. **Surprise us** samples
+  the live artist directory already used for stream matching, resolves an exact
+  Apple Music artist match, and checks for at least ten distinct playable songs.
+  It uses the existing bounded provider cache, not a fixed shortlist of artists.
+  At most four candidates are tried within a 90-second selection budget; provider
+  outages leave the room unchanged and offer retry or manual selection.
+- Random rematches select a different artist. Chosen-artist rematches keep the
+  same artist. Creation and rematch retries recover the saved selection, so a
+  lost response cannot silently reroll the room's artist. Older saved rooms
+  continue in chosen-artist mode.
 - Ten songs are selected from the existing live artist catalog. Ranked mixes use
   six hits, three favorites and one deep cut; discovery mixes work when reliable
   popularity coverage is unavailable. Rematches prioritize less-used recordings.

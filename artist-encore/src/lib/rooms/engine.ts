@@ -2,7 +2,7 @@ import {randomUUID} from "node:crypto";
 import type {ArtistPool} from "../catalog.ts";
 import {createGame} from "../engine.ts";
 import {catalogOffer, trackIdentity} from "../rules.ts";
-import {RoomError, type RoomActor, type RoomCommand, type RoomMember, type RoomState, type PublicRoom, type RoomStanding} from "./types.ts";
+import {RoomError, type RoomActor, type RoomCommand, type RoomMember, type RoomState, type PublicRoom, type RoomStanding, type RoomArtistMode} from "./types.ts";
 
 export const ROOM_LIMIT=8;
 export const ROOM_CLIP_MS=15_000;
@@ -37,9 +37,9 @@ function select(room:RoomState,pool:ArtistPool,requestId:string,now:number) {
   if(room.artist.id!==pool.artist.id)room.history=[];
   room.artist=game.artist; room.ranking=game.ranking; room.picks=game.picks;
 }
-export function createRoomState(code:string,actor:RoomActor,pool:ArtistPool,requestId:string,now=Date.now()):RoomState {
+export function createRoomState(code:string,actor:RoomActor,pool:ArtistPool,requestId:string,now=Date.now(),artistMode:RoomArtistMode="chosen"):RoomState {
   const room:RoomState={code,matchId:randomUUID(),revision:0,hostId:actor.id,createdBy:actor.id,requestId,
-    artist:pool.artist,ranking:pool.ranking,phase:"lobby",members:[member(actor,now)],picks:[],history:[],round:0,
+    artist:pool.artist,artistMode,ranking:pool.ranking,phase:"lobby",members:[member(actor,now)],picks:[],history:[],round:0,
     createdAt:now,updatedAt:now,expiresAt:now+ROOM_IDLE_MS,startAt:null,roundEnd:null,loadingDeadline:null,
     revealUntil:null,reveals:[],lastRematchRequestId:null,audioRevision:0};
   select(room,pool,requestId,now); return room;
@@ -139,6 +139,7 @@ export function applyRoomCommand(room:RoomState,id:string,command:RoomCommand,po
     if(!pool)throw new RoomError("Load the artist's songs before starting this match.",400,"missing_catalog");
     if(!command.requestId)throw new RoomError("A request ID is required.",400,"invalid_request");
     select(room,pool,command.requestId,now);
+    if(command.action==="configure")room.artistMode=command.artistMode??"chosen";
     room.matchId=randomUUID();room.phase="lobby";room.round=0;room.reveals=[];room.startAt=null;room.roundEnd=null;room.loadingDeadline=null;room.revealUntil=null;
     room.audioRevision++;room.members=active(room);
     for(const p of room.members){p.ready=false;p.loaded=false;p.guessAt=null;p.answer=null;}
@@ -191,7 +192,7 @@ export function roomStandings(room:RoomState):RoomStanding[] {
 }
 export function projectRoom(room:RoomState,id:string,now=Date.now()):PublicRoom {
   const player=requireMember(room,id);const at=room.phase==="playing"?guessAt(room,player,now):player.guessAt;
-  return {code:room.code,matchId:room.matchId,revision:room.revision,phase:room.phase,artist:room.artist,hostId:room.hostId,youId:id,
+  return {code:room.code,matchId:room.matchId,revision:room.revision,phase:room.phase,artist:room.artist,artistMode:room.artistMode??"chosen",hostId:room.hostId,youId:id,
     players:room.members.map(p=>({id:p.id,name:p.name,avatar:p.avatar,ready:p.ready,loaded:p.loaded,answered:p.answer!==null,left:p.left,present:!p.left&&now-p.seenAt<=ROOM_HOST_STALE_MS})),
     round:room.round,totalRounds:10,serverNow:now,startAt:room.startAt,roundEnd:room.roundEnd,loadingDeadline:room.loadingDeadline,revealUntil:room.revealUntil,
     clipSeconds:15,clipOffset:8,guessSeconds:15,audioRevision:room.audioRevision,

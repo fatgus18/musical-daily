@@ -28,6 +28,7 @@ async function hostRoom(page: Page, name = "Host") {
   await page.getByRole("button", { name: "Choose Adele", exact: true }).click();
   await page.getByRole("button", { name: "Create room", exact: true }).click();
   await expect(page.locator(".er-site")).toHaveAttribute("data-room-phase", "lobby");
+  await expect(page.getByText("Chosen artist", { exact: true })).toBeVisible();
   return new URL(page.url()).pathname.split("/").filter(Boolean).at(-1)!;
 }
 async function joinRoom(page: Page, code: string, name = "Friend") {
@@ -38,6 +39,55 @@ async function joinRoom(page: Page, code: string, name = "Friend") {
 }
 
 test.beforeAll(() => { fixture("catalog"); });
+
+test("a phone host can choose a shared surprise artist without searching, while nickname validation and chosen mode remain intact", async ({ browser }) => {
+  fixture("random-catalog");
+  const host = await browser.newContext({ baseURL: origin, ignoreHTTPSErrors: true, viewport: { width: 320, height: 740 }, hasTouch: true });
+  const friend = await browser.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+  try {
+    const one = await host.newPage(); const two = await friend.newPage();
+    await one.goto("/encore/rooms");
+    await expect(one.getByLabel("Your room name")).toBeEnabled();
+    await one.getByRole("button", { name: "Surprise us", exact: true }).tap();
+    await expect(one.getByRole("button", { name: "Surprise us", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(one.getByLabel("Find an artist")).toBeHidden();
+    await expect(one.getByRole("button", { name: "Create room", exact: true })).toBeDisabled();
+    await one.getByLabel("Your room name").fill("Random Host");
+    await expect(one.getByRole("button", { name: "Create room", exact: true })).toBeEnabled();
+    await fits(one);
+    await one.screenshot({ path: "test-results-rooms/room-random-entry-phone.png", fullPage: true });
+    await one.setViewportSize({ width: 1440, height: 1000 });
+    await fits(one);
+    await one.screenshot({ path: "test-results-rooms/room-random-entry-desktop.png", fullPage: true });
+    await one.setViewportSize({ width: 320, height: 740 });
+    await one.getByRole("button", { name: "Choose an artist", exact: true }).tap();
+    await expect(one.getByRole("button", { name: "Create room", exact: true })).toBeDisabled();
+    await one.screenshot({ path: "test-results-rooms/room-chosen-entry-phone.png", fullPage: true });
+    await one.getByLabel("Find an artist").fill("Adele");
+    await one.getByRole("button", { name: "Choose Adele", exact: true }).tap();
+    await expect(one.getByRole("button", { name: "Create room", exact: true })).toBeEnabled();
+    await one.getByRole("button", { name: "Surprise us", exact: true }).tap();
+    const created = one.waitForRequest(request => new URL(request.url()).pathname === "/encore/api/rooms" && request.method() === "POST");
+    await one.getByRole("button", { name: "Create room", exact: true }).tap();
+    const payload = (await created).postDataJSON();
+    expect(payload.artistMode).toBe("random");
+    expect(payload).not.toHaveProperty("artistId");
+    await expect(one.locator(".er-site")).toHaveAttribute("data-room-phase", "lobby");
+    await expect(one.getByText("Random headliner", { exact: true })).toBeVisible();
+    const code = new URL(one.url()).pathname.split("/").filter(Boolean).at(-1)!;
+    const state = (await (await one.request.get(`/encore/api/rooms/${code}`)).json()).room;
+    expect(state.artistMode).toBe("random");
+    expect(["Adele", "Hozier"]).toContain(state.artist.name);
+    await joinRoom(two, code, "Random Friend");
+    await expect(two.getByText("Random headliner", { exact: true })).toBeVisible();
+    await expect(two.locator(".er-room-strip h1")).toHaveText(state.artist.name);
+    await one.reload();
+    await expect(one.getByText("Random headliner", { exact: true })).toBeVisible();
+    await expect(one.locator(".er-room-strip h1")).toHaveText(state.artist.name);
+    await fits(one);
+    await one.screenshot({ path: "test-results-rooms/room-random-lobby-phone.png", fullPage: true });
+  } finally { await Promise.all([host.close(), friend.close()]); }
+});
 
 test("phone host and desktop friend create, invite, hear, guess early, reconnect and leave through the actual UI", async ({ browser }) => {
   const host = await browser.newContext({ baseURL: origin, ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 }, hasTouch: true });

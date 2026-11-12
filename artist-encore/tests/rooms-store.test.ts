@@ -6,7 +6,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {openLocalDatabase,type Database} from "@musical-daily/database";
 import type {ArtistPool,Track} from "../src/lib/catalog.ts";
-import {createRoom,joinRoom,readRoom,commandRoom,ensureRoomSchema,roomAudioTrack,pruneRooms} from "../src/lib/rooms/store.ts";
+import {createRoom,findCreatedRoom,findRematchedRoom,joinRoom,readRoom,commandRoom,ensureRoomSchema,roomAudioTrack,pruneRooms} from "../src/lib/rooms/store.ts";
 import type {PublicRoom,RoomCommand,RoomState} from "../src/lib/rooms/types.ts";
 
 const tracks:Track[]=Array.from({length:60},(_,i)=>({id:`track-${i}`,title:`Fixture ${i}`,aliases:[],artistId:"42",artist:"Store Artist",preview:`https://audio-ssl.itunes.apple.com/private-${i}.m4a`,artwork:"",url:"https://music.apple.com",duration:200,rank:100-i}));
@@ -15,6 +15,36 @@ const command=(room:PublicRoom,action:RoomCommand["action"],rest:Partial<RoomCom
 async function privateState(db:Database,code:string){return JSON.parse(String((await db.execute("SELECT state FROM encore_rooms WHERE code=?",[code])).rows[0].state)) as RoomState;}
 async function fixture(){const db=openLocalDatabase(":memory:");await ensureRoomSchema(db);const room=await createRoom(db,{id:"a",name:"Alice"},pool,"create",1000);await joinRoom(db,room.code,{id:"b",name:"Bob"},1000);return{db,room};}
 async function start(db:Database,room:PublicRoom){for(const id of ["a","b"])await commandRoom(db,room.code,id,command(room,"ready",{ready:true}),undefined,2000);await commandRoom(db,room.code,"a",command(room,"start"),undefined,3000);for(const id of ["a","b"])room=await commandRoom(db,room.code,id,command(room,"loaded",{audioRevision:room.audioRevision}),undefined,4000);return room;}
+
+test("random artist mode persists and creation retries retrieve the original shared selection",async()=>{
+  const db=openLocalDatabase(":memory:");await ensureRoomSchema(db);
+  try{
+    assert.equal(await findCreatedRoom(db,"a","random-create",1000),undefined);
+    const created=await createRoom(db,{id:"a",name:"Alice"},pool,"random-create",1000,"random");
+    const friend=await joinRoom(db,created.code,{id:"b",name:"Bob"},2000);
+    assert.equal(created.artistMode,"random");assert.equal(friend.artistMode,"random");assert.deepEqual(friend.artist,created.artist);
+    const recovered=await findCreatedRoom(db,"a","random-create",3000);
+    assert.equal(recovered?.code,created.code);assert.equal(recovered?.matchId,created.matchId);assert.deepEqual(recovered?.artist,created.artist);
+    assert.equal(await findCreatedRoom(db,"b","random-create",3000),undefined);
+    assert.equal((await privateState(db,created.code)).artistMode,"random");
+  }finally{db.close();}
+});
+
+test("random rematch retries recover the same new artist and cannot disclose another host's room",async()=>{
+  const {db,room}=await fixture();
+  try{
+    const state=await privateState(db,room.code);state.artistMode="random";state.phase="complete";
+    await db.execute("UPDATE encore_rooms SET state=? WHERE code=?",[JSON.stringify(state),room.code]);
+    const nextPool={...pool,artist:{...pool.artist,id:"43",name:"Next Artist"},tracks:pool.tracks.map(track=>({...track,artistId:"43",artist:"Next Artist"}))};
+    assert.equal(await findRematchedRoom(db,room.code,"a","random-rematch",2000),undefined);
+    const next=await commandRoom(db,room.code,"a",command(room,"rematch",{requestId:"random-rematch"}),nextPool,3000);
+    const recovered=await findRematchedRoom(db,room.code,"a","random-rematch",4000);
+    assert.equal(next.artistMode,"random");assert.equal(next.artist.id,"43");assert.equal(recovered?.matchId,next.matchId);assert.equal(recovered?.artist.id,"43");
+    assert.equal(await findRematchedRoom(db,room.code,"a","another-rematch",4000),undefined);
+    await assert.rejects(findRematchedRoom(db,room.code,"b","random-rematch",4000),{code:"host_only"});
+    await assert.rejects(findRematchedRoom(db,room.code,"unknown","random-rematch",4000),{code:"not_member"});
+  }finally{db.close();}
+});
 test("concurrent create is idempotent and eight-person capacity survives racing joins across DB handles",async()=>{
   const dir=mkdtempSync(join(tmpdir(),"encore-rooms-test-"));const db=openLocalDatabase(join(dir,"rooms.sqlite"));const other=openLocalDatabase(join(dir,"rooms.sqlite"));
   try{

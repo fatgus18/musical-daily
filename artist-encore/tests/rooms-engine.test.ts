@@ -160,3 +160,14 @@ test("an offline unready lobby guest cannot block two present ready players from
   joinRoomState(room,{id:"c",name:"Cleo"},60000);
   assert.equal(room.startAt,55000);assert.equal(room.roundEnd,85000);
 });
+test("artist mode is durable, legacy rooms default to chosen, and random rematches preserve their mode",()=>{
+  const room=createRoomState("ABC234",{id:"a",name:"Alice"},pool,"random-create",1000,"random");
+  assert.equal(room.artistMode,"random");assert.equal(projectRoom(room,"a",1000).artistMode,"random");
+  const restored=JSON.parse(JSON.stringify(room)) as RoomState;assert.equal(projectRoom(restored,"a",1000).artistMode,"random");
+  const replacement={...pool,artist:{...pool.artist,id:"456",name:"Another Artist"},tracks:pool.tracks.map(t=>({...t,artistId:"456",artist:"Another Artist"}))};
+  room.phase="complete";const rematch=command(room,"rematch",{requestId:"random-rematch",artistMode:"chosen"});
+  applyRoomCommand(room,"a",rematch,replacement,2000);assert.equal(room.artist.id,"456");assert.equal(room.artistMode,"random");
+  applyRoomCommand(room,"a",command(room,"configure",{requestId:"chosen-config",artistMode:"chosen"}),pool,3000);
+  assert.equal(room.artist.id,"123");assert.equal(projectRoom(room,"a",3000).artistMode,"chosen");
+  delete room.artistMode;assert.equal(projectRoom(room,"a",3000).artistMode,"chosen");
+});
