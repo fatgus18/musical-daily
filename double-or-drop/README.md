@@ -1,6 +1,63 @@
 # Double or Drop
 
-A daily and unlimited music comparison game in Musical Daily. Choose between two real recordings in **20 seconds**, build a pot, and decide whether to protect it or risk doubling it. Mouse and keyboard both work. An original quiet 144 BPM backing track and action sounds make each round feel alive; everything remains playable with game sounds muted.
+A daily, unlimited solo, and cooperative room game in Musical Daily. Choose between two real recordings in **20 seconds**, build a pot, and decide whether to protect it or risk doubling it. Mouse and keyboard both work. An original quiet 144 BPM backing track and action sounds make each round feel alive; everything remains playable with game sounds muted.
+
+## Co-op Rooms
+
+Open `/rooms` locally or `/double-or-drop/rooms` on the shared deployment. Host a
+room, choose a collection or discover an artist, and invite 1–7 friends using the
+six-character code or invite link. Guests need only a nickname; signed-in players
+can use their account's music avatar. Everyone readies up before the host starts.
+
+- One **shared bank, risk pot and three lives**. There are no opposing players or
+  individual rankings. Turns rotate in joining order, skipping absent players.
+- Before seeing a new pair, the active player commits to **Bank & pick** or
+  **Risk & double**. With an empty pot, **Pick for the team** starts a new ladder.
+  Banking protects the inherited pot and starts the next pick at 100 points.
+  Risking carries it forward: correct picks grow it through 100, 200, 400, 800,
+  1,600 and 3,200. The sixth rung must be banked before another pick.
+- Once the pair appears, the active player has **20 seconds**. Only that player
+  can answer. A wrong answer or timeout clears the pot and costs one team life;
+  the protected bank stays safe. Banking decisions have no countdown.
+- Everyone sees the answer for **five seconds** before the next turn. Losing the
+  last life still shows this reveal before the team's final result. The run has
+  no ordinary round limit; the existing defensive numeric/storage limits remain.
+- Reloading retains membership and the active timer. A player absent for 45
+  seconds is skipped at a decision, and an absent host can be replaced. A started
+  pick keeps its deadline even if its player disconnects or leaves. When nobody
+  is present, preparation pauses without automatically banking or burning lives.
+- New players join only in the lobby. Explicitly leaving all together finalizes
+  an incomplete team result with only banked points. A host can rematch a completed
+  run with the same collection and fresh pairs, minimizing recent repeats.
+
+Team room results are separate from solo/daily account stats. No co-op action
+modifies a player's saved solo run, personal record, daily attempt or account
+outbox. Completed room results last 24 hours; idle rooms expire after two hours.
+Share text links back to the room entry page and includes the team's protected
+score. Room state and bounded recent turns live in the existing Double or Drop
+database, in the additive `double_drop_rooms` table. No extra service or credentials
+are needed.
+
+Rooms use the full existing catalog, collection filters and live artist snapshots.
+The selected immutable catalog is pinned for the room's lifetime so maintenance
+cannot remove a collection mid-run. Current comparison values, future pairs,
+preview URLs and playback links are withheld until appropriate reveals; retired
+tempo comparisons stay unavailable.
+
+Actions use server identity, match/turn tokens, idempotent request IDs and short
+transactions. Deadlines are read after acquiring the database lock. Ordinary
+polling requires one snapshot read; provider/catalog loading happens outside
+write transactions. Room cookies are HttpOnly and separate from solo and Encore
+identities. Shared snapshots include nicknames and music emojis, never account
+emails or private solo histories.
+
+Unit tests run with `npm test` from this app. The room browser suite uses
+`npx playwright test --config playwright.rooms.config.ts` against the disposable
+HTTPS services fixture. From the workspace root, start that fixture with
+`ACCOUNTS_TEST_FIXTURE=1 node double-or-drop/tests/services/local-gateway.mjs`
+(PowerShell: set `$env:ACCOUNTS_TEST_FIXTURE='1'` before the Node command).
+Its clock/data controls edit validated temporary databases and are not application
+endpoints.
 
 ## The Daily Drop
 

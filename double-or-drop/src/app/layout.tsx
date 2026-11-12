@@ -18,7 +18,7 @@ import { SoundProvider } from "@/components/sound-client";
 
 export const metadata: Metadata = {
   title: "Double or Drop — Musical Daily",
-  description: "Ten daily picks. Three lives. One shared music challenge, plus unlimited runs. Compare real songs, double your points or bank your winnings.",
+  description: "Daily picks, unlimited solo runs, and co-op rooms. Compare real songs, take turns with friends, and build one shared bank with three team lives.",
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: contrastBootstrap }} /></head><body className="md-game-page md-game-drop"><SoundProvider music><AccountProvider>{children}</AccountProvider></SoundProvider></body></html>;

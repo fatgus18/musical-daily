@@ -9,7 +9,9 @@ const caches=new WeakMap<Database,Map<string,Catalog>>();
 export function initializeCatalogStorage(db:Database):Promise<void>{
   let ready=initialized.get(db);
   if(!ready){
-    ready=db.execute("CREATE TABLE IF NOT EXISTS catalog_snapshots(version TEXT PRIMARY KEY,payload TEXT NOT NULL,bytes INTEGER NOT NULL,created_at INTEGER NOT NULL,last_used_at INTEGER NOT NULL)").then(()=>{}).catch(error=>{initialized.delete(db);throw error;});
+    ready=db.executeMultiple(`CREATE TABLE IF NOT EXISTS catalog_snapshots(version TEXT PRIMARY KEY,payload TEXT NOT NULL,bytes INTEGER NOT NULL,created_at INTEGER NOT NULL,last_used_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS catalog_room_pins(room_code TEXT PRIMARY KEY,version TEXT NOT NULL,expires_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS catalog_room_pin_version ON catalog_room_pins(version,expires_at);`).catch(error=>{initialized.delete(db);throw error;});
     initialized.set(db,ready);
   }
   return ready;
@@ -56,4 +58,9 @@ export async function pinCatalog(db:SqlExecutor,catalog:Catalog,now=Date.now()){
   try{loadCatalog(catalog.version);return;}catch(error){if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;}
   const result=await db.execute("UPDATE catalog_snapshots SET last_used_at=? WHERE version=?",[now,catalog.version]);
   if(!result.rowsAffected)throw Object.assign(new Error("This artist collection expired. Load the artist again to start a run."),{status:503});
+}
+/** Co-op snapshots remain pinned for the room's lifetime independently of solo runs. */
+export async function pinRoomCatalog(db:SqlExecutor,catalog:Catalog,roomCode:string,expiresAt:number,now=Date.now()){
+  await pinCatalog(db,catalog,now);
+  await db.execute("INSERT INTO catalog_room_pins(room_code,version,expires_at) VALUES(?,?,?) ON CONFLICT(room_code) DO UPDATE SET version=excluded.version,expires_at=excluded.expires_at",[roomCode,catalog.version,expiresAt]);
 }

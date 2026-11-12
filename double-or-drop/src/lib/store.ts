@@ -95,9 +95,10 @@ export async function pruneStore(db:Database,now=Date.now(),force=false){
     {sql:"DELETE FROM games WHERE id IN (SELECT id FROM (SELECT id,row_number() OVER(PARTITION BY player ORDER BY created_at DESC,id DESC) n FROM games WHERE active=0 AND (json_extract(state,'$.mode') IS NOT 'daily' OR json_extract(state,'$.dailyDate')<date(?/1000,'unixepoch','-2 days'))) WHERE n>50)",args:[now]},
     {sql:"DELETE FROM limits WHERE window<?",args:[now-7*86400000]},
     {sql:"DELETE FROM account_result_outbox WHERE synced_at IS NOT NULL AND synced_at<?",args:[now-90*86400000]},
-    {sql:"DELETE FROM catalog_snapshots WHERE last_used_at<? AND NOT EXISTS(SELECT 1 FROM games WHERE json_extract(state,'$.catalogVersion')=catalog_snapshots.version)",args:[now-35*86400000]},
+    {sql:"DELETE FROM catalog_snapshots WHERE last_used_at<? AND NOT EXISTS(SELECT 1 FROM games WHERE json_extract(state,'$.catalogVersion')=catalog_snapshots.version) AND NOT EXISTS(SELECT 1 FROM catalog_room_pins WHERE version=catalog_snapshots.version AND expires_at>?)",args:[now-35*86400000,now]},
     {sql:"INSERT OR REPLACE INTO maintenance VALUES('retention',?)",args:[abandoned.length===10?now-86400000:now]},
     {sql:"DELETE FROM daily_challenges WHERE date<date(?/1000,'unixepoch','-90 days')",args:[now]},
+    {sql:"DELETE FROM catalog_room_pins WHERE expires_at<=?",args:[now]},
   ]);
   return {skipped:false,expired,games:cleanup[0].rowsAffected+cleanup[1].rowsAffected,limits:cleanup[2].rowsAffected,syncedResults:cleanup[3].rowsAffected,catalogs:cleanup[4].rowsAffected};
 }

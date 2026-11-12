@@ -10,6 +10,7 @@ import { ArtistCollectionSearch } from "./artist-collection-search";
 import { CollectionPicker } from "./collection-picker";
 import { useFinalLossReveal } from "./final-loss-reveal";
 import { DropBuddies } from "./drop-buddies";
+import { DropRoomLink } from "./drop-room-link";
 import { BankTargetPicker, GoalOutcome, RunGoalRibbon } from "./run-goals";
 import { runMilestone, type BankTarget } from "@/lib/run-goals";
 import type { CatalogTheme, Metric } from "@/lib/catalog-types";
@@ -264,7 +265,7 @@ function RunClient({ signedIn }: { signedIn: boolean }) {
     {game?.modeNotice && <p className="mode-notice" role="status">{game.modeNotice}</p>}
     {error && <div className="error-banner" role="alert"><span>{error}</span><button disabled={busy} onClick={() => void refresh(false)}>Retry</button></div>}
 
-    {lobby ? <>
+    {lobby ? <><DropRoomLink />
       <section className="hero">
         <div className="hero-copy"><h1>Know a little.<br /><em>Risk a little.</em></h1><p>Two songs. One choice. Back your music instincts,<br className="desktop-break" /> build a streak, then bank it — or double down.</p><div className="hero-tags"><span>◷ 20s per pick</span><span>✦ A fresh daily mix</span><span>∞ Unlimited runs</span></div></div>
         <div className="hero-art" aria-hidden="true"><DropBuddies /></div>
