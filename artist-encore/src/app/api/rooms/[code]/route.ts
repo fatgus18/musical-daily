@@ -6,7 +6,6 @@ import {RoomError} from "@/lib/rooms/types";
 import {onlyFields,privateRoomRead,requireRoomAudio,roomActor,roomArtistSelection,roomBody,roomCommand,roomDatabase,roomFailure,roomIdentity,roomReply,withRoomAudio,type RoomIdentity} from "@/lib/rooms/http";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-export const maxDuration=120;
 type Context={params:Promise<{code:string}>};
 export async function GET(request:Request,context:Context){
   let identity:RoomIdentity|undefined;

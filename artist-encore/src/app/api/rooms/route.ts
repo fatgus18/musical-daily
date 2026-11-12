@@ -6,7 +6,7 @@ import {RoomError} from "@/lib/rooms/types";
 import {onlyFields,privateRoomRead,requireRoomAudio,roomActor,roomArtistSelection,roomAudioEnabled,roomBody,roomDatabase,roomFailure,roomIdentity,roomReply,roomRequestId,withRoomAudio,type RoomIdentity} from "@/lib/rooms/http";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-export const maxDuration=120;
+// Inherit the service timeout; provider selection keeps its own bounded deadline.
 export function GET(request:Request){try{privateRoomRead(request);return roomReply({audioEnabled:roomAudioEnabled()},roomIdentity(request));}catch(error){return roomFailure(error);}}
 export async function POST(request:Request){
   let identity:RoomIdentity|undefined;

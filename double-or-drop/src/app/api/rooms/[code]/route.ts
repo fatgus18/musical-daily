@@ -5,7 +5,6 @@ import {RoomError} from "@/lib/rooms/types";
 import {onlyFields,privateRoomRead,roomActor,roomBody,roomCommand,roomDatabase,roomFailure,roomIdentity,roomReply,roomResponse,type RoomIdentity} from "@/lib/rooms/http";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-export const maxDuration=60;
 type Context={params:Promise<{code:string}>};
 export async function GET(request:Request,context:Context){
   let identity:RoomIdentity|undefined;

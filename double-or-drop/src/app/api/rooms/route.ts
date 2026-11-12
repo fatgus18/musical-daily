@@ -5,7 +5,7 @@ import {createRoom,findCreatedRoom} from "@/lib/rooms/store";
 import {privateRoomRead,roomActor,roomBody,roomCreation,roomDatabase,roomFailure,roomIdentity,roomReply,roomResponse,roomSettings,type RoomIdentity} from "@/lib/rooms/http";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-export const maxDuration=60;
+// Inherit the service timeout so these routes share its Node function bundle.
 export function GET(request:Request){try{privateRoomRead(request);return roomReply({catalog:catalogStatus()},roomIdentity(request));}catch(error){return roomFailure(error);}}
 export async function POST(request:Request){
   let identity:RoomIdentity|undefined;

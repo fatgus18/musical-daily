@@ -4,7 +4,6 @@ import {privateRoomRead,requireRoomAudio,roomDatabase,roomFailure,roomIdentity} 
 import {cachedPreview} from "@/lib/rooms/audio";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-export const maxDuration=60;
 export async function GET(request:Request,context:{params:Promise<{code:string}>}){
   try{
     privateRoomRead(request);requireRoomAudio();const identity=roomIdentity(request);if(identity.fresh)throw new RoomError("Join this room before listening.",401,"not_member");

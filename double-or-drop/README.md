@@ -51,6 +51,11 @@ write transactions. Room cookies are HttpOnly and separate from solo and Encore
 identities. Shared snapshots include nicknames and music emojis, never account
 emails or private solo histories.
 
+Room handlers inherit the service's function configuration so Next.js can bundle
+them with its existing APIs. Avoid route-specific duration overrides that create
+extra function bundles on the Hobby deployment. The project's Fluid Compute
+default is 300 seconds; gameplay deadlines are independently enforced at 20 seconds.
+
 Unit tests run with `npm test` from this app. The room browser suite uses
 `npx playwright test --config playwright.rooms.config.ts` against the disposable
 HTTPS services fixture. From the workspace root, start that fixture with
