@@ -1,6 +1,6 @@
 # Encore
 
-An unlimited artist song-recognition game for Musical Daily. Choose an artist, hear ten seconds per song and guess ten titles.
+An unlimited artist song-recognition game for Musical Daily. Play solo with ten-second clips, or invite friends to a shared Encore room with fifteen-second clips and early guessing.
 
 ## Run
 
@@ -12,6 +12,54 @@ npm run dev
 ```
 
 Open <http://localhost:3004>. The hub defaults to <http://localhost:3001>. The workspace's **Music games: start all** task starts the hub and four games.
+
+## Encore Rooms
+
+Open `/rooms` in the standalone app or `/encore/rooms` on Musical Daily. A host
+chooses an artist and shares a six-character code or invite link. Rooms hold 2–8 players, including the host.
+Guests can play with a nickname; signed-in users bring their selected music avatar.
+
+- Ten songs are selected from the existing live artist catalog. Ranked mixes use
+  six hits, three favorites and one deep cut; discovery mixes work when reliable
+  popularity coverage is unavailable. Rematches prioritize less-used recordings.
+- Players enable sound and ready up. The current preview buffers before the
+  shared countdown. Tap **Guess now** to stop listening early and see
+  four choices. Each player gets fifteen seconds to answer, within a shared
+  thirty-second round. There is one answer and no replay after opening choices.
+- Every correct answer earns 1,000 points. Equal scores use the total server-timed
+  duration of correct answers, including listening, rounded down to tenths of a
+  second. Wrong guesses cannot improve this tiebreaker. Exact ties share a rank.
+- Correctness is revealed together after all answers or the deadline. A five-second
+  reveal leads to the next song. Failed loading can be retried by the host or
+  voided for everyone; a loading timeout never counts as a wrong answer.
+- Reconnecting with the same browser cookie retains membership and timing.
+  New players join only in the lobby. Offline players stop blocking preparation
+  after 45 seconds; the host role can pass to someone present. Explicitly leaving
+  forfeits winning, while temporary disconnects retain earned scores.
+- Room leaderboards are separate from solo Encore account statistics. Rooms
+  expire after two hours without player activity; finished results expire after
+  24 hours. Bounded cleanup runs as new rooms are created.
+
+The existing Encore database stores the additive `encore_rooms` table. No new
+database service or credentials are required. Clients fetch short authenticated
+snapshots; a normal poll uses one read, with transactions only for player actions
+and clock transitions. Timers and answer acceptance belong to the server, not the
+browser. The room cookie is opaque and HttpOnly; room responses omit email,
+account identifiers, future tracks and unrevealed answers.
+
+The audio route authorizes the member, match, round and retry version before and
+after fetching an allowlisted provider preview. It removes descriptive MP3/MP4
+tags, limits downloads to 3 MB and retains only a bounded two-minute warm cache.
+This is a casual friend-room game, not an anti-cheating system against external
+song recognition or modified clients.
+
+From this app's directory, unit tests run with `npm test` and room browser tests
+with `npx playwright test --config playwright.rooms.config.ts`. Start the disposable
+HTTPS services fixture from the workspace root first, using
+`ACCOUNTS_TEST_FIXTURE=1 node double-or-drop/tests/services/local-gateway.mjs`
+(PowerShell: `$env:ACCOUNTS_TEST_FIXTURE='1'` before the Node command). The fixture
+uses built production apps. Its database seeding and clock controls are test-only
+and are never application endpoints.
 
 ## Live catalog and modes
 
@@ -54,7 +102,7 @@ Incomplete mixes use the same durable outbox. The shared hub and Encore stats pa
 
 ## Bounded storage
 
-API access still needs caching for speed, provider allowances and temporary outages. No audio files are hosted or saved.
+API access still needs caching for speed, provider allowances and temporary outages. Audio is never persisted; room previews use the temporary authenticated proxy described above.
 
 - Apple metadata expires after six hours; count observations after24 hours. Visits do not extend the original fetch time.
 - Disclosed stale recovery is bounded to seven days.

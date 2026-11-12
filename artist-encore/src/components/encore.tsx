@@ -10,6 +10,7 @@ import {useSound} from "./sound-client";
 import {EncoreBuddy} from "./encore-buddy";
 import {EncoreAtmosphere} from "./encore-atmosphere";
 import {FavoriteArtists,PinArtistButton,useArtistFavorites} from "./favorite-artists";
+import {EncoreRoomLink} from "./encore-room-link";
 
 function Arrow(){return <span aria-hidden="true">↗</span>;}
 function ArtistPhoto({artist}:{artist:Artist}){const [failed,setFailed]=useState("");return artist.image&&artist.imageSourceUrl&&artist.image!==failed?<img className="artist-portrait" src={withBasePath(artist.image)} alt={`${artist.name} artist portrait`} onError={()=>setFailed(artist.image)}/>:<div className="portrait-fallback" role="img" aria-label={`${artist.name} profile`}>♫</div>;}
@@ -77,6 +78,7 @@ export default function Encore({hubUrl}:{hubUrl:string}){
   const result=game?.results.at(-1);const reveal=game?.phase==="reveal";const complete=game?.phase==="complete";const expired=game?.phase==="guessing"&&remaining<=0;const urgent=game?.phase==="guessing"&&remaining>0&&remaining<=5;
   return <div className="site" data-view={choosing?"discover":"play"}><EncoreAtmosphere/><a className="skip" href="#main">Skip to game</a><header className="md-arcade-header"><MusicalDailyBrand href={hubUrl} showBack/><a className="md-game-stats-link" href={withBasePath("/stats")}>My stats <span aria-hidden="true">↗</span></a><AccountButton statsHref={withBasePath("/stats")}/><button className="help-button" onClick={()=>help.current?.showModal()}>How to play <span>?</span></button></header>
   <main id="main"><p className="sr-only" role="status" aria-live="polite">{timerNotice}</p><p className="favorite-feedback" role="status" aria-live="polite">{favorites.notice}</p><div className="title-row"><div><h1><button className="encore-home" onClick={returnHome} aria-label="Encore home" title="Choose another artist">en<span>core</span><b aria-hidden="true"><svg className="encore-spark" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M16 2v28M2 16h28M6.1 6.1l19.8 19.8M6.1 25.9 25.9 6.1"/></svg></b></button></h1></div><div className="title-note">Your artist. Ten songs.<br/><strong>Let's see how deep it goes.</strong></div></div>
+    {choosing&&<EncoreRoomLink/>}
     {error&&<div role="alert" className="error"><div>{error}{game&&!choosing&&["ready","listening"].includes(game.phase)&&<button className="replace-button" disabled={busy} onClick={()=>{stop();setProgress(0);void move("replace-clip");}}>Try a different clip at this level ↗</button>}</div><button onClick={()=>setError("")} aria-label="Dismiss error">×</button></div>}
     {account.user&&statsPending&&<div className="account-sync-note" role="status">Your score is saved here. Account stats are waiting to sync.<button disabled={busy||game?.phase==="guessing"||game?.phase==="listening"} onClick={()=>void move("sync")}>Retry sync</button></div>}
     {!enabled&&<div className="notice">Audio play is not enabled on this deployment yet. You can still explore artist search.</div>}
