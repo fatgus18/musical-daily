@@ -37,7 +37,7 @@ export class MetadataCache {
 
   async get<T>(key: string, allowStale = false, now = Date.now()): Promise<{ value: T; stale: boolean } | undefined> {
     await this.ready;
-    const row = (await this.db.execute("SELECT value,expires FROM provider_cache WHERE key=? AND stale_until>?", [key, now])).rows[0];
+    const row = (await this.db.execute("SELECT value,expires,touched FROM provider_cache WHERE key=? AND stale_until>?", [key, now])).rows[0];
     if (!row || (!allowStale && Number(row.expires) <= now)) return undefined;
     let value: T;
     try { value = JSON.parse(String(row.value)) as T; }
@@ -46,7 +46,11 @@ export class MetadataCache {
       await this.db.execute("DELETE FROM provider_cache WHERE key=? AND value=?", [key, row.value]);
       return undefined;
     }
-    await this.db.execute("UPDATE provider_cache SET touched=? WHERE key=? AND touched<?", [now, key, now - 60_000]);
+    // Reads within the recency window need no remote write round trip. Keep the
+    // SQL guard as another worker may have refreshed this entry after our read.
+    if (Number(row.touched) < now - 60_000) {
+      await this.db.execute("UPDATE provider_cache SET touched=? WHERE key=? AND touched<?", [now, key, now - 60_000]);
+    }
     return { value, stale: Number(row.expires) <= now };
   }
 

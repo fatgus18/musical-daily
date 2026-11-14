@@ -5,12 +5,112 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import type {Database} from "@musical-daily/database";
 import type {ArtistPool} from "../src/lib/catalog.ts";
-import {findGame,historyFor,openStore,rateLimit,startMix,store,transaction} from "../src/lib/store.ts";
+import {findGame,historyFor,openStore,pruneStore,rateLimit,readSavedGame,saveGame,startMix,store,transaction} from "../src/lib/store.ts";
 import {createGame} from "../src/lib/engine.ts";
 import {applySavedMove} from "../src/lib/game-moves.ts";
 import {flushAccountResults} from "../src/lib/account-results.ts";
 
 const pool:ArtistPool={artist:{id:"fixture",name:"Fixture Artist",image:"",url:"https://music.apple.com/"},tracks:Array.from({length:60},(_,i)=>({id:String(i),title:`Track ${i}`,artistId:"fixture",artist:"Fixture Artist",aliases:[],preview:`https://audio-ssl.itunes.apple.com/${i}.m4a`,artwork:"",url:"https://music.apple.com/",duration:200,rank:1000-i})),ranking:{kind:"streams",label:"Fixture",sourceUrl:"https://example.com",asOf:"2026-11-01"},fetchedAt:1};
+
+test("fresh retention uses one marker read without acquiring a write transaction",async()=>{
+  const db=await openStore(":memory:"),now=Date.now();
+  const calls={execute:0,transaction:0,batch:0};
+  const measured:Database={...db,
+    execute:(...args)=>{calls.execute++;return db.execute(...args);},
+    batch:statements=>{calls.batch++;return db.batch(statements);},
+    transaction:fn=>{calls.transaction++;return db.transaction(fn);},
+  };
+  try{
+    await db.execute("INSERT INTO maintenance VALUES('retention',?)",[now-1000]);
+    assert.equal((await pruneStore(measured,now)).skipped,true);
+    assert.deepEqual(calls,{execute:1,transaction:0,batch:0});
+    assert.equal((await pruneStore(measured,now,true)).skipped,false,"Forced maintenance still runs with a fresh marker");
+    assert.equal(calls.execute,1,"Forced cleanup does not need a preliminary marker read");
+    assert.equal(calls.transaction,1);
+  }finally{db.close();}
+});
+
+test("retention rechecks the marker after another instance finishes cleanup",async()=>{
+  const db=await openStore(":memory:"),now=Date.now();let queries=0,batches=0;
+  const concurrent:Database={...db,
+    execute:async(...args)=>{
+      const result=await db.execute(...args);
+      await db.execute("INSERT OR REPLACE INTO maintenance VALUES('retention',?)",[now]);
+      return result;
+    },
+    transaction:fn=>db.transaction(tx=>fn({...tx,
+      execute:(...args)=>{queries++;return tx.execute(...args);},
+      batch:statements=>{batches++;return tx.batch(statements);},
+    })),
+  };
+  try{
+    assert.equal((await pruneStore(concurrent,now)).skipped,true);
+    assert.equal(queries,1,"The marker is re-read under the write lock");
+    assert.equal(batches,0,"A concurrent cleanup is not repeated");
+  }finally{db.close();}
+});
+
+test("unchanged saved mixes and missing players need one read without a write transaction",async()=>{
+  const db=await openStore(":memory:");const calls={reads:0,transactions:0};
+  const measured:Database={...db,execute:(...args)=>{calls.reads++;return db.execute(...args);},transaction:fn=>{calls.transactions++;return db.transaction(fn);}};
+  try{
+    const game=await startMix(db,"owner",pool,"steady",10000);
+    assert.equal((await readSavedGame(measured,"owner",()=>11000))?.id,game.id);
+    assert.equal(await readSavedGame(measured,"another-owner",()=>11000),null);
+    await applySavedMove(db,"owner",{action:"listen",gameId:game.id,round:0},11000);
+    await applySavedMove(db,"owner",{action:"heard",gameId:game.id,round:0},21000);
+    assert.equal((await readSavedGame(measured,"owner",()=>22000))?.phase,"guessing");
+    assert.deepEqual(calls,{reads:3,transactions:0});
+  }finally{db.close();}
+});
+
+test("saved-read migrations persist choices and start legacy clocks after the write lock",async()=>{
+  const db=await openStore(":memory:");let now=20000,transactions=0;
+  const measured:Database={...db,transaction:fn=>{transactions++;now=40000;return db.transaction(fn);}};
+  try{
+    const game=createGame("owner",pool,[],"legacy",10000);
+    game.phase="guessing";delete game.guessDeadline;
+    for(const pick of game.picks){delete pick.choices;delete pick.correctChoiceId;}
+    await saveGame(db,game);
+    const migrated=(await readSavedGame(measured,game.player,()=>now))!;
+    assert.equal(migrated.guessDeadline,55000);
+    assert.ok(migrated.picks.every(pick=>pick.choices?.length===4&&pick.choices.some(choice=>choice.id===pick.correctChoiceId)));
+    const again=(await readSavedGame(measured,game.player,()=>41000))!;
+    assert.deepEqual(again.picks,migrated.picks);assert.equal(again.guessDeadline,55000);assert.equal(transactions,1);
+  }finally{db.close();}
+});
+
+test("concurrent late saved reads score once and preserve terminal outbox repair",async()=>{
+  const db=await openStore(":memory:");
+  try{
+    const game=createGame("account:owner",pool,[],"last-round",10000);
+    game.round=9;game.phase="guessing";game.guessDeadline=20000;
+    game.results=Array.from({length:9},(_,round)=>({round,title:"Previous",artist:"Fixture Artist",artwork:"",url:"",tier:"hit",input:"",correct:false,skipped:true}));
+    await saveGame(db,game);
+    const reads=await Promise.all(Array.from({length:5},()=>readSavedGame(db,game.player,()=>21000)));
+    assert.ok(reads.every(saved=>saved?.results.length===10&&saved.results[9].timedOut));
+    assert.equal((await db.execute("SELECT count(*) n FROM account_result_outbox")).rows[0].n,1);
+    await db.execute("DELETE FROM account_result_outbox WHERE game_id=?",[game.id]);
+    await readSavedGame(db,game.player,()=>22000);
+    assert.equal((await db.execute("SELECT count(*) n FROM account_result_outbox")).rows[0].n,1,"A finalized legacy mix still repairs its missing durable result");
+  }finally{db.close();}
+});
+
+test("a saved read reconciles the current mix after concurrent replacement",async()=>{
+  const db=await openStore(":memory:");let replacementId="";
+  try{
+    const game=await startMix(db,"owner",pool,"old-mix",10000);
+    game.phase="guessing";game.guessDeadline=20000;await saveGame(db,game);
+    const concurrent:Database={...db,transaction:async fn=>{
+      replacementId=(await startMix(db,game.player,pool,"replacement",22000)).id;
+      return db.transaction(fn);
+    }};
+    const current=await readSavedGame(concurrent,game.player,()=>21000);
+    assert.equal(current?.id,replacementId);assert.equal(current?.phase,"ready");
+    const replaced=(await findGame(db,game.player,game.id))!;
+    assert.equal(replaced.phase,"discarded");assert.equal(replaced.results.length,1);
+  }finally{db.close();}
+});
 
 test("saved mixes and repetition history survive a closed connection",async()=>{
   const folder=await mkdtemp(join(tmpdir(),"encore-storage-"));

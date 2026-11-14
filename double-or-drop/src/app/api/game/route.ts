@@ -6,7 +6,7 @@ import {loadSavedCatalog,pinCatalog} from "@/lib/catalog-storage";
 import {act,createGame,createDailyGame,publicGame} from "@/lib/engine";
 import {dailyReset,ensureDailyChallenge,findDailyGame,utcDate} from "@/lib/daily";
 import {anonymousIdentity,identity,readBody,reply,errorReply} from "@/lib/http";
-import {findGame,findModeGame,findRequest,historyFor,rateLimit,saveGame,settleSavedGame,store,transaction} from "@/lib/store";
+import {findGame,findModeGame,findRequest,historyFor,rateLimit,readModeGame,saveGame,settleSavedGame,store,transaction} from "@/lib/store";
 import {METRICS} from "@/lib/rules";
 import type {MetricFilter,Move,Side} from "@/lib/types";
 import {personalBest} from "@/lib/records";
@@ -21,10 +21,7 @@ export async function GET(req:NextRequest){
     const mode=req.nextUrl.searchParams.get("mode")||"unlimited";
     if(mode!=="daily"&&mode!=="unlimited")throw Object.assign(new Error("Choose daily or unlimited."),{status:400});
     const date=utcDate();
-    const game=await transaction(db,async tx=>{
-      const saved=await settleSavedGame(tx,await findModeGame(tx,player,mode));
-      return mode==="daily"?saved?.dailyDate===date?saved:await findDailyGame(tx,player,date):saved;
-    });
+    const game=await readModeGame(db,player,mode,date);
     const statsSynced=await flushAccountResults(db,player,events=>publishResults(req,"double-drop",events));
     return reply({game:game?publicGame(game):null,catalog:catalogStatus(),daily:{date,resetsAt:dailyReset(date)},personalBest:await personalBest(db,player),statsSynced},token);
   }catch(error){return errorReply(Object.assign(new Error("Unable to load this run."),{status:error&&typeof error==="object"&&"status" in error?error.status:503}),token);}

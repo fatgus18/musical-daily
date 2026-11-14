@@ -10,6 +10,12 @@ export function accountRequestPath(path: string, services: boolean, localPath: (
   return services ? path : localPath(path);
 }
 
+export function accountReadSignal(signal: AbortSignal, timeoutMs = 15_000): AbortSignal {
+  // A deadline must not abort the coordinator's controller: timeout failures
+  // still need to report an error and release the pending read for retry.
+  return AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
+}
+
 export function createAccountRequestCoordinator() {
   let pending: { controller: AbortController; promise: Promise<void> } | null = null;
   let paused = false;

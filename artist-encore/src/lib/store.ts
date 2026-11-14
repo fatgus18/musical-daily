@@ -4,6 +4,7 @@ import type {ArtistPool} from "./catalog.ts";
 import {createGame,expireGuess,finishIncomplete,unfinished} from "./engine.ts";
 import {trackIdentity} from "./rules.ts";
 import {accountResultStatement,queueAccountResult} from "./account-results.ts";
+import {ensureChoices} from "./choices.ts";
 
 export async function openStore(path?:string):Promise<Database>{
   const db=path===undefined?databaseFor("encore"):openLocalDatabase(path);
@@ -32,6 +33,10 @@ export async function store(){
   return db;
 }
 export async function pruneStore(db:Database,now=Date.now(),force=false){
+  if(!force){
+    const last=(await db.execute("SELECT last_run FROM maintenance WHERE key='retention'")).rows[0];
+    if(last&&now-Number(last.last_run)<86400000)return {skipped:true,hasMore:false,games:0,exposures:0,limits:0};
+  }
   return transaction(db,async tx=>{
     // Check within the write transaction: separate serverless instances may prune together.
     const last=(await tx.execute("SELECT last_run FROM maintenance WHERE key='retention'")).rows[0];
@@ -71,6 +76,18 @@ export function transaction<T>(db:Database,fn:(tx:SqlExecutor)=>Promise<T>){retu
 export async function findGame(db:SqlExecutor,player:string,id?:string){
   const row=(id?await db.execute("SELECT state FROM games WHERE player=? AND id=?",[player,id]):await db.execute("SELECT state FROM games WHERE player=? ORDER BY (json_extract(state,'$.phase') NOT IN ('complete','discarded') AND json_array_length(json_extract(state,'$.results'))<10) DESC,created_at DESC,id DESC LIMIT 1",[player])).rows[0];
   return row?JSON.parse(String(row.state)) as Game:null;
+}
+/** Steady reads need no write lock. Re-read before persisting a migration or timeout. */
+export async function readSavedGame(db:Database,player:string,clock:()=>number=Date.now){
+  const saved=await findGame(db,player);if(!saved)return null;
+  const deadline=saved.guessDeadline,choicesChanged=ensureChoices(saved);
+  const expired=expireGuess(saved,clock());
+  // Finalized legacy mixes may still need their durable account result queued.
+  if(!choicesChanged&&!expired&&saved.guessDeadline===deadline&&saved.results.length!==10&&saved.completionStatus!=="incomplete")return saved;
+  return transaction(db,async tx=>{
+    const current=await findGame(tx,player);if(!current)return null;
+    ensureChoices(current);expireGuess(current,clock());await saveGame(tx,current);return current;
+  });
 }
 export async function saveGame(db:SqlExecutor,game:Game){
   await db.execute("INSERT INTO games VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state",[game.id,game.player,game.requestId,game.createdAt,JSON.stringify(game)]);

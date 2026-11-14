@@ -3,14 +3,15 @@ import assert from "node:assert/strict";
 import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
-import {openStore,findGame,findRequest,saveGame,transaction,rateLimit,pruneStore} from "../src/lib/store.ts";
+import {initializeStore,openStore,findGame,findRequest,readModeGame,saveGame,transaction,rateLimit,pruneStore} from "../src/lib/store.ts";
 import {persistArtistCatalog,loadSavedCatalog,pinCatalog} from "../src/lib/catalog-storage.ts";
 import {catalogVersion,type Catalog} from "../src/lib/catalog.ts";
-import {createGame,act} from "../src/lib/engine.ts";
-import {winner} from "../src/lib/rules.ts";
+import {createGame,createDailyGame,act} from "../src/lib/engine.ts";
+import {buildDailyChallenge,utcDate} from "../src/lib/daily.ts";
+import {GUESS_DURATION_MS,winner} from "../src/lib/rules.ts";
 import {personalBest} from "../src/lib/records.ts";
 import {flushAccountResults} from "../src/lib/account-results.ts";
-import type {SqlExecutor} from "@musical-daily/database";
+import {openLocalDatabase,type Database,type SqlExecutor} from "@musical-daily/database";
 
 function fixture(label="artist"):Catalog{
   const source="https://music.apple.com/us/artist/test/123";
@@ -18,6 +19,90 @@ function fixture(label="artist"):Catalog{
   const sources=[{id:"test",url:source,note:"Isolated test metadata"}];
   return {schema:1,version:catalogVersion(tracks,sources),createdAt:"2026-11-01T00:00:00.000Z",tracks,sources};
 }
+
+test("cold schema initialization batches index replacement without an interactive transaction",async()=>{
+  const db=await openStore(":memory:");
+  const calls={execute:0,batch:0,executeMultiple:0,transaction:0};
+  const measured:Database={...db,
+    execute:(...args)=>{calls.execute++;return db.execute(...args);},
+    batch:statements=>{calls.batch++;return db.batch(statements);},
+    executeMultiple:sql=>{calls.executeMultiple++;return db.executeMultiple(sql);},
+    transaction:fn=>{calls.transaction++;return db.transaction(fn);},
+  };
+  try{
+    await initializeStore(measured);
+    assert.deepEqual(calls,{execute:2,batch:1,executeMultiple:2,transaction:0});
+    const indexes=(await db.execute("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('games_one_active','games_one_active_mode','games_daily_attempt') ORDER BY name")).rows.map(row=>row.name);
+    assert.deepEqual(indexes,["games_daily_attempt","games_one_active_mode"]);
+  }finally{db.close();}
+});
+
+test("a failed index migration rolls back removal of the original active-run constraint",async()=>{
+  const db=openLocalDatabase(":memory:");
+  try{
+    await db.executeMultiple(`CREATE TABLE games(id TEXT PRIMARY KEY,player TEXT NOT NULL,request_id TEXT NOT NULL,revision INTEGER NOT NULL,active INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,state TEXT NOT NULL,UNIQUE(player,request_id));
+      CREATE UNIQUE INDEX games_one_active ON games(player) WHERE active=1;`);
+    const duplicateDaily=JSON.stringify({mode:"daily",dailyDate:"2026-11-01"});
+    await db.batch([1,2].map(id=>({sql:"INSERT INTO games VALUES(?,?,?,0,0,1,1,?)",args:[String(id),"owner",String(id),duplicateDaily]})));
+    await assert.rejects(initializeStore(db),/UNIQUE/);
+    const indexes=(await db.execute("SELECT name FROM sqlite_master WHERE type='index' AND name IN ('games_one_active','games_one_active_mode','games_daily_attempt')")).rows.map(row=>row.name);
+    assert.deepEqual(indexes,["games_one_active"]);
+  }finally{db.close();}
+});
+
+test("unchanged mode reads and missing players avoid write transactions",async()=>{
+  const db=await openStore(":memory:"),now=Date.now(),date=utcDate(now);const calls={reads:0,transactions:0};
+  const measured:Database={...db,execute:(...args)=>{calls.reads++;return db.execute(...args);},transaction:fn=>{calls.transactions++;return db.transaction(fn);}};
+  try{
+    const game=createGame("owner",fixture(),"steady",{},now);await saveGame(db,game);
+    assert.equal((await readModeGame(measured,game.player,"unlimited",date,()=>now+1))?.id,game.id);
+    assert.equal(await readModeGame(measured,"another-owner","unlimited",date,()=>now+1),null);
+    act(game,"discard",game.round,game.revision,undefined,undefined,now+2);await saveGame(db,game,0);
+    assert.equal((await readModeGame(measured,game.player,"unlimited",date,()=>now+3))?.phase,"complete");
+    assert.deepEqual(calls,{reads:3,transactions:0});
+  }finally{db.close();}
+});
+
+test("concurrent late mode reads settle once with the durable result and personal record",async()=>{
+  const db=await openStore(":memory:"),now=Date.now();
+  try{
+    const game=createGame("account:owner",fixture(),"last-life",{},now);game.lives=1;game.banked=100;await saveGame(db,game);
+    const reads=await Promise.all(Array.from({length:5},()=>readModeGame(db,game.player,"unlimited",utcDate(now),()=>game.guessDeadline!+1)));
+    assert.ok(reads.every(saved=>saved?.phase==="complete"&&saved.revision===1&&saved.results.length===1&&saved.results[0].timedOut));
+    assert.equal((await db.execute("SELECT count(*) n FROM account_result_outbox")).rows[0].n,1);
+    assert.equal(await personalBest(db,game.player),100);
+  }finally{db.close();}
+});
+
+test("mode reads start legacy clocks after acquiring the lock and re-read concurrent moves",async()=>{
+  const db=await openStore(":memory:"),now=Date.now();let clock=now;
+  try{
+    const game=createGame("owner",fixture(),"legacy",{},now);delete game.guessDeadline;await saveGame(db,game);
+    const queued:Database={...db,transaction:fn=>{clock=now+10000;return db.transaction(fn);}};
+    const migrated=(await readModeGame(queued,game.player,"unlimited",utcDate(now),()=>clock))!;
+    assert.equal(migrated.guessDeadline,now+10000+GUESS_DURATION_MS);assert.equal(migrated.revision,1);
+    const concurrent:Database={...db,transaction:async fn=>{
+      const latest=(await findGame(db,game.player))!;const revision=latest.revision;
+      act(latest,"guess",latest.round,latest.revision,winner(latest.pair),undefined,migrated.guessDeadline!-1);
+      await saveGame(db,latest,revision);return db.transaction(fn);
+    }};
+    const current=(await readModeGame(concurrent,game.player,"unlimited",utcDate(now),()=>migrated.guessDeadline!+1))!;
+    assert.equal(current.phase,"decision");assert.equal(current.correct,1);assert.equal(current.results.length,1);assert.equal(current.results[0].timedOut,false);
+  }finally{db.close();}
+});
+
+test("daily reads settle the previous date before looking up today's run",async()=>{
+  const db=await openStore(":memory:"),now=Date.parse("2026-11-13T23:59:50Z"),today="2026-11-14";
+  try{
+    const game=createDailyGame("account:owner",buildDailyChallenge(fixture(),"2026-11-13"),"yesterday",now);await saveGame(db,game);
+    assert.equal(await readModeGame(db,game.player,"daily",today,()=>now+11000),null);
+    const expired=(await findGame(db,game.player,game.id))!;
+    assert.equal(expired.phase,"complete");assert.equal(expired.completionStatus,"incomplete");assert.equal(expired.endReason,"expired");
+    assert.equal((await db.execute("SELECT count(*) n FROM account_result_outbox")).rows[0].n,1);
+    const fresh=createDailyGame(game.player,buildDailyChallenge(fixture(),today),"today",now+12000);await saveGame(db,fresh);
+    assert.equal((await readModeGame(db,game.player,"daily",today,()=>now+12001))?.id,fresh.id);
+  }finally{db.close();}
+});
 
 test("an artist snapshot and pinned run survive a completely new database connection",async()=>{
   const directory=await mkdtemp(join(tmpdir(),"double-drop-cloud-")),path=join(directory,"state.sqlite");

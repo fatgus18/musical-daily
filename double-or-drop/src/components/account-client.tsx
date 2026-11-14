@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import Image from "next/image";
 import { ACCOUNT_AVATARS, type AccountAvatar, type AccountUser } from "@musical-daily/accounts";
 import { withBasePath } from "@/lib/app-path";
-import { accountRequestPath, createAccountRequestCoordinator } from "./account-requests";
+import { accountReadSignal, accountRequestPath, createAccountRequestCoordinator } from "./account-requests";
 
 export const guestOnly = process.env.NEXT_PUBLIC_GUEST_ONLY === "1";
 
@@ -53,7 +53,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback((): Promise<void> => {
     if (guestOnly) return Promise.resolve();
     return requests.run(async signal => {
-      const response = await fetch(accountApiPath("/api/account/session"), { cache: "no-store", credentials: "same-origin", signal });
+      const response = await fetch(accountApiPath("/api/account/session"), { cache: "no-store", credentials: "same-origin", signal: accountReadSignal(signal) });
       if (!response.ok) throw new Error("Your account could not be loaded. Please try again.");
       return response.json() as Promise<AccountSession>;
     }, {
@@ -62,10 +62,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         setSession({ user: value.user ?? null, configured: value.configured === true });
         setError(null);
       },
-      error: () => {
-        currentUser.current = null;
-        setSession({ user: null, configured: false });
-        setError("Your account could not be loaded. Please try again.");
+      error: reason => {
+        // A failed verification is not a sign-out. Keep the last verified
+        // profile unless another tab has invalidated that identity already.
+        // account.error prevents gameplay until a fresh read succeeds.
+        if (currentUser.current === null) setSession({ user: null, configured: false });
+        setError(reason instanceof Error && reason.name === "TimeoutError"
+          ? "Your account took too long to respond. Please try again."
+          : "Your account could not be loaded. Please try again.");
       },
       settled: () => setLoading(false),
     });
@@ -73,6 +77,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (guestOnly) return;
     mounted.current = true;
+    // Browsers suspend animation frames in background tabs. Account requests
+    // must start after hydration even when no visual frame is being painted.
+    void refresh();
     // Read the browser-only callback result after hydration, then remove it from the URL.
     const noticeFrame = window.requestAnimationFrame(() => {
       const location = new URL(window.location.href);
@@ -80,7 +87,6 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       if (reason === "not-configured") setNotice("Google sign-in is not available yet. You can keep playing as a guest.");
       if (reason === "sign-in-failed") setNotice("Google sign-in did not finish. Please try again using Sign in.");
       if (reason) { location.searchParams.delete("accountError"); window.history.replaceState(window.history.state, "", location.pathname + location.search + location.hash); }
-      void refresh();
     });
     const onFocus = () => { if (document.visibilityState === "visible") void refresh(); };
     const onStorage = (event: StorageEvent) => {
@@ -112,7 +118,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   }, [cancelAvatarWrite, refresh, requests]);
   const updateAvatar = useCallback(async (avatar: AccountAvatar | null): Promise<boolean> => {
     const accountId = currentUser.current?.id;
-    if (guestOnly || !mounted.current || !accountId || signingOut.current || avatarWrite.current) return false;
+    if (guestOnly || !mounted.current || !accountId || error || signingOut.current || avatarWrite.current) return false;
     // Pause reads for the write so an older session response cannot briefly
     // replace the saved avatar. Gameplay and stats keep their existing identity.
     requests.pause();
@@ -148,7 +154,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
         if (!signingOut.current) requests.resume();
       }
     }
-  }, [requests]);
+  }, [error, requests]);
   const signOut = useCallback(async () => {
     if (guestOnly) return;
     // Cancel before logout, and suppress focus refreshes until the cookie is
@@ -218,7 +224,7 @@ function SelectionCheck() {
 }
 
 function AvatarPicker({ user, signingOut }: { user: AccountUser; signingOut: boolean }) {
-  const { avatarSaving, updateAvatar } = useAccount();
+  const { avatarSaving, updateAvatar, error: accountError } = useAccount();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const mounted = useRef(false);
@@ -233,7 +239,7 @@ function AvatarPicker({ user, signingOut }: { user: AccountUser; signingOut: boo
     }
   }
   const selected = ACCOUNT_AVATARS.some(option => option.id === user.avatar) ? user.avatar : null;
-  const disabled = avatarSaving || signingOut;
+  const disabled = avatarSaving || signingOut || !!accountError;
   return <section className="md-avatar-picker" aria-label="Profile picture" aria-busy={avatarSaving}>
     <div className="md-avatar-heading"><strong>Profile picture</strong><span>Pick your vibe</span></div>
     <button type="button" className="md-avatar-default" aria-label="Default — Google photo" aria-pressed={!selected} disabled={disabled} onClick={() => void choose(null)}>
@@ -292,7 +298,7 @@ function AccountButtonState({ statsHref }: { statsHref: string }) {
       {user ? <><ProfileAvatar user={user} /><span className="md-account-name">{user.name?.split(" ")[0] || "My account"}</span><AccountIcon name="chevron" /></> : <><GoogleMark /><span>{loading ? "Loading…" : error ? "Account" : "Sign in"}</span></>}
     </button>
     {open && <div className="md-account-panel" id={id}>
-      {user ? <><div className="md-account-identity"><ProfileAvatar user={user} large /><div className="md-account-identity-detail"><strong>{user.name || "Music lover"}</strong><span>{user.email}</span></div></div><AvatarPicker user={user} signingOut={busy} /><a className="md-account-stats" href={statsHref}><AccountIcon name="stats" /><span>My stats</span><AccountIcon name="arrow" /></a><button className="md-account-sign-out" type="button" disabled={busy} onClick={() => void leave()}><AccountIcon name="sign-out" /><span>{busy ? "Signing out…" : "Sign out"}</span></button>{signOutError && <p className="md-account-error" role="alert">{signOutError}</p>}</> : <><strong className="md-account-heading">Make yourself at home.</strong><p className="md-account-fine">Keep your scores together across all your games.</p><AccountSignIn /></>}
+      {user ? <><div className="md-account-identity"><ProfileAvatar user={user} large /><div className="md-account-identity-detail"><strong>{user.name || "Music lover"}</strong><span>{user.email}</span></div></div>{error && <AccountSignIn />}<AvatarPicker user={user} signingOut={busy} /><a className="md-account-stats" href={statsHref}><AccountIcon name="stats" /><span>My stats</span><AccountIcon name="arrow" /></a><button className="md-account-sign-out" type="button" disabled={busy} onClick={() => void leave()}><AccountIcon name="sign-out" /><span>{busy ? "Signing out…" : "Sign out"}</span></button>{signOutError && <p className="md-account-error" role="alert">{signOutError}</p>}</> : <><strong className="md-account-heading">Make yourself at home.</strong><p className="md-account-fine">Keep your scores together across all your games.</p><AccountSignIn /></>}
     </div>}
   </div>;
 }

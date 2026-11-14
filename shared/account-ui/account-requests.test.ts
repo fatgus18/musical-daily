@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountRequestPath, createAccountRequestCoordinator } from "./account-requests.ts";
+import { accountReadSignal, accountRequestPath, createAccountRequestCoordinator } from "./account-requests.ts";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -100,4 +100,51 @@ test("unmount before the scheduled read starts prevents the network request", as
   });
   requests.invalidate();
   await pending;
+});
+
+test("a fetch deadline reports failure, releases coalescing and permits a fresh account retry", async () => {
+  const requests = createAccountRequestCoordinator();
+  const failures: unknown[] = [];
+  const values: string[] = [];
+  let settled = 0;
+  let ownerSignal: AbortSignal | undefined;
+  const callbacks = { success: (value: string) => values.push(value), error: (reason: unknown) => failures.push(reason), settled: () => { settled++; } };
+  const pending = requests.run(signal => {
+    ownerSignal = signal;
+    const fetchSignal = accountReadSignal(signal, 5);
+    // Models fetch/body consumption awaiting data until the network aborts.
+    return new Promise<string>((_resolve, reject) => fetchSignal.addEventListener("abort", () => reject(fetchSignal.reason), { once: true }));
+  }, callbacks);
+  assert.equal(requests.run(async () => assert.fail("Pending read should be shared"), callbacks), pending);
+  // AbortSignal.timeout is unref'd in Node; keep the event loop alive for it.
+  await Promise.all([pending, new Promise(resolve => setTimeout(resolve, 20))]);
+  assert.equal(ownerSignal?.aborted, false, "A deadline must not look like coordinator invalidation");
+  assert.equal((failures[0] as Error).name, "TimeoutError");
+  assert.equal(settled, 1);
+  await requests.run(async () => "fresh identity", callbacks);
+  assert.deepEqual(values, ["fresh identity"]);
+  assert.equal(failures.length, 1);
+  assert.equal(settled, 2);
+});
+
+test("invalidating a bounded fetch cancels it without displaying an error or settling newer reads", async () => {
+  const requests = createAccountRequestCoordinator();
+  const next = deferred<string>();
+  const values: string[] = [];
+  let settled = 0;
+  const callbacks = { success: (value: string) => values.push(value), error: () => assert.fail("Cancelled identity reads are silent"), settled: () => { settled++; } };
+  const stale = requests.run(signal => {
+    const fetchSignal = accountReadSignal(signal);
+    return new Promise<string>((_resolve, reject) => fetchSignal.addEventListener("abort", () => reject(fetchSignal.reason), { once: true }));
+  }, callbacks);
+  await Promise.resolve();
+  requests.invalidate();
+  const current = requests.run(() => next.promise, callbacks);
+  await stale;
+  assert.equal(settled, 0);
+  assert.equal(requests.run(async () => assert.fail("Fresh read must remain coalesced"), callbacks), current);
+  next.resolve("new account");
+  await current;
+  assert.deepEqual(values, ["new account"]);
+  assert.equal(settled, 1);
 });

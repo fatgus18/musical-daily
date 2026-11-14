@@ -5,7 +5,7 @@ import { TrackArtwork } from "./track-artwork";
 import { BlackjackEmblem, BlackjackStage } from "./blackjack-stage";
 import { HandRemix } from "./hand-remix";
 import { MusicalDailyBrand } from "@/components/musical-daily-brand";
-import { AccountButton, useAccount } from "@/components/account-client";
+import { AccountButton, accountApiPath, useAccount } from "@/components/account-client";
 import { useSound } from "@/components/sound-client";
 import { withBasePath } from "@/lib/app-path";
 import { buildShareScore } from "@/lib/share-score";
@@ -117,6 +117,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   const [finishing, setFinishing] = useState(false);
   const requestInFlight = useRef(false);
   const boardRequest = useRef(0);
+  const boardAbort = useRef<AbortController | null>(null);
 
   // Gameplay state
   const [pickedIds, setPickedIds] = useState<string[]>([]);
@@ -147,6 +148,9 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   const [copiedShare, setCopiedShare] = useState(false);
   const [countdown, setCountdown] = useState("00:00:00");
   const [stats, setStats] = useState<PlayerStats>(DEFAULT_STATS);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const statsRequest = useRef(0);
+  const statsAbort = useRef<AbortController | null>(null);
 
   const currentSum = pickedIds.reduce(
     (sum, id) => sum + (revealedStreams[id] || 0),
@@ -178,18 +182,48 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
 
   const refreshStats = useCallback(async () => {
     if (!accountId) return;
-    const response = await fetch(withBasePath("/api/account/stats"), { cache: "no-store" });
-    if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
-    const payload = await response.json() as { games: { blackjack: GameStats } };
-    const saved = payload.games.blackjack;
-    setStats({ ...DEFAULT_STATS, played: saved.played, currentStreak: saved.currentStreak, maxStreak: saved.bestStreak,
-      lastCompletedDate: saved.lastPlayed, blackjacks: saved.totalCorrect });
+    const requestId = ++statsRequest.current;
+    statsAbort.current?.abort();
+    const controller = new AbortController();
+    statsAbort.current = controller;
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]);
+    const current = () => requestId === statsRequest.current && !controller.signal.aborted;
+    setStatsError(null);
+    try {
+      const response = await fetch(accountApiPath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal });
+      if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
+      const payload = await response.json() as { user?: { id: string } | null; games: { blackjack: GameStats } };
+      signal.throwIfAborted();
+      if (!current()) return;
+      if (payload.user?.id !== accountId) {
+        setStatsError("Your sign-in session changed. Refresh the page to sync your statistics.");
+        return;
+      }
+      const saved = payload.games.blackjack;
+      setStats({ ...DEFAULT_STATS, played: saved.played, currentStreak: saved.currentStreak, maxStreak: saved.bestStreak,
+        lastCompletedDate: saved.lastPlayed, blackjacks: saved.totalCorrect });
+    } catch (cause) {
+      if (current()) setStatsError(cause instanceof Error && cause.name === "TimeoutError"
+        ? "Your statistics took too long to sync. Please retry."
+        : "Your statistics couldn't sync. Retry in a moment.");
+    } finally {
+      if (statsAbort.current === controller) statsAbort.current = null;
+    }
   }, [accountId]);
 
   // Guest history remains on this browser; an account reads its server history.
   useEffect(() => {
+    if (accountId) {
+      let active = true;
+      queueMicrotask(() => { if (active) void refreshStats(); });
+      return () => {
+        active = false;
+        statsRequest.current += 1;
+        statsAbort.current?.abort();
+        statsAbort.current = null;
+      };
+    }
     const frame = requestAnimationFrame(() => {
-      if (accountId) { void refreshStats().catch(cause => setError(cause.message)); return; }
       try {
         const raw = localStorage.getItem("sbj_stats_v2");
         if (raw) setStats({ ...DEFAULT_STATS, ...JSON.parse(raw) });
@@ -328,7 +362,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   };
 
   const recordCompletedDailyStats = (dateStr: string, rank: RankTier) => {
-    if (accountId) { void refreshStats().catch(cause => setError(cause.message)); return; }
+    if (accountId) { void refreshStats(); return; }
     setStats((prev) => {
       // A guest upgrading from local dates may already have tomorrow's result.
       // Completing an older UTC hand must not rewind their recorded streak.
@@ -367,6 +401,11 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   const loadBoard = useCallback(
     async (dateStr: string, customSeed: string | null) => {
       const requestId = ++boardRequest.current;
+      boardAbort.current?.abort();
+      const controller = new AbortController();
+      boardAbort.current = controller;
+      const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]);
+      const current = () => requestId === boardRequest.current && !controller.signal.aborted;
       stopAudio();
       setLoading(true);
       setShieldToast(null);
@@ -388,10 +427,11 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
             if (saved.catalogVersion) params.set("catalogVersion", saved.catalogVersion);
           }
         }
-        const res = await fetch(withBasePath(`/api/daily?${params.toString()}`));
+        const res = await fetch(withBasePath(`/api/daily?${params.toString()}`), { signal });
         if (!res.ok) throw new Error("Couldn't load this hand. Please try again.");
         const data: DailyApiResponse = await res.json();
-        if (requestId !== boardRequest.current) return;
+        signal.throwIfAborted();
+        if (!current()) return;
         if (accountId && !customSeed && !data.accountState) throw new Error("Your sign-in session changed. Refresh the page before continuing.");
         accountRevision.current = data.accountRevision;
         if (accountId && !customSeed) saved = data.accountState || null;
@@ -427,12 +467,15 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
         displaySumRef.current = 0;
         setDisplaySum(0);
       } catch (cause) {
-        if (requestId === boardRequest.current) {
+        if (current()) {
           setBoard(null);
-          setError(cause instanceof Error ? cause.message : "Couldn't load this hand.");
+          setError(cause instanceof Error && cause.name === "TimeoutError"
+            ? "Loading this hand took too long. Please try again."
+            : cause instanceof Error ? cause.message : "Couldn't load this hand.");
         }
       } finally {
-        if (requestId === boardRequest.current) setLoading(false);
+        if (current()) setLoading(false);
+        if (boardAbort.current === controller) boardAbort.current = null;
       }
     },
     [stopAudio, accountId]
@@ -457,10 +500,14 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
   }, [board?.date, practiceSeed, loadBoard, accountId, playDate]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      void loadBoard(playDate(), null);
-    });
-    return () => cancelAnimationFrame(frame);
+    let active = true;
+    queueMicrotask(() => { if (active) void loadBoard(playDate(), null); });
+    return () => {
+      active = false;
+      boardRequest.current += 1;
+      boardAbort.current?.abort();
+      boardAbort.current = null;
+    };
   }, [loadBoard, playDate]);
 
   const finalizeHand = async (
@@ -738,6 +785,7 @@ function BlackjackGame({ hubUrl, accountId }: { hubUrl: string; accountId: strin
       <main id="game" className="bj-main mx-auto max-w-5xl px-4 pt-6">
         <div className="game-heading"><div><h1>Stream <em>Blackjack</em><span>.</span></h1><p>Trust your music instinct. Know when to stand.</p></div><div className="bj-edition"><BlackjackEmblem /><span className="edition-badge">{practiceSeed ? "FREE PLAY" : board ? `DAILY MIX #${String(board.puzzleNumber).padStart(3, "0")}` : "DEALING YOUR MIX"}</span></div></div>
         {error && <div role="alert" className="game-error"><span>{error}</span>{(!board || accountId) && <button onClick={() => void loadBoard(playDate(), practiceSeed)}>Reload saved hand ↻</button>}</div>}
+        {statsError && <div role="alert" className="game-error"><span>{statsError}</span><button onClick={() => void refreshStats()}>Retry statistics ↻</button></div>}
         <aside className="bj-challenge mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[#c4f58a]/20 bg-[#c4f58a]/[0.06] px-4 py-3 text-sm text-neutral-300 sm:text-sm">
           <span>Hit tracks to build your total, then stand before you bust.</span>
           <span className="hidden text-neutral-500 sm:inline">Your shield saves one risky pick.</span>

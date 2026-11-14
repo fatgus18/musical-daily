@@ -7,17 +7,15 @@ import {applySavedMove,validateGameMove} from "@/lib/game-moves";
 import {trackIdentity,catalogOffer} from "@/lib/rules";
 import {ensureChoices} from "@/lib/choices";
 import {audioEnabled,identity,anonymousIdentity,readBody,reply,errorReply} from "@/lib/http";
-import {findGame,historyFor,rateLimit,startMix,saveGame,store,transaction} from "@/lib/store";
+import {findGame,historyFor,rateLimit,readSavedGame,startMix,saveGame,store,transaction} from "@/lib/store";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 
 export async function GET(req:NextRequest){
   let {token}=anonymousIdentity(req);
   try{
     const authenticated=await identity(req,token);token=authenticated.token;const {player}=authenticated;const db=await store();
-    const state=await transaction(db,async tx=>{
-      const game=await findGame(tx,player);if(!game||!audioEnabled())return null;
-      ensureChoices(game);expireGuess(game);await saveGame(tx,game);return publicGame(game);
-    });
+    const game=audioEnabled()?await readSavedGame(db,player):null;
+    const state=game?publicGame(game):null;
     const statsSynced=state&&["guessing","listening"].includes(state.phase)?undefined:await flushAccountResults(db,player,events=>publishResults(req,"encore",events));
     return reply({game:state,audioEnabled:audioEnabled(),statsSynced},token);
   }catch{return reply({error:"Your mix couldn't load. Please retry."},token,503);}

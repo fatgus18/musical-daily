@@ -9,8 +9,47 @@ import { appleTrack, distinctRecordings, loadArtist, releaseBatch, songKey } fro
 import type { Artist, Track } from "../src/lib/catalog.ts";
 import { answerMatches } from "../src/lib/rules.ts";
 import { boundedResponseText } from "../src/lib/provider-http.ts";
+import { openLocalDatabase, type Database } from "@musical-daily/database";
 
 const artist: Artist = { id: "apple:123", name: "No Chart Artist", image: "", url: "https://music.apple.com/us/artist/123" };
+test("recent metadata hits use one query, with guarded recency updates only once per minute", async () => {
+  const db = openLocalDatabase(join(mkdtempSync(join(tmpdir(), "encore-cache-reads-")), "cache.sqlite"));
+  const queries: string[] = [];
+  let concurrentTouch: number | undefined;
+  const measured: Database = {
+    ...db,
+    async execute(sql, args) {
+      queries.push(sql);
+      const result = await db.execute(sql, args);
+      if (sql.startsWith("SELECT value,") && concurrentTouch !== undefined) {
+        await db.execute("UPDATE provider_cache SET touched=? WHERE key=?", [concurrentTouch, "artist"]);
+        concurrentTouch = undefined;
+      }
+      return result;
+    },
+  };
+  const cache = new MetadataCache(measured);
+  const now = Date.now();
+  try {
+    await cache.put("artist", { songs: 100 }, 120_000, 120_000, now);
+    queries.length = 0;
+    assert.deepEqual(await cache.get("artist", false, now + 1), { value: { songs: 100 }, stale: false });
+    assert.equal(queries.length, 1, "A fresh cache hit must not wait for a no-op remote write");
+    queries.length = 0;
+    await cache.get("artist", false, now + 60_001);
+    assert.equal(queries.length, 2, "Older hits still update eviction recency");
+    queries.length = 0;
+    await cache.get("artist", false, now + 60_002);
+    assert.equal(queries.length, 1);
+    concurrentTouch = now + 150_000;
+    assert.equal((await cache.get("artist", true, now + 120_002))?.stale, true);
+    assert.equal(Number((await db.execute("SELECT touched FROM provider_cache WHERE key=?", ["artist"])).rows[0].touched), now + 150_000,
+      "An older read must not overwrite another worker's newer recency");
+    assert.equal(await cache.get("artist", false, now + 120_003), undefined);
+    assert.equal(await cache.get("artist", true, now + 240_000), undefined);
+  } finally { await cache.close(); db.close(); }
+});
+
 function track(title: string, id = 1): Track {
   return { id: `apple:${id}`, title, artist: artist.name, artistId: artist.id, aliases: [title], rank: 0, duration: 180,
     preview: "https://audio-ssl.itunes.apple.com/test.m4a", artwork: "", url: "https://music.apple.com/us/song/123" };

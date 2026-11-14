@@ -5,9 +5,13 @@ import {discardGame,migrateRetiredMetric,settleClock} from "./engine.ts";
 import {loadCatalog} from "./catalog.ts";
 import {initializeCatalogStorage} from "./catalog-storage.ts";
 import {initializeRecords,recordFinishedBank} from "./records.ts";
+import {findDailyGame} from "./daily.ts";
 
 export async function openStore(path?:string):Promise<Database>{
   const db=path===undefined?databaseFor("double-drop"):openLocalDatabase(path);
+  await initializeStore(db);return db;
+}
+export async function initializeStore(db:Database){
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS games(id TEXT PRIMARY KEY,player TEXT NOT NULL,request_id TEXT NOT NULL,revision INTEGER NOT NULL,active INTEGER NOT NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,state TEXT NOT NULL,UNIQUE(player,request_id));
     CREATE INDEX IF NOT EXISTS games_player ON games(player,created_at DESC);
@@ -19,12 +23,12 @@ export async function openStore(path?:string):Promise<Database>{
     CREATE INDEX IF NOT EXISTS account_result_player ON account_result_outbox(player,synced_at);`);
   // Replace the original one-run index atomically: one unlimited and one daily may
   // coexist, but no request race may create another attempt for a UTC date.
-  await db.transaction(async tx=>{
-    await tx.execute("DROP INDEX IF EXISTS games_one_active");
-    await tx.execute("CREATE UNIQUE INDEX IF NOT EXISTS games_one_active_mode ON games(player,coalesce(json_extract(state,'$.mode'),'unlimited')) WHERE active=1");
-    await tx.execute("CREATE UNIQUE INDEX IF NOT EXISTS games_daily_attempt ON games(player,json_extract(state,'$.dailyDate')) WHERE json_extract(state,'$.mode')='daily'");
-  });
-  await initializeRecords(db);await initializeCatalogStorage(db);return db;
+  await db.batch([
+    {sql:"DROP INDEX IF EXISTS games_one_active"},
+    {sql:"CREATE UNIQUE INDEX IF NOT EXISTS games_one_active_mode ON games(player,coalesce(json_extract(state,'$.mode'),'unlimited')) WHERE active=1"},
+    {sql:"CREATE UNIQUE INDEX IF NOT EXISTS games_daily_attempt ON games(player,json_extract(state,'$.dailyDate')) WHERE json_extract(state,'$.mode')='daily'"},
+  ]);
+  await initializeRecords(db);await initializeCatalogStorage(db);
 }
 const globalStore=globalThis as typeof globalThis&{doubleDropAsyncStore?:Promise<Database>;doubleDropPruning?:Promise<unknown>;doubleDropLastPrune?:number};
 export async function store(){
@@ -45,13 +49,27 @@ export async function findModeGame(db:SqlExecutor,player:string,mode:GameMode){
   return row?JSON.parse(String(row.state)) as Game:null;
 }
 export async function findRequest(db:SqlExecutor,player:string,requestId:string){const row=(await db.execute("SELECT state FROM games WHERE player=? AND request_id=?",[player,requestId])).rows[0];return row?JSON.parse(String(row.state)) as Game:null;}
+function reconcileSavedGame(game:Game,now:number){
+  // Tempo was retired before cloud artist snapshots existed; all legacy versions are bundled.
+  if(game.phase!=="complete"&&(game.metricFilter==="tempo"||game.phase==="guess"&&game.pair.metric==="tempo"))migrateRetiredMetric(game,loadCatalog(game.catalogVersion),()=>loadCatalog(),now);
+  settleClock(game,now);
+}
+/** Reads use a fresh snapshot; only migrations and elapsed clocks take the write lock. */
+export async function readModeGame(db:Database,player:string,mode:GameMode,date:string,clock:()=>number=Date.now){
+  const saved=await findModeGame(db,player,mode),revision=saved?.revision;
+  if(saved)reconcileSavedGame(saved,clock());
+  if(saved&&saved.revision!==revision)return transaction(db,async tx=>{
+    const current=await findModeGame(tx,player,mode);
+    await settleSavedGame(tx,current,clock());
+    return mode==="daily"?current?.dailyDate===date?current:findDailyGame(tx,player,date):current;
+  });
+  return mode==="daily"?saved?.dailyDate===date?saved:findDailyGame(db,player,date):saved;
+}
 /** Caller owns the transaction so timer settlement, personal records and outbox remain atomic. */
 export async function settleSavedGame(db:SqlExecutor,game:Game|null,now=Date.now()){
   if(game){
     const revision=game.revision;
-    // Tempo was retired before cloud artist snapshots existed; all legacy versions are bundled.
-    if(game.phase!=="complete"&&(game.metricFilter==="tempo"||game.phase==="guess"&&game.pair.metric==="tempo"))migrateRetiredMetric(game,loadCatalog(game.catalogVersion),()=>loadCatalog(),now);
-    settleClock(game,now);
+    reconcileSavedGame(game,now);
     if(game.revision!==revision)await saveGame(db,game,revision);
   }
   return game;

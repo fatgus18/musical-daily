@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AccountButton, AccountSignIn, accountApiPath, useAccount, guestOnly, type AccountUser } from "./account-client";
-import { createAccountRequestCoordinator } from "./account-requests";
+import { accountReadSignal, createAccountRequestCoordinator } from "./account-requests";
 import { withBasePath } from "@/lib/app-path";
 import { MusicalDailyBrand } from "./musical-daily-brand";
 import type { AccountStats, GameStats, GameId } from "@musical-daily/accounts";
@@ -125,14 +125,14 @@ export default function MusicStats(props: MusicStatsProps) {
 function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
   const { user, loading: accountLoading, error: accountError, refresh } = useAccount();
   const [data, setData] = useState<StatsResponse | null>(null);
-  const [pending, setPending] = useState(!!user);
+  const [pending, setPending] = useState(!!user && !accountError);
   const [failure, setFailure] = useState<string | null>(null);
   const [requests] = useState(createAccountRequestCoordinator);
   const accountId = user?.id;
   const reload = useCallback((): Promise<void> => {
     if (!accountId || accountLoading || accountError) return Promise.resolve();
     return requests.run(async signal => {
-      const response = await fetch(accountApiPath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal });
+      const response = await fetch(accountApiPath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal: accountReadSignal(signal) });
       if (signal.aborted) throw new DOMException("Stats request cancelled", "AbortError");
       if (response.status === 401) { await refresh(); throw new Error("Please sign in again to see your stats."); }
       if (!response.ok) throw new Error("Your stats could not be loaded. Your saved scores are still safe.");
@@ -142,7 +142,9 @@ function MusicStatsContent({ game, hubUrl, gameUrls = {} }: MusicStatsProps) {
       return result;
     }, {
       success: result => { setData(result); setFailure(null); },
-      error: reason => setFailure(reason instanceof Error ? reason.message : "We could not load your stats."),
+      error: reason => setFailure(reason instanceof Error && reason.name === "TimeoutError"
+        ? "Your stats took too long to load. Your saved scores are still safe. Please retry."
+        : reason instanceof Error ? reason.message : "We could not load your stats."),
       settled: () => setPending(false),
     });
   }, [accountId, accountLoading, accountError, refresh, requests]);

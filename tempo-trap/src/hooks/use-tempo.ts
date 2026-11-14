@@ -5,6 +5,7 @@ import { EMPTY_STATS, freshProgress, readStats, recordDaily, restoreGame, saveGa
 import type { Mode, Progress, Puzzle, RoundResult, SavedGame, Stats } from "@/lib/types";
 import type { GameStats } from "@musical-daily/accounts";
 import { useSound } from "@/components/sound-client";
+import { accountApiPath } from "@/components/account-client";
 import { withBasePath } from "@/lib/app-path";
 
 export function useTempo(accountId: string | null = null) {
@@ -16,6 +17,7 @@ export function useTempo(accountId: string | null = null) {
   const [error, setError] = useState<string | null>(null);
   const [storageWarning, setStorageWarning] = useState(false);
   const [stats, setStats] = useState<Stats>(EMPTY_STATS);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [remaining, setRemaining] = useState(15);
   const [volume, setVolumeState] = useState(80);
@@ -29,6 +31,7 @@ export function useTempo(accountId: string | null = null) {
   const source = useRef<AudioBufferSourceNode | null>(null);
   const generation = useRef(0);
   const request = useRef<AbortController | null>(null);
+  const statsRequest = useRef<AbortController | null>(null);
   const mounted = useRef(true);
   const busy = useRef(false);
   const playbackStart = useRef(0);
@@ -53,14 +56,25 @@ export function useTempo(accountId: string | null = null) {
 
   const refreshStats = useCallback(async () => {
     if (!accountId) { setStats(readStats()); return; }
-    const response = await fetch(withBasePath("/api/account/stats"), { cache: "no-store" });
-    if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
-    const payload = await response.json() as { games: { tempo: GameStats } };
-    const saved = payload.games.tempo;
-    const latestDailyDate = saved.recent.filter(result => result.mode === "daily").map(result => result.date).sort().at(-1) || null;
-    setStats({ played: saved.played, totalScore: saved.totalScore, best: saved.bestScore, streak: saved.currentStreak,
-      longestStreak: saved.bestStreak, lastDate: latestDailyDate,
-      history: [...saved.recent].reverse().map(result => ({ date: result.date, score: result.score })) });
+    statsRequest.current?.abort();
+    const controller = new AbortController(); statsRequest.current = controller;
+    const current = generation.current;
+    const active = () => mounted.current && generation.current === current && statsRequest.current === controller && !controller.signal.aborted;
+    setStatsError(null);
+    try {
+      const response = await fetch(accountApiPath("/api/account/stats"), { cache: "no-store", credentials: "same-origin", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15_000)]) });
+      if (!response.ok) throw new Error("Your statistics couldn't sync. Retry in a moment.");
+      const payload = await response.json() as { user?: { id: string }; games: { tempo: GameStats } };
+      if (!active()) return;
+      if (payload.user?.id !== accountId) throw new Error("Your account changed. Refresh your account to see your statistics.");
+      const saved = payload.games.tempo;
+      const latestDailyDate = saved.recent.filter(result => result.mode === "daily").map(result => result.date).sort().at(-1) || null;
+      setStats({ played: saved.played, totalScore: saved.totalScore, best: saved.bestScore, streak: saved.currentStreak,
+        longestStreak: saved.bestStreak, lastDate: latestDailyDate,
+        history: [...saved.recent].reverse().map(result => ({ date: result.date, score: result.score })) });
+    } catch (cause) {
+      if (active()) setStatsError(cause instanceof Error && cause.name !== "TimeoutError" ? cause.message : "Your statistics took too long to load. Please retry.");
+    } finally { if (statsRequest.current === controller) statsRequest.current = null; }
   }, [accountId]);
 
   const stop = useCallback(() => {
@@ -70,7 +84,7 @@ export function useTempo(accountId: string | null = null) {
   const load = useCallback(async (mode: Mode = "daily", resume = true) => {
     generation.current++; const current = generation.current;
     audibleRound.current = null;
-    stop(); request.current?.abort(); busy.current = false;
+    stop(); request.current?.abort(); statsRequest.current?.abort(); busy.current = false;
     setLoading(true); setError(null); setElapsed(0); setRemaining(15);
     const controller = new AbortController(); request.current = controller;
     try {
@@ -94,7 +108,9 @@ export function useTempo(accountId: string | null = null) {
       }
       commit(restored?.puzzle || puzzle, restored?.progress || freshProgress(puzzle));
       setElapsed(restored && ["guessing", "submitting", "reveal", "complete"].includes(restored.progress.phase) ? 15 : 0);
-      await refreshStats();
+      // Account history is secondary: a ready puzzle should be playable even
+      // when the statistics service is slow or temporarily unavailable.
+      void refreshStats();
     } catch (e) {
       if (mounted.current && current === generation.current && !controller.signal.aborted) setError(e instanceof Error && e.name !== "TimeoutError" ? e.message : "The mix took too long to load. Try again.");
     } finally { if (mounted.current && current === generation.current) setLoading(false); }
@@ -103,7 +119,7 @@ export function useTempo(accountId: string | null = null) {
   useEffect(() => {
     mounted.current = true;
     void load();
-    return () => { mounted.current = false; generation.current++; request.current?.abort(); stop(); void context.current?.close().catch(() => {}); context.current = null; };
+    return () => { mounted.current = false; generation.current++; request.current?.abort(); statsRequest.current?.abort(); stop(); void context.current?.close().catch(() => {}); context.current = null; };
   }, [load, stop]);
 
   // Keep open/background tabs aligned with the server's IST day. Clock sync is
@@ -157,7 +173,7 @@ export function useTempo(accountId: string | null = null) {
         playSound(answer.result.difference !== null && answer.result.difference <= 15 ? "correct" : "wrong");
       }
       if (puzzle.mode === "daily" && answer.results.length === 5) {
-        if (accountId) await refreshStats();
+        if (accountId) void refreshStats();
         else setStats(recordDaily(puzzle.date, answer.results.reduce((n, r) => n + r.score, 0)));
       }
     } catch (e) {
@@ -261,5 +277,5 @@ export function useTempo(accountId: string | null = null) {
     commit(current.puzzle, { ...current.progress, phase: current.progress.round === 4 ? "complete" : "ready", round: Math.min(4, current.progress.round + 1), guess: "", deadline: null });
   };
   const setVolume = (value: number) => { volumeRef.current = value; setVolumeState(value); if (gain.current) gain.current.gain.value = value / 100; };
-  return { game, loading, error, stats, elapsed, remaining, volume, storageWarning, today, clockNow, newDailyAvailable, load, play, submit, setGuess, next, setVolume };
+  return { game, loading, error, stats, statsError, refreshStats, elapsed, remaining, volume, storageWarning, today, clockNow, newDailyAvailable, load, play, submit, setGuess, next, setVolume };
 }
